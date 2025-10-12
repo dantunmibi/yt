@@ -14,12 +14,24 @@ def get_font_path():
         return "C:/Windows/Fonts/arial.ttf"
     elif system == "Darwin":  # macOS
         return "/System/Library/Fonts/Supplemental/Arial.ttf"
-    else:  # Linux
+    else:  # Linux (GitHub Actions)
+        # Try common font locations in order of preference
+        font_options = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        ]
+        for font in font_options:
+            if os.path.exists(font):
+                return font
+        # Fallback
         return "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 FONT = get_font_path()
+print(f"📝 Using font: {FONT}")
 
-TMP = "/github/workspace/tmp"
+TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 OUT = os.path.join(TMP, "short.mp4")
 w, h = 1080, 1920
 

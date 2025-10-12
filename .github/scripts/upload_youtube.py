@@ -6,7 +6,7 @@ from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 from google.oauth2.credentials import Credentials
 
-TMP = "/github/workspace/tmp"
+TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 VIDEO = os.path.join(TMP, "short.mp4")
 THUMB = os.path.join(TMP, "thumbnail.png")
 

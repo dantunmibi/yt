@@ -41,7 +41,7 @@ jobs:
           pip install google-generativeai requests beautifulsoup4 moviepy google-api-python-client google-auth Pillow python-dotenv
 
       - name: Make tmp folder
-        run: mkdir -p /github/workspace/tmp
+        run: mkdir -p tmp
 
       - name: Generate trending topic & script
         env:

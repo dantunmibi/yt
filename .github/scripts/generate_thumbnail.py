@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import platform
 
-TMP = "/github/workspace/tmp"
+TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 
 # Get system font path
 def get_font_path(size=72):

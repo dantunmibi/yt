@@ -5,7 +5,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 
 # 0️⃣ Set temporary directory
-TMP_DIR = "/github/workspace/tmp"
+TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 
 # 1️⃣ Load Gemini API key
 load_dotenv()

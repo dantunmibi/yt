@@ -3,7 +3,7 @@ import os, json, requests
 from dotenv import load_dotenv
 
 load_dotenv()
-TMP_DIR = "/github/workspace/tmp"
+TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 ELEVEN_KEY = os.getenv("ELEVENLABS_API_KEY")
 VOICE_ID = os.getenv("ELEVEN_VOICE_ID")  # replace if needed
 
