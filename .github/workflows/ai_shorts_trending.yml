@@ -1,9 +1,9 @@
-name: AI Trending Shorts Pipeline
+name: AI Trending Shorts Pipeline v2
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 12 * * *'  # change schedule if desired
+    - cron: '0 12 * * *'  # Daily at 12:00 UTC
 
 jobs:
   build_and_upload:
@@ -25,7 +25,6 @@ jobs:
             fonts-dejavu-core \
             fonts-liberation \
             fonts-freefont-ttf
-          # Verify fonts are installed
           echo "📝 Available fonts:"
           fc-list | grep -i dejavu | head -3
           fc-list | grep -i liberation | head -3
@@ -38,10 +37,25 @@ jobs:
       - name: Install Python packages
         run: |
           python -m pip install --upgrade pip
-          pip install google-generativeai requests beautifulsoup4 moviepy google-api-python-client google-auth Pillow python-dotenv
+          pip install \
+            google-generativeai \
+            requests \
+            beautifulsoup4 \
+            moviepy \
+            google-api-python-client \
+            google-auth \
+            Pillow \
+            python-dotenv \
+            tenacity \
+            pytrends
 
       - name: Make tmp folder
         run: mkdir -p tmp
+
+      - name: Fetch trending topics
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python .github/scripts/fetch_trending.py
 
       - name: Generate trending topic & script
         env:
@@ -69,6 +83,19 @@ jobs:
 
       - name: Upload artifact (latest short)
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: latest-short
-          path: /github/workspace/tmp/short.mp4
+          name: latest-short-${{ github.run_number }}
+          path: |
+            tmp/short.mp4
+            tmp/thumbnail.png
+            tmp/script.json
+          retention-days: 30
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-logs-${{ github.run_number }}
+          path: tmp/*.log
+          retention-days: 7
