@@ -88,7 +88,7 @@ if hook:
         TextClip(
             text=hook,
             font=FONT,
-            font_size=70,
+            font_size=60,
             color="white",
             method="caption",
             size=(w - 100, None),
