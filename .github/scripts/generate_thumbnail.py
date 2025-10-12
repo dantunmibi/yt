@@ -64,7 +64,42 @@ except Exception as e:
     print(f"⚠️ Pollinations failed ({e}), using solid color fallback")
     # fallback create solid color
     img = Image.new("RGB", (1280, 720), (30, 144, 255))
-    img.save(thumb_path)
+    img.save(bg_path)
 
+# Open and process image
+img = Image.open(bg_path).convert("RGBA")
+draw = ImageDraw.Draw(img)
+
+# Get font
+font = get_font_path(72)
+print(f"📝 Using font for thumbnail")
+
+w, h = img.size
+
+# Get text size using textbbox (textsize is deprecated)
+bbox = draw.textbbox((0, 0), text, font=font)
+text_w = bbox[2] - bbox[0]
+text_h = bbox[3] - bbox[1]
+
+x = (w - text_w) / 2
+y = (h - text_h) / 2
+
+# Draw rectangle for contrast
+rect_pad = 30
+overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+od = ImageDraw.Draw(overlay)
+od.rectangle(
+    [x - rect_pad, y - rect_pad, x + text_w + rect_pad, y + text_h + rect_pad],
+    fill=(0, 0, 0, 0)
+)
+img = Image.alpha_composite(img, overlay)
+
+# Draw text with shadow
+draw = ImageDraw.Draw(img)
+draw.text((x + 3, y + 3), text, font=font, fill="white")  # Shadow
+draw.text((x, y), text, font=font, fill="white")  # Main text
+
+# Save thumbnail
 thumb_path = os.path.join(TMP, "thumbnail.png")
+img.convert("RGB").save(thumb_path)
 print(f"✅ Saved thumbnail to {thumb_path}")
