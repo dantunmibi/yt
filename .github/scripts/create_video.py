@@ -63,8 +63,14 @@ except Exception as e:
     bg_path = None
 
 # Load audio
-audio = AudioFileClip(os.path.join(TMP, "voice.mp3"))
+audio_path = os.path.join(TMP, "voice.mp3")
+if not os.path.exists(audio_path):
+    print(f"❌ Audio file not found: {audio_path}")
+    raise FileNotFoundError(f"voice.mp3 not found")
+
+audio = AudioFileClip(audio_path)
 duration = audio.duration
+print(f"🎵 Audio loaded: {duration:.2f} seconds")
 
 # Background clip
 if not bg_path or not os.path.exists(bg_path):
@@ -77,6 +83,7 @@ clips = [bg_clip]
 # Hook text
 hook_dur = min(3, duration)
 if hook:
+    print(f"📝 Adding hook text: {hook[:50]}...")
     hook_txt = (
         TextClip(
             text=hook,
@@ -91,16 +98,20 @@ if hook:
         .with_position(("center", 200))
     )
     clips.append(hook_txt)
+else:
+    print("⚠️ No hook text found")
 
 # Bullets
 remaining = max(0, duration - hook_dur - 2.5)
 per = remaining / max(1, len(bullets)) if bullets else 0
 y = 850
 
+print(f"📋 Adding {len(bullets)} bullet points...")
 for i, b in enumerate(bullets):
     if not b:  # Skip empty bullets
         continue
     start = hook_dur + i * per
+    print(f"   Bullet {i+1}: {start:.1f}s - {start+per:.1f}s")
     t = (
         TextClip(
             text=b,
@@ -119,6 +130,7 @@ for i, b in enumerate(bullets):
 
 # CTA
 if cta:
+    print(f"📢 Adding CTA: {cta[:50]}...")
     cta_txt = (
         TextClip(
             text=cta,
@@ -134,19 +146,39 @@ if cta:
         .with_position(("center", h - 250))
     )
     clips.append(cta_txt)
+else:
+    print("⚠️ No CTA text found")
 
 # Compose final video
-video = CompositeVideoClip(clips, size=(w, h)).with_audio(audio)
+print(f"🎬 Composing video with {len(clips)} clips...")
+video = CompositeVideoClip(clips, size=(w, h))
+
+# Set audio
+print(f"🔊 Attaching audio...")
+video = video.with_audio(audio)
+
+# Verify audio is attached
+if video.audio is None:
+    print("❌ ERROR: No audio attached to video!")
+    raise Exception("Audio failed to attach")
+else:
+    print(f"✅ Audio verified: {video.audio.duration:.2f}s")
+
+print(f"📹 Writing video file to {OUT}...")
 video.write_videofile(
     OUT, 
     fps=24, 
     codec="libx264", 
     audio_codec="aac", 
     threads=2,
-    preset='medium'
+    preset='medium',
+    audio_bitrate='192k',
+    verbose=True
 )
 
 print(f"✅ Saved video to {OUT}")
+print(f"   Duration: {duration:.2f}s")
+print(f"   Size: {os.path.getsize(OUT) / (1024*1024):.2f} MB")
 
 # Clean up
 audio.close()
