@@ -66,5 +66,5 @@ except Exception as e:
     img = Image.new("RGB", (1280, 720), (30, 144, 255))
     img.save(thumb_path)
 
-
+thumb_path = os.path.join(TMP, "thumbnail.png")
 print(f"✅ Saved thumbnail to {thumb_path}")
