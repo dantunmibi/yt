@@ -173,7 +173,6 @@ video.write_videofile(
     threads=2,
     preset='medium',
     audio_bitrate='192k',
-    verbose=True
 )
 
 print(f"✅ Saved video to {OUT}")
