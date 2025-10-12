@@ -1,103 +1,117 @@
 # .github/scripts/generate_trending_and_script.py
-import os, json, random, requests
-from bs4 import BeautifulSoup
+import os
+import json
+import re
 import google.generativeai as genai
-from dotenv import load_dotenv
 
-# 0️⃣ Set temporary directory
+# Set up paths
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 
-# 1️⃣ Load Gemini API key
-load_dotenv()
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise ValueError("❌ Missing GEMINI_API_KEY in environment variables. Get one at https://aistudio.google.com/app/apikey")
+# Configure Gemini
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-genai.configure(api_key=api_key)
-
-# 2️⃣ Scrape trending Shorts titles
-headers = {"User-Agent": "Mozilla/5.0"}
-url = "https://www.youtube.com/feed/trending?bp=EgZzcm9ydHM%3D"
-titles = []
-
+# List available models and use the best one
 try:
-    r = requests.get(url, headers=headers, timeout=15)
-    soup = BeautifulSoup(r.text, "html.parser")
-    titles = [meta["content"] for meta in soup.find_all("meta", itemprop="name") if meta.get("content")]
-    titles = [t for t in titles if len(t.split()) > 2]
+    models = genai.list_models()
+    # Prefer gemini-2.0-flash-exp or gemini-1.5-flash
+    model_name = None
+    for m in models:
+        if 'generateContent' in m.supported_generation_methods:
+            if '2.0-flash' in m.name or '2.5-flash' in m.name:
+                model_name = m.name
+                break
+            elif '1.5-flash' in m.name and not model_name:
+                model_name = m.name
+    
+    if not model_name:
+        model_name = "models/gemini-1.5-flash"
+    
+    print(f"✅ Using model: {model_name}")
+    model = genai.GenerativeModel(model_name)
 except Exception as e:
-    print("⚠️ Error fetching trending titles:", e)
+    print(f"⚠️ Error listing models: {e}")
+    print("Using default model: gemini-1.5-flash")
+    model = genai.GenerativeModel("models/gemini-1.5-flash")
 
-if not titles:
-    titles = [
-        "Amazing AI tools you need to know",
-        "Weird psychology fact you didn’t know",
-        "How billionaires think differently",
-        "Mind-blowing science facts about space",
-    ]
+# Generate trending topic and script
+prompt = """You are a YouTube Shorts content creator. Generate a trending, engaging topic and a short script for a 30-60 second video.
 
-# 3️⃣ Filter by niche keywords
-keywords = ["AI", "psychology", "motivation", "facts", "technology", "business", "science", "success", "money"]
-filtered = [t for t in titles if any(k.lower() in t.lower() for k in keywords)]
-topic = random.choice(filtered if filtered else titles).strip()
+Requirements:
+- Topic should be interesting, viral-worthy, and relevant to current trends
+- Include a strong hook (first 3 seconds)
+- 3 key bullet points (main content)
+- Strong call-to-action at the end
+- Keep it concise and punchy
 
-# 4️⃣ Prompt Gemini
-prompt = f"""
-You are a YouTube Shorts scriptwriter.
-Generate a 40–70 word script as JSON with keys:
-- title (<=60 chars)
-- hook (1 line)
-- bullets (2–3 short lines)
-- cta (1 line)
-Use a viral, curiosity-driven tone.
-Topic: '{topic}'
-Return valid JSON only.
-"""
+Return ONLY a JSON object with this exact structure:
+{
+  "title": "Catchy title under 100 characters",
+  "topic": "One word topic category (e.g., tech, psychology, business)",
+  "hook": "Attention-grabbing opening line",
+  "bullets": [
+    "First key point",
+    "Second key point", 
+    "Third key point"
+  ],
+  "cta": "Call to action"
+}
 
-# ✅ Use latest working model
-MODEL = "models/gemini-2.5-flash"
-print(f"✅ Using model: {MODEL}")
-model = genai.GenerativeModel(model_name=MODEL)
-
-# 5️⃣ Generate response
-response = model.generate_content(prompt)
-content = (response.text or "").strip()
-
-# 6️⃣ Parse Gemini response safely
-if not content:
-    print("⚠️ Gemini returned an empty response. Exiting...")
-    exit()
+Make it engaging and trendy!"""
 
 try:
-    data = json.loads(content)
-except json.JSONDecodeError:
-    print("⚠️ Gemini returned non-JSON. Attempting to fix...")
-    print("🔍 Raw output:", repr(content))
-    re_prompt = f"""
-    Convert the following text into valid JSON only.
-    It must have keys: title, hook, bullets, cta.
-    No explanations, no markdown, no code blocks.
-    Input:
-    {content}
-    """
-    fixed = model.generate_content(re_prompt)
-    fixed_text = (fixed.text or "").strip()
+    response = model.generate_content(prompt)
+    raw_text = response.text.strip()
+    print(f"🔍 Raw output: {raw_text!r}")
+    
+    # Try to extract JSON from markdown code blocks
+    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw_text, re.DOTALL)
+    if json_match:
+        json_text = json_match.group(1)
+        print("⚠️ Gemini returned JSON in code block. Extracting...")
+    else:
+        # Try to find JSON directly
+        json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+        if json_match:
+            json_text = json_match.group(0)
+            print("⚠️ Gemini returned non-JSON. Attempting to fix...")
+        else:
+            raise ValueError("No JSON found in response")
+    
+    data = json.loads(json_text)
+    
+    # Validate required fields
+    required_fields = ["title", "topic", "hook", "bullets", "cta"]
+    for field in required_fields:
+        if field not in data:
+            raise ValueError(f"Missing required field: {field}")
+    
+    if not isinstance(data["bullets"], list) or len(data["bullets"]) < 3:
+        raise ValueError("bullets must be a list with at least 3 items")
+    
+    print("✅ Script generated successfully")
+    print(f"   Title: {data['title']}")
+    print(f"   Topic: {data['topic']}")
+    
+except Exception as e:
+    print(f"❌ Error generating script: {e}")
+    print("Using fallback script...")
+    data = {
+        "title": "AI is Changing Everything",
+        "topic": "technology",
+        "hook": "Did you know AI can now do THIS?",
+        "bullets": [
+            "AI is revolutionizing how we work",
+            "It's making tasks 10x faster",
+            "The future is already here"
+        ],
+        "cta": "Follow for more AI insights!"
+    }
 
-    if not fixed_text:
-        print("❌ Gemini returned nothing when trying to fix JSON.")
-        exit()
+# Create tmp directory and save script
+os.makedirs(TMP, exist_ok=True)
+script_path = os.path.join(TMP, "script.json")
 
-    try:
-        data = json.loads(fixed_text)
-    except json.JSONDecodeError:
-        print("❌ Still invalid JSON. Here’s what Gemini returned:")
-        print(fixed_text)
-        exit()
+with open(script_path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
 
-# 7️⃣ Save results
-os.makedirs(TMP_DIR, exist_ok=True)
-with open(os.path.join(TMP_DIR, "script.json"), "w", encoding="utf-8") as f:
-    json.dump({"topic": topic, **data}, f, ensure_ascii=False, indent=2)
-
-print("✅ Topic:", topic)
-print(f"✅ Saved script to {os.path.join(TMP_DIR, 'script.json')}")
+print(f"✅ Saved script to {script_path}")
