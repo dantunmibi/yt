@@ -43,7 +43,7 @@ description = data.get("description", f"{title} — Auto-generated AI Short")
 snippet = {
     "title": title[:100],
     "description": description[:5000],  # YouTube limit is 5000 chars
-    "tags": ["ai", "shorts", "trending", "automation"],
+    "tags": ["ai", "shorts", "trending", "for you"],
     "categoryId": "27"  # Education category
 }
 body = {

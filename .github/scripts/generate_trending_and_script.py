@@ -34,7 +34,7 @@ except Exception as e:
     model = genai.GenerativeModel("models/gemini-1.5-flash")
 
 # Generate trending topic and script
-prompt = """You are a YouTube Shorts content creator. Generate a trending, engaging topic and a short script for a 30-60 second video.
+prompt = """You are a YouTube Shorts content creator. Generate a trending, engaging topi and a short script from a trending youtube niche for a 30-60 second video.
 
 Requirements:
 - Topic should be interesting, viral-worthy, and relevant to current trends
