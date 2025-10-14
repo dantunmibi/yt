@@ -262,19 +262,41 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             text_align='center'
         )
         text_height = temp_clip.h
+        text_width = temp_clip.w
         
-        # Determine safe Y position
+        # Add extra padding for safety (accounts for descent, shadows, etc.)
+        text_height_with_padding = int(text_height * 1.2)  # 20% extra space
+        
+        # Determine safe Y position based on desired position
         if position_y == 'center':
-            pos_y = (h - text_height) // 2
+            # Center with padding
+            pos_y = (h - text_height_with_padding) // 2
         elif isinstance(position_y, int):
-            # Ensure text doesn't go off screen
+            # For specific positions, ensure full text visibility
             min_y = SAFE_ZONE_MARGIN
-            max_y = h - SAFE_ZONE_MARGIN - text_height
+            max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding
+            
+            # Clamp position to safe range
             pos_y = max(min_y, min(position_y, max_y))
+            
+            # Special handling for bottom text (CTA)
+            if position_y > h * 0.7:  # If intended for lower portion
+                # Position from bottom up to ensure it fits
+                pos_y = h - SAFE_ZONE_MARGIN - text_height_with_padding
         else:
-            pos_y = position_y
+            pos_y = SAFE_ZONE_MARGIN
         
-        print(f"      Text: '{wrapped_text[:30]}...' at Y={pos_y}, font={font_size}px, height={text_height}px")
+        # Final safety check - ensure we're not off screen
+        if pos_y + text_height_with_padding > h - SAFE_ZONE_MARGIN:
+            pos_y = h - SAFE_ZONE_MARGIN - text_height_with_padding
+        
+        if pos_y < SAFE_ZONE_MARGIN:
+            pos_y = SAFE_ZONE_MARGIN
+        
+        print(f"      Text: '{wrapped_text[:30]}...'")
+        print(f"         Position: Y={pos_y}, Height={text_height}px (+padding={text_height_with_padding}px)")
+        print(f"         Font: {font_size}px, Width={text_width}px")
+        print(f"         Bottom edge: {pos_y + text_height_with_padding}px (screen: {h}px)")
         
         # Shadow layer (larger, softer, slightly offset)
         shadow = (TextClip(
@@ -370,7 +392,7 @@ if cta:
         cta,
         cta_dur,
         current_time,
-        position_y=1500,  # Lower portion of screen
+        position_y=1400,  # Request lower portion (will be adjusted to fit)
         color_fallback=(255, 20, 147)
     )
     clips.extend(cta_clips)
