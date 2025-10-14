@@ -62,10 +62,11 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python .github/scripts/generate_trending_and_script.py
 
-      - name: Generate TTS
-        env:
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-          ELEVEN_VOICE_ID: ${{ secrets.ELEVEN_VOICE_ID }}
+      - name: Install Coqui TTS
+        run: |
+          pip install TTS
+
+      - name: Generate TTS (Local Coqui)
         run: python .github/scripts/generate_tts.py
 
       - name: Create video
