@@ -24,7 +24,8 @@ jobs:
             imagemagick \
             fonts-dejavu-core \
             fonts-liberation \
-            fonts-freefont-ttf
+            fonts-freefont-ttf \
+            espeak-ng  # Required for Coqui TTS
           echo "📝 Available fonts:"
           fc-list | grep -i dejavu | head -3
           fc-list | grep -i liberation | head -3
@@ -47,7 +48,8 @@ jobs:
             Pillow \
             python-dotenv \
             tenacity \
-            pytrends
+            pytrends \
+            gtts
 
       - name: Make tmp folder
         run: mkdir -p tmp
@@ -65,6 +67,7 @@ jobs:
       - name: Install Coqui TTS
         run: |
           pip install TTS
+          python -c "import TTS; print('✅ Coqui TTS installed successfully')"
 
       - name: Generate TTS (Local Coqui)
         run: python .github/scripts/generate_tts.py
