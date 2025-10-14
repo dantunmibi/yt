@@ -127,32 +127,109 @@ print(f"   CTA: {cta_dur:.1f}s")
 clips = []
 current_time = 0
 
+def smart_text_wrap(text, font_size, max_width):
+    """Intelligently wrap text to prevent word splitting across lines"""
+    from PIL import Image, ImageDraw, ImageFont
+    
+    try:
+        # Try to load the actual font for accurate measurement
+        pil_font = ImageFont.truetype(FONT, font_size)
+    except:
+        # Fallback: estimate character width
+        avg_char_width = font_size * 0.6
+        max_chars_per_line = int(max_width / avg_char_width)
+        
+        words = text.split()
+        lines = []
+        current_line = []
+        
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            if len(test_line) <= max_chars_per_line:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
+        
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        return '\n'.join(lines)
+    
+    # Use PIL for accurate text measurement
+    words = text.split()
+    lines = []
+    current_line = []
+    
+    dummy_img = Image.new('RGB', (1, 1))
+    draw = ImageDraw.Draw(dummy_img)
+    
+    for word in words:
+        test_line = ' '.join(current_line + [word])
+        bbox = draw.textbbox((0, 0), test_line, font=pil_font)
+        text_width = bbox[2] - bbox[0]
+        
+        if text_width <= max_width:
+            current_line.append(word)
+        else:
+            if current_line:
+                lines.append(' '.join(current_line))
+            current_line = [word]
+            
+            # Check if single word is too long
+            word_bbox = draw.textbbox((0, 0), word, font=pil_font)
+            word_width = word_bbox[2] - word_bbox[0]
+            if word_width > max_width:
+                # Word itself is too long, will be handled by font size reduction
+                pass
+    
+    if current_line:
+        lines.append(' '.join(current_line))
+    
+    return '\n'.join(lines)
+
 def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
     """Create text with strong outline and shadow for visibility on any background"""
     
+    # Smart wrap to prevent word splitting
+    wrapped_text = smart_text_wrap(text, font_size, max_width)
+    
     # Adaptive font sizing to prevent overflow
     test_clip = TextClip(
-        text=text,
+        text=wrapped_text,
         font=FONT,
         font_size=font_size,
-        method='caption',
-        size=(max_width, None),
+        method='label',  # Changed from 'caption' since we're handling wrapping
         text_align='center'
     )
     
-    # If text is too tall, reduce font size
-    while test_clip.h > h * 0.25 and font_size > 40:  # Max 25% of screen height
+    # If text is too tall, reduce font size and re-wrap
+    max_height = h * 0.3  # Max 30% of screen height
+    while test_clip.h > max_height and font_size > 36:
         font_size -= 4
+        wrapped_text = smart_text_wrap(text, font_size, max_width)
         test_clip = TextClip(
-            text=text,
+            text=wrapped_text,
             font=FONT,
             font_size=font_size,
-            method='caption',
-            size=(max_width, None),
+            method='label',
             text_align='center'
         )
     
-    return font_size
+    # If still too wide, force narrower width
+    while test_clip.w > max_width and font_size > 36:
+        font_size -= 4
+        wrapped_text = smart_text_wrap(text, font_size, max_width - 40)
+        test_clip = TextClip(
+            text=wrapped_text,
+            font=FONT,
+            font_size=font_size,
+            method='label',
+            text_align='center'
+        )
+    
+    return wrapped_text, font_size
 
 def create_scene(image_path, text, duration, start_time, position_y='center', color_fallback=(30, 30, 30)):
     """Create a scene with background image and highly visible text overlay"""
@@ -172,41 +249,54 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
     scene_clips.append(bg)
     
     if text:
-        # Adaptive font sizing
-        font_size = create_text_with_effects(text)
+        # Adaptive font sizing and smart wrapping
+        wrapped_text, font_size = create_text_with_effects(text)
         
         # Calculate actual position to ensure text stays in safe zone
+        # Create temporary clip to measure actual height
+        temp_clip = TextClip(
+            text=wrapped_text,
+            font=FONT,
+            font_size=font_size,
+            method='label',
+            text_align='center'
+        )
+        text_height = temp_clip.h
+        
+        # Determine safe Y position
         if position_y == 'center':
-            pos_y = 'center'
+            pos_y = (h - text_height) // 2
         elif isinstance(position_y, int):
-            # Ensure position is within safe zone
-            pos_y = max(SAFE_ZONE_MARGIN, min(position_y, h - SAFE_ZONE_MARGIN - 200))
+            # Ensure text doesn't go off screen
+            min_y = SAFE_ZONE_MARGIN
+            max_y = h - SAFE_ZONE_MARGIN - text_height
+            pos_y = max(min_y, min(position_y, max_y))
         else:
             pos_y = position_y
         
-        # Shadow layer (larger, softer)
+        print(f"      Text: '{wrapped_text[:30]}...' at Y={pos_y}, font={font_size}px, height={text_height}px")
+        
+        # Shadow layer (larger, softer, slightly offset)
         shadow = (TextClip(
-            text=text,
+            text=wrapped_text,
             font=FONT,
             font_size=font_size,
             color='black',
-            method='caption',
-            size=(TEXT_MAX_WIDTH, None),
+            method='label',
             text_align='center'
         )
         .with_duration(duration)
         .with_start(start_time)
-        .with_position(('center', pos_y))
+        .with_position(('center', pos_y + 4))  # Offset shadow
         .with_effects([vfx.CrossFadeIn(0.3), vfx.CrossFadeOut(0.3)]))
         
-        # Thick outline layer (multiple passes for thickness)
+        # Thick outline layer for extra definition
         outline = (TextClip(
-            text=text,
+            text=wrapped_text,
             font=FONT,
             font_size=font_size,
             color='black',
-            method='caption',
-            size=(TEXT_MAX_WIDTH, None),
+            method='label',
             text_align='center'
         )
         .with_duration(duration)
@@ -214,17 +304,16 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         .with_position(('center', pos_y))
         .with_effects([vfx.CrossFadeIn(0.3), vfx.CrossFadeOut(0.3)]))
         
-        # Main text with thick stroke
+        # Main text with thick stroke (no splitting, centered)
         main_text = (TextClip(
-            text=text,
+            text=wrapped_text,
             font=FONT,
             font_size=font_size,
             color='white',
-            method='caption',
-            size=(TEXT_MAX_WIDTH, None),
+            method='label',
             text_align='center',
             stroke_color='black',
-            stroke_width=4  # Increased from 2 to 4
+            stroke_width=4
         )
         .with_duration(duration)
         .with_start(start_time)
@@ -324,11 +413,12 @@ try:
     print(f"   Duration: {duration:.2f}s")
     print(f"   Size: {os.path.getsize(OUT) / (1024*1024):.2f} MB")
     print(f"   Features:")
+    print(f"      ✓ Smart text wrapping (no word splitting)")
     print(f"      ✓ Text stays within safe boundaries")
     print(f"      ✓ Audio-synchronized text timing")
     print(f"      ✓ High visibility text (outline + shadow)")
     print(f"      ✓ Adaptive font sizing")
-    print(f"      ✓ Word-wrap protection")
+    print(f"      ✓ Dynamic position adjustment")
     
     if not os.path.exists(OUT) or os.path.getsize(OUT) < 100000:
         raise Exception("Output video is missing or too small")
