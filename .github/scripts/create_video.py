@@ -11,8 +11,8 @@ OUT = os.path.join(TMP, "short.mp4")
 w, h = 1080, 1920
 
 # Safe zones for text (avoiding screen edges)
-SAFE_ZONE_MARGIN = 80  # pixels from edge
-TEXT_MAX_WIDTH = w - (2 * SAFE_ZONE_MARGIN)  # 920 pixels
+SAFE_ZONE_MARGIN = 120  # Increased from 80 to 120 pixels from edge
+TEXT_MAX_WIDTH = w - (2 * SAFE_ZONE_MARGIN)  # 840 pixels
 
 def get_font_path():
     system = platform.system()
@@ -204,10 +204,11 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
         text_align='center'
     )
     
-    # If text is too tall, reduce font size and re-wrap
-    max_height = h * 0.3  # Max 30% of screen height
-    while test_clip.h > max_height and font_size > 36:
-        font_size -= 4
+    # If text is too tall, reduce font size and re-wrap - MORE AGGRESSIVE
+    max_height = h * 0.25  # Reduced from 30% to 25% of screen height
+    iterations = 0
+    while test_clip.h > max_height and font_size > 32 and iterations < 10:
+        font_size -= 6  # Larger steps for faster adjustment
         wrapped_text = smart_text_wrap(text, font_size, max_width)
         test_clip = TextClip(
             text=wrapped_text,
@@ -216,11 +217,12 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
             method='label',
             text_align='center'
         )
+        iterations += 1
     
     # If still too wide, force narrower width
-    while test_clip.w > max_width and font_size > 36:
-        font_size -= 4
-        wrapped_text = smart_text_wrap(text, font_size, max_width - 40)
+    while test_clip.w > max_width and font_size > 32:
+        font_size -= 6
+        wrapped_text = smart_text_wrap(text, font_size, max_width - 60)
         test_clip = TextClip(
             text=wrapped_text,
             font=FONT,
@@ -264,8 +266,8 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         text_height = temp_clip.h
         text_width = temp_clip.w
         
-        # Add extra padding for safety (accounts for descent, shadows, etc.)
-        text_height_with_padding = int(text_height * 1.2)  # 20% extra space
+        # Add extra padding for safety (accounts for descent, shadows, stroke, etc.)
+        text_height_with_padding = int(text_height * 1.4)  # Increased from 20% to 40% extra space
         
         # Determine safe Y position based on desired position
         if position_y == 'center':
@@ -274,24 +276,27 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         elif isinstance(position_y, int):
             # For specific positions, ensure full text visibility
             min_y = SAFE_ZONE_MARGIN
-            max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding
+            max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 50  # Extra 50px buffer
             
             # Clamp position to safe range
             pos_y = max(min_y, min(position_y, max_y))
             
-            # Special handling for bottom text (CTA)
-            if position_y > h * 0.7:  # If intended for lower portion
-                # Position from bottom up to ensure it fits
-                pos_y = h - SAFE_ZONE_MARGIN - text_height_with_padding
+            # Special handling for bottom text (CTA) - FORCE from bottom
+            if position_y > h * 0.6:  # If intended for lower half of screen
+                # ALWAYS position from bottom up with generous padding
+                pos_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 100  # Extra 100px safety
         else:
             pos_y = SAFE_ZONE_MARGIN
         
-        # Final safety check - ensure we're not off screen
-        if pos_y + text_height_with_padding > h - SAFE_ZONE_MARGIN:
-            pos_y = h - SAFE_ZONE_MARGIN - text_height_with_padding
+        # FINAL AGGRESSIVE SAFETY CHECK - ensure we're not off screen
+        absolute_max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 80  # Extra 80px
+        if pos_y > absolute_max_y:
+            pos_y = absolute_max_y
+            print(f"      ⚠️ Position adjusted to prevent cutoff: Y={pos_y}")
         
         if pos_y < SAFE_ZONE_MARGIN:
             pos_y = SAFE_ZONE_MARGIN
+            print(f"      ⚠️ Position adjusted (too high): Y={pos_y}")
         
         print(f"      Text: '{wrapped_text[:30]}...'")
         print(f"         Position: Y={pos_y}, Height={text_height}px (+padding={text_height_with_padding}px)")
@@ -384,7 +389,7 @@ for i, bullet in enumerate(bullets):
     print(f"   Bullet {i+1}: {current_time:.1f}s - {current_time + bullet_durs[i]:.1f}s (synced)")
     current_time += bullet_durs[i]
 
-# CTA scene
+# CTA scene - with aggressive bottom protection
 if cta:
     print(f"📢 Creating CTA scene (synced with audio)...")
     cta_clips = create_scene(
@@ -392,7 +397,7 @@ if cta:
         cta,
         cta_dur,
         current_time,
-        position_y=1400,  # Request lower portion (will be adjusted to fit)
+        position_y=1300,  # Request lower portion (will be heavily adjusted to ensure visibility)
         color_fallback=(255, 20, 147)
     )
     clips.extend(cta_clips)
