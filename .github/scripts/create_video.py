@@ -11,8 +11,8 @@ OUT = os.path.join(TMP, "short.mp4")
 w, h = 1080, 1920
 
 # Safe zones for text (avoiding screen edges)
-SAFE_ZONE_MARGIN = 120  # Increased from 80 to 120 pixels from edge
-TEXT_MAX_WIDTH = w - (2 * SAFE_ZONE_MARGIN)  # 840 pixels
+SAFE_ZONE_MARGIN = 120
+TEXT_MAX_WIDTH = w - (2 * SAFE_ZONE_MARGIN)
 
 def get_font_path():
     system = platform.system()
@@ -45,45 +45,95 @@ cta = data.get("cta", "")
 topic = data.get("topic", "abstract")
 visual_prompts = data.get("visual_prompts", [])
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def generate_image(prompt, filename, width=1080, height=1920):
+# New reliable image generation functions
+def generate_image_huggingface(prompt, filename, width=1080, height=1920):
+    """Generate image using Hugging Face Stable Diffusion"""
+    try:
+        API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+        headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
+        
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "width": width,
+                "height": height,
+                "num_inference_steps": 20
+            }
+        }
+        
+        print(f"   🤗 Hugging Face: {prompt[:50]}...")
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+        
+        if response.status_code == 200:
+            filepath = os.path.join(TMP, filename)
+            with open(filepath, "wb") as f:
+                f.write(response.content)
+            print(f"   ✅ Hugging Face saved to {filename}")
+            return filepath
+        else:
+            raise Exception(f"Hugging Face API error: {response.status_code}")
+            
+    except Exception as e:
+        print(f"   ⚠️ Hugging Face failed: {e}")
+        raise
+
+def generate_image_pollinations(prompt, filename, width=1080, height=1920):
+    """Pollinations as backup"""
     try:
         url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width={width}&height={height}&nologo=true"
-        print(f"   Generating: {prompt[:60]}...")
+        print(f"   🌐 Pollinations: {prompt[:50]}...")
         response = requests.get(url, timeout=30)
         
         if response.status_code == 200:
             filepath = os.path.join(TMP, filename)
             with open(filepath, "wb") as f:
                 f.write(response.content)
-            print(f"   ✅ Saved to {filename}")
+            print(f"   ✅ Pollinations saved to {filename}")
             return filepath
         else:
-            raise Exception(f"Image generation failed with status {response.status_code}")
+            raise Exception(f"Pollinations failed: {response.status_code}")
     except Exception as e:
-        print(f"   ⚠️ Error: {e}")
+        print(f"   ⚠️ Pollinations failed: {e}")
         raise
 
-print("🎨 Generating scene images...")
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=2, max=10))
+def generate_image_reliable(prompt, filename, width=1080, height=1920):
+    """Try multiple image generation providers in order"""
+    providers = [
+        ("Hugging Face", generate_image_huggingface),
+        ("Pollinations", generate_image_pollinations)
+    ]
+    
+    for provider_name, provider_func in providers:
+        try:
+            return provider_func(prompt, filename, width, height)
+        except Exception as e:
+            print(f"   ⚠️ {provider_name} failed: {e}")
+            if provider_name == "Pollinations":  # Last resort failed
+                return None
+            continue
+    
+    return None  # All providers failed
+
+print("🎨 Generating scene images with reliable providers...")
 scene_images = []
 
 try:
     hook_prompt = visual_prompts[0] if len(visual_prompts) > 0 else f"Eye-catching dramatic opening for: {hook}, cinematic lighting, vibrant colors"
-    hook_img = generate_image(hook_prompt, "scene_hook.jpg")
+    hook_img = generate_image_reliable(hook_prompt, "scene_hook.jpg")
     scene_images.append(hook_img)
     
     for i, bullet in enumerate(bullets):
         bullet_prompt = visual_prompts[i+1] if len(visual_prompts) > i+1 else f"Visual representation: {bullet}, photorealistic, vibrant, engaging"
-        bullet_img = generate_image(bullet_prompt, f"scene_bullet_{i}.jpg")
+        bullet_img = generate_image_reliable(bullet_prompt, f"scene_bullet_{i}.jpg")
         scene_images.append(bullet_img)
     
-    print(f"✅ Generated {len(scene_images)} unique images")
+    successful_images = len([img for img in scene_images if img is not None])
+    print(f"✅ Generated {successful_images} AI images, {len(scene_images) - successful_images} fallbacks")
     
 except Exception as e:
-    print(f"⚠️ Image generation failed: {e}, using fallback")
-    scene_images = []
-    for i in range(4):
-        scene_images.append(None)
+    print(f"⚠️ Image generation failed: {e}, using all fallbacks")
+    scene_images = [None] * 4
 
 audio_path = os.path.join(TMP, "voice.mp3")
 if not os.path.exists(audio_path):
@@ -200,15 +250,15 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
         text=wrapped_text,
         font=FONT,
         font_size=font_size,
-        method='label',  # Changed from 'caption' since we're handling wrapping
+        method='label',
         text_align='center'
     )
     
     # If text is too tall, reduce font size and re-wrap - MORE AGGRESSIVE
-    max_height = h * 0.20  # Reduced from 30% to 25% of screen height
+    max_height = h * 0.20
     iterations = 0
     while test_clip.h > max_height and font_size > 32 and iterations < 10:
-        font_size -= 4  # Larger steps for faster adjustment
+        font_size -= 4
         wrapped_text = smart_text_wrap(text, font_size, max_width)
         test_clip = TextClip(
             text=wrapped_text,
@@ -267,7 +317,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         text_width = temp_clip.w
         
         # Add extra padding for safety (accounts for descent, shadows, stroke, etc.)
-        text_height_with_padding = int(text_height * 1.3)  # Increased from 20% to 40% extra space
+        text_height_with_padding = int(text_height * 1.4)
         
         # Determine safe Y position based on desired position
         if position_y == 'center':
@@ -276,20 +326,20 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         elif isinstance(position_y, int):
             # For specific positions, ensure full text visibility
             min_y = SAFE_ZONE_MARGIN
-            max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 80  # Extra 50px buffer
+            max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 120
             
             # Clamp position to safe range
             pos_y = max(min_y, min(position_y, max_y))
             
             # Special handling for bottom text (CTA) - FORCE from bottom
-            if position_y > h * 0.6:  # If intended for lower half of screen
+            if position_y > h * 0.6:
                 # ALWAYS position from bottom up with generous padding
-                pos_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 120  # Extra 100px safety
+                pos_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 150
         else:
             pos_y = SAFE_ZONE_MARGIN
         
         # FINAL AGGRESSIVE SAFETY CHECK - ensure we're not off screen
-        absolute_max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 100  # Extra 80px
+        absolute_max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 120
         if pos_y > absolute_max_y:
             pos_y = absolute_max_y
             print(f"      ⚠️ Position adjusted to prevent cutoff: Y={pos_y}")
@@ -332,7 +382,7 @@ if hook:
         hook,
         hook_dur,
         current_time,
-        position_y=400,  # Upper portion of screen
+        position_y=400,
         color_fallback=(30, 144, 255)
     )
     clips.extend(hook_clips)
@@ -354,7 +404,7 @@ for i, bullet in enumerate(bullets):
         bullet,
         bullet_durs[i],
         current_time,
-        position_y=900,  # Middle-lower portion
+        position_y=900,
         color_fallback=colors[i % len(colors)]
     )
     clips.extend(bullet_clips)
@@ -369,7 +419,7 @@ if cta:
         cta,
         cta_dur,
         current_time,
-        position_y=1400,  # Request lower portion (will be heavily adjusted to ensure visibility)
+        position_y=1300,
         color_fallback=(255, 20, 147)
     )
     clips.extend(cta_clips)

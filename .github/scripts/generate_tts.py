@@ -51,7 +51,7 @@ def generate_tts_local(text):
         # Convert WAV to MP3 using moviepy
         from moviepy import AudioFileClip
         audio_clip = AudioFileClip(temp_wav)
-        audio_clip.write_audiofile(out_path, verbose=False, logger=None, bitrate='192k')
+        audio_clip.write_audiofile(out_path, logger=None, bitrate='192k')
         audio_clip.close()
         
         # Clean up temp file
@@ -104,7 +104,7 @@ def generate_silent_audio_fallback(text):
         
         # Save directly as MP3
         out_path = os.path.join(TMP, "voice.mp3")
-        silent_audio.write_audiofile(out_path, fps=22050, verbose=False, logger=None, bitrate='192k')
+        silent_audio.write_audiofile(out_path, fps=22050, logger=None, bitrate='192k')
         silent_audio.close()
         
         with open(out_path, 'rb') as f:

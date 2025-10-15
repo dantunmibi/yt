@@ -73,9 +73,13 @@ jobs:
         run: python .github/scripts/generate_tts.py
 
       - name: Create video
+        env:
+          HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
         run: python .github/scripts/create_video.py
 
       - name: Generate thumbnail
+        env:
+          HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
         run: python .github/scripts/generate_thumbnail.py
 
       - name: Upload to YouTube

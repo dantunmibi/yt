@@ -49,37 +49,84 @@ hook = data.get("hook", "")
 
 text = title[:80]
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def generate_thumbnail_bg(topic, title):
-    bg_path = os.path.join(TMP, "thumb_bg.png")
+def generate_thumbnail_huggingface(prompt):
+    """Generate thumbnail using Hugging Face Stable Diffusion"""
     try:
-        prompt = f"YouTube thumbnail style, vibrant explosive colors, high contrast, eye-catching, dramatic, professional, about: {topic} - {title}, no text"
-        url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=1280&height=720&nologo=true&enhance=true"
+        API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+        headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
         
-        print(f"🎨 Generating thumbnail background...")
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "width": 1280,
+                "height": 720,
+                "num_inference_steps": 20
+            }
+        }
+        
+        print(f"🤗 Hugging Face thumbnail: {prompt[:60]}...")
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+        
+        if response.status_code == 200:
+            return response.content
+        else:
+            raise Exception(f"Hugging Face API error: {response.status_code}")
+            
+    except Exception as e:
+        print(f"⚠️ Hugging Face thumbnail failed: {e}")
+        raise
+
+def generate_thumbnail_pollinations(prompt):
+    """Pollinations as backup"""
+    try:
+        url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=1280&height=720&nologo=true&enhance=true"
+        print(f"🌐 Pollinations thumbnail: {prompt[:60]}...")
         response = requests.get(url, timeout=30)
         
         if response.status_code == 200:
-            with open(bg_path, "wb") as f:
-                f.write(response.content)
-            print("✅ Background generated successfully")
-            return bg_path
+            return response.content
         else:
-            raise Exception(f"Generation failed with status {response.status_code}")
-    
+            raise Exception(f"Pollinations failed: {response.status_code}")
     except Exception as e:
-        print(f"⚠️ Pollinations failed ({e}), using gradient fallback")
-        img = Image.new("RGB", (1280, 720), (0, 0, 0))
-        draw = ImageDraw.Draw(img)
-        
-        for y in range(720):
-            r = int(30 + (255 - 30) * (y / 720))
-            g = int(144 - (144 - 50) * (y / 720))
-            b = int(255 - (255 - 200) * (y / 720))
-            draw.line([(0, y), (1280, y)], fill=(r, g, b))
-        
-        img.save(bg_path)
-        return bg_path
+        print(f"⚠️ Pollinations thumbnail failed: {e}")
+        raise
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=2, max=10))
+def generate_thumbnail_bg(topic, title):
+    bg_path = os.path.join(TMP, "thumb_bg.png")
+    prompt = f"YouTube thumbnail style, vibrant explosive colors, high contrast, eye-catching, dramatic, professional, about: {topic} - {title}, no text"
+    
+    providers = [
+        ("Hugging Face", generate_thumbnail_huggingface),
+        ("Pollinations", generate_thumbnail_pollinations)
+    ]
+    
+    # Try reliable providers first
+    for provider_name, provider_func in providers:
+        try:
+            print(f"🎨 Trying {provider_name} for thumbnail...")
+            image_content = provider_func(prompt)
+            with open(bg_path, "wb") as f:
+                f.write(image_content)
+            print(f"✅ {provider_name} thumbnail generated successfully")
+            return bg_path
+        except Exception as e:
+            print(f"⚠️ {provider_name} thumbnail failed: {e}")
+            continue
+    
+    # Fallback to gradient
+    print("⚠️ All AI providers failed, using gradient fallback")
+    img = Image.new("RGB", (1280, 720), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    
+    for y in range(720):
+        r = int(30 + (255 - 30) * (y / 720))
+        g = int(144 - (144 - 50) * (y / 720))
+        b = int(255 - (255 - 200) * (y / 720))
+        draw.line([(0, y), (1280, y)], fill=(r, g, b))
+    
+    img.save(bg_path)
+    return bg_path
 
 bg_path = generate_thumbnail_bg(topic, title)
 
