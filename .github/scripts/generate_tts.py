@@ -22,7 +22,7 @@ cta = data.get("cta", "")
 spoken_parts = [hook]
 for bullet in bullets:
     spoken_parts.append(bullet)
-spoken_prompts.append(cta)
+spoken_parts.append(cta)
 
 spoken = ". ".join(spoken_parts)
 
