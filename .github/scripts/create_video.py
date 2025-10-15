@@ -317,7 +317,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         text_width = temp_clip.w
         
         # Add extra padding for safety (accounts for descent, shadows, stroke, etc.)
-        text_height_with_padding = int(text_height * 1.4)
+        text_height_with_padding = int(text_height * 1.6)
         
         # Determine safe Y position based on desired position
         if position_y == 'center':
@@ -339,7 +339,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             pos_y = SAFE_ZONE_MARGIN
         
         # FINAL AGGRESSIVE SAFETY CHECK - ensure we're not off screen
-        absolute_max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 120
+        absolute_max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 150
         if pos_y > absolute_max_y:
             pos_y = absolute_max_y
             print(f"      ⚠️ Position adjusted to prevent cutoff: Y={pos_y}")
@@ -419,7 +419,7 @@ if cta:
         cta,
         cta_dur,
         current_time,
-        position_y=1300,
+        position_y=1200,
         color_fallback=(255, 20, 147)
     )
     clips.extend(cta_clips)

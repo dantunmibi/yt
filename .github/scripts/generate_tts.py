@@ -1,6 +1,8 @@
 # .github/scripts/generate_tts.py
+# .github/scripts/generate_tts.py
 import os
 import json
+import re
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
@@ -29,6 +31,19 @@ spoken = ". ".join(spoken_parts)
 print(f"🎙️  Generating voice for text ({len(spoken)} chars)")
 print(f"   Preview: {spoken[:100]}...")
 
+def clean_text_for_coqui(text):
+    """Clean text to prevent Coqui TTS corruption"""
+    # Replace problematic symbols
+    text = text.replace('%', ' percent')
+    text = text.replace('&', ' and ')
+    text = text.replace('+', ' plus ')
+    
+    # Fix sentence segmentation
+    text = re.sub(r'\s+', ' ', text)  # Remove extra spaces
+    text = re.sub(r'\s\.\s', '. ', text)  # Fix space around periods
+    
+    return text.strip()
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
 def generate_tts_local(text):
     """Generate TTS using local Coqui TTS"""
@@ -37,15 +52,19 @@ def generate_tts_local(text):
         
         print("🔊 Initializing Coqui TTS...")
         
+        # Clean text before processing
+        cleaned_text = clean_text_for_coqui(text)
+        print(f"   Cleaned text preview: {cleaned_text[:80]}...")
+        
         # Initialize Coqui TTS with a fast English model
         tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC", progress_bar=False)
         
-        # Generate speech directly to MP3 - FIXED PATH
+        # Generate speech directly to MP3
         print("📢 Generating speech...")
         out_path = os.path.join(TMP, "voice.mp3")
         
-        # Generate directly to MP3 - NO WAV CONVERSION
-        tts.tts_to_file(text=text, file_path=out_path)
+        # Generate directly to MP3
+        tts.tts_to_file(text=cleaned_text, file_path=out_path)
         
         # Verify the file was created properly
         if not os.path.exists(out_path):
