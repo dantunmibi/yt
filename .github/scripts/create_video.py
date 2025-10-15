@@ -49,7 +49,7 @@ visual_prompts = data.get("visual_prompts", [])
 def generate_image_huggingface(prompt, filename, width=1080, height=1920):
     """Generate image using Hugging Face Stable Diffusion"""
     try:
-        API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1"
         headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
         
         payload = {

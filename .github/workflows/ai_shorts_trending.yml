@@ -49,7 +49,8 @@ jobs:
             python-dotenv \
             tenacity \
             pytrends \
-            gtts
+            gtts \
+            TTS  # Moved Coqui TTS here with other packages
 
       - name: Make tmp folder
         run: mkdir -p tmp
@@ -63,11 +64,6 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python .github/scripts/generate_trending_and_script.py
-
-      - name: Install Coqui TTS
-        run: |
-          pip install TTS
-          python -c "import TTS; print('✅ Coqui TTS installed successfully')"
 
       - name: Generate TTS (Local Coqui)
         run: python .github/scripts/generate_tts.py
