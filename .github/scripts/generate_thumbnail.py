@@ -52,7 +52,7 @@ text = title[:80]
 def generate_thumbnail_huggingface(prompt):
     """Generate thumbnail using Hugging Face Stable Diffusion"""
     try:
-        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1"
+        API_URL = "https://api-inference.huggingface.co/pipeline/text-to-image/stabilityai/stable-diffusion-xl-base-1.0"
         headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
         
         payload = {

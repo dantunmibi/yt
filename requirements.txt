@@ -1,0 +1,12 @@
+google-generativeai
+requests
+beautifulsoup4
+moviepy
+google-api-python-client
+google-auth
+Pillow
+python-dotenv
+tenacity
+pytrends
+gtts
+TTS

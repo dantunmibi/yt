@@ -49,7 +49,7 @@ visual_prompts = data.get("visual_prompts", [])
 def generate_image_huggingface(prompt, filename, width=1080, height=1920):
     """Generate image using Hugging Face Stable Diffusion"""
     try:
-        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1"
+        API_URL = "https://api-inference.huggingface.co/pipeline/text-to-image/stabilityai/stable-diffusion-xl-base-1.0"
         headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
         
         payload = {
@@ -82,7 +82,7 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
     try:
         url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width={width}&height={height}&nologo=true"
         print(f"   🌐 Pollinations: {prompt[:50]}...")
-        response = requests.get(url, timeout=30)
+        response = requests.get(url, timeout=60)
         
         if response.status_code == 200:
             filepath = os.path.join(TMP, filename)

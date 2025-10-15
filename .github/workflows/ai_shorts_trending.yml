@@ -35,22 +35,27 @@ jobs:
         with:
           python-version: '3.11'
 
+      # ✅ Cache Python dependencies for huge time savings
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # ✅ Cache Coqui models (PyTorch models ~1GB)
+      - name: Cache Coqui models
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/tts
+          key: coqui-models-${{ runner.os }}
+
+      # ✅ Install dependencies from requirements.txt
       - name: Install Python packages
         run: |
           python -m pip install --upgrade pip
-          pip install \
-            google-generativeai \
-            requests \
-            beautifulsoup4 \
-            moviepy \
-            google-api-python-client \
-            google-auth \
-            Pillow \
-            python-dotenv \
-            tenacity \
-            pytrends \
-            gtts \
-            TTS
+          pip install -r requirements.txt
 
       - name: Make tmp folder
         run: mkdir -p tmp

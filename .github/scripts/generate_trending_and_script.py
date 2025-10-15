@@ -8,7 +8,11 @@ import google.generativeai as genai
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
-HISTORY_FILE = "content_history.json"
+# Store persistent history in the repo, not temp runner
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+HISTORY_FILE = os.path.join(DATA_DIR, "content_history.json")
+
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
