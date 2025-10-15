@@ -50,7 +50,7 @@ jobs:
             tenacity \
             pytrends \
             gtts \
-            TTS  # Moved Coqui TTS here with other packages
+            TTS
 
       - name: Make tmp folder
         run: mkdir -p tmp
