@@ -170,7 +170,28 @@ audio = AudioFileClip(audio_path)
 duration = audio.duration
 print(f"🎵 Audio loaded: {duration:.2f} seconds")
 
-# Calculate timing based on word count for better sync
+# 🔍 Prefer real per-section durations if available
+def get_audio_duration(path):
+    try:
+        if os.path.exists(path):
+            return len(AudioSegment.from_file(path)) / 1000.0
+    except:
+        pass
+    return 0
+
+hook_path = os.path.join(TMP, "hook.mp3")
+cta_path = os.path.join(TMP, "cta.mp3")
+bullet_paths = [os.path.join(TMP, f"bullet_{i}.mp3") for i in range(len(bullets))]
+
+if all(os.path.exists(p) for p in [hook_path, cta_path] + bullet_paths):
+    print("🎯 Using real per-section audio durations for sync")
+    hook_dur = get_audio_duration(hook_path)
+    bullet_durs = [get_audio_duration(p) for p in bullet_paths]
+    cta_dur = get_audio_duration(cta_path)
+else:
+    print("⚙️ Using estimated word-based durations (fallback)")
+    # keep your existing estimate-based code block here
+
 def estimate_speech_duration(text, audio_path="tmp/voice.mp3"):
     """
     Estimate how long the given text should take, dynamically scaled
@@ -370,6 +391,9 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             method='label',
             text_align='center'
         )
+        # 🩹 Fix text clipping (add transparent vertical padding)
+        temp_clip = temp_clip.margin(top=10, bottom=20, opacity=0)
+
         text_height = temp_clip.h
         text_width = temp_clip.w
         
@@ -421,6 +445,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             stroke_color='black',
             stroke_width=8
         )
+        .margin(top=10, bottom=20, opacity=0)  # 🩹 Prevent text from being cropped
         .with_duration(duration)
         .with_start(start_time)
         .with_position(('center', pos_y))

@@ -50,7 +50,7 @@ enhanced_description = f"""{description}
 {' '.join(hashtags)}
 
 ---
-Auto-generated AI Short
+Follow Ascent Dragox For More!
 Created: {datetime.now().strftime('%Y-%m-%d')}
 Topic: {topic}
 """

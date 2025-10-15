@@ -27,6 +27,31 @@ spoken_parts.append(cta)
 
 spoken = ". ".join(spoken_parts)
 
+# 🧩 Save each section separately for precise timing
+from TTS.api import TTS
+from pydub import AudioSegment
+
+tts = TTS(model_name="tts_models/en/ljspeech/glow-tts", progress_bar=False)
+section_paths = []
+
+sections = [("hook", hook)] + [(f"bullet_{i}", b) for i, b in enumerate(bullets)] + [("cta", cta)]
+for name, text in sections:
+    if not text.strip():
+        continue
+    clean = clean_text_for_coqui(text)
+    out_path = os.path.join(TMP, f"{name}.mp3")
+    print(f"🎧 Generating section: {name}")
+    tts.tts_to_file(text=clean, file_path=out_path)
+    section_paths.append(out_path)
+
+# Combine them (with short pauses) to make the main voice.mp3
+combined_audio = AudioSegment.silent(duration=0)
+for path in section_paths:
+    part = AudioSegment.from_file(path)
+    combined_audio += part + AudioSegment.silent(duration=150)
+combined_audio.export(os.path.join(TMP, "voice.mp3"), format="mp3")
+print(f"✅ Combined TTS saved to voice.mp3")
+
 print(f"🎙️  Generating voice for text ({len(spoken)} chars)")
 print(f"   Preview: {spoken[:100]}...")
 
