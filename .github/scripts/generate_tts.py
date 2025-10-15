@@ -40,22 +40,29 @@ def generate_tts_local(text):
         # Initialize Coqui TTS with a fast English model
         tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC", progress_bar=False)
         
-        # Generate speech
+        # Generate speech directly to MP3
         print("📢 Generating speech...")
-        out_path = os.path.join(TMP, "voice_temp.wav")
-        tts.tts_to_file(text=text, file_path=out_path)
+        out_path = os.path.join(TMP, "voice.mp3")
         
-        # Convert to MP3 if needed
-        if os.path.exists(out_path):
-            # For now, just use the WAV file (MoviePy can handle it)
-            with open(out_path, 'rb') as f:
-                audio_content = f.read()
+        # Generate to WAV first, then convert to MP3
+        temp_wav = os.path.join(TMP, "temp_voice.wav")
+        tts.tts_to_file(text=text, file_path=temp_wav)
+        
+        # Convert WAV to MP3 using moviepy
+        from moviepy import AudioFileClip
+        audio_clip = AudioFileClip(temp_wav)
+        audio_clip.write_audiofile(out_path, verbose=False, logger=None, bitrate='192k')
+        audio_clip.close()
+        
+        # Clean up temp file
+        if os.path.exists(temp_wav):
+            os.remove(temp_wav)
+        
+        # Read the final MP3 file
+        with open(out_path, 'rb') as f:
+            audio_content = f.read()
             
-            # Clean up temp file
-            os.remove(out_path)
-            return audio_content
-        else:
-            raise Exception("TTS generation failed - no output file")
+        return audio_content
             
     except Exception as e:
         print(f"⚠️ Coqui TTS failed: {e}")
@@ -66,14 +73,15 @@ def generate_tts_fallback(text):
     try:
         print("🔄 Using gTTS fallback...")
         from gtts import gTTS
-        import io
         
         tts = gTTS(text=text, lang='en', slow=False)
-        audio_buffer = io.BytesIO()
-        tts.write_to_fp(audio_buffer)
-        audio_buffer.seek(0)
+        out_path = os.path.join(TMP, "voice.mp3")
+        tts.save(out_path)
         
-        return audio_buffer.read()
+        with open(out_path, 'rb') as f:
+            audio_content = f.read()
+        
+        return audio_content
     except Exception as e:
         print(f"⚠️ gTTS fallback failed: {e}")
         return generate_silent_audio_fallback(text)
@@ -84,9 +92,9 @@ def generate_silent_audio_fallback(text):
         from moviepy import AudioClip
         import numpy as np
         
-        # Calculate duration based on word count
+        # Use original duration calculation
         words = len(text.split())
-        duration = max(30, min(60, (words / 150) * 60))
+        duration = (words / 150) * 60  # Original calculation
         
         # Generate silent audio
         def make_silence(t):
@@ -94,16 +102,13 @@ def generate_silent_audio_fallback(text):
         
         silent_audio = AudioClip(make_silence, duration=duration)
         
-        # Save to temporary file and read back
-        temp_path = os.path.join(TMP, "temp_silent.mp3")
-        silent_audio.write_audiofile(temp_path, fps=22050, verbose=False, logger=None)
+        # Save directly as MP3
+        out_path = os.path.join(TMP, "voice.mp3")
+        silent_audio.write_audiofile(out_path, fps=22050, verbose=False, logger=None, bitrate='192k')
+        silent_audio.close()
         
-        with open(temp_path, 'rb') as f:
+        with open(out_path, 'rb') as f:
             audio_content = f.read()
-        
-        # Clean up
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
             
         return audio_content
     except Exception as e:
@@ -113,12 +118,20 @@ def generate_silent_audio_fallback(text):
 try:
     audio_content = generate_tts_local(spoken)
     
+    # Verify audio was created properly
     out = os.path.join(TMP, "voice.mp3")
-    with open(out, "wb") as f:
-        f.write(audio_content)
+    if not os.path.exists(out):
+        raise Exception("Audio file was not created")
     
-    file_size = len(audio_content) / 1024
+    # Get actual audio duration using moviepy
+    from moviepy import AudioFileClip
+    audio_check = AudioFileClip(out)
+    actual_duration = audio_check.duration
+    audio_check.close()
+    
+    file_size = os.path.getsize(out) / 1024
     print(f"✅ Saved voice to {out} ({file_size:.1f} KB)")
+    print(f"🎵 Actual audio duration: {actual_duration:.2f} seconds")
     
     if file_size < 10:
         print("⚠️ Audio file seems too small, may be corrupted")
@@ -132,6 +145,7 @@ try:
         "text": spoken,
         "words": words,
         "estimated_duration": estimated_duration,
+        "actual_duration": actual_duration,
         "file_size_kb": file_size,
         "tts_provider": "coqui_local"
     }
