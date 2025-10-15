@@ -6,6 +6,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 from io import BytesIO
 import platform
 from tenacity import retry, stop_after_attempt, wait_exponential
+from time import sleep
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 
@@ -149,22 +150,34 @@ def generate_thumbnail_bg(topic, title):
             continue
 
     # 🖼️ Try Unsplash fallback
-    try:
-        print("🖼️ Trying Unsplash fallback...")
+    def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
         query = requests.utils.quote(topic or title or "abstract")
-        unsplash_url = f"https://source.unsplash.com/1280x720/?{query}"
-        response = requests.get(unsplash_url, timeout=30)
+        base_url = f"https://source.unsplash.com/1280x720/?{query}"
 
-        if response.status_code == 200:
-            with open(bg_path, "wb") as f:
-                f.write(response.content)
-            print(f"✅ Unsplash fallback image saved ({query})")
-            return bg_path
-        else:
-            print(f"⚠️ Unsplash returned {response.status_code}")
+    for attempt in range(1, retries + 1):
+        try:
+            print(f"🖼️ Unsplash fallback attempt {attempt}/{retries} ({query})...")
+            head_resp = requests.head(base_url, allow_redirects=True, timeout=15)
+            final_url = head_resp.url
+            content_type = head_resp.headers.get("Content-Type", "")
 
-    except Exception as e:
-        print(f"⚠️ Unsplash fallback failed: {e}")
+            if "image" not in content_type:
+                print(f"⚠️ Not an image ({content_type}), retrying...")
+                sleep(delay)
+                continue
+
+            response = requests.get(final_url, timeout=30)
+            if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+                with open(bg_path, "wb") as f:
+                    f.write(response.content)
+                print(f"✅ Unsplash fallback image saved ({final_url})")
+                return bg_path
+        except Exception as e:
+            print(f"⚠️ Unsplash attempt {attempt} failed: {e}")
+            sleep(delay)
+
+    print("⚠️ Unsplash fallback failed after retries")
+    return None
     
     # Fallback to gradient
     print("⚠️ All providers failed, using gradient fallback")

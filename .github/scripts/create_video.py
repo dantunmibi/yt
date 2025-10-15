@@ -6,6 +6,7 @@ from moviepy import *
 import platform
 from tenacity import retry, stop_after_attempt, wait_exponential
 from pydub import AudioSegment
+from time import sleep
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 OUT = os.path.join(TMP, "short.mp4")
@@ -129,25 +130,34 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
         print(f"   ⚠️ Pollinations failed: {e}")
         raise
 
-def generate_image_unsplash(prompt, filename, width=1080, height=1920):
-    """Unsplash fallback for when AI generation fails"""
-    try:
-        query = requests.utils.quote(prompt.split(",")[0][:80])
-        url = f"https://source.unsplash.com/{width}x{height}/?{query}"
-        print(f"   🖼️ Unsplash: {query}...")
-        response = requests.get(url, timeout=30)
-        
-        if response.status_code == 200:
-            filepath = os.path.join(TMP, filename)
-            with open(filepath, "wb") as f:
-                f.write(response.content)
-            print(f"   ✅ Unsplash saved to {filename}")
-            return filepath
-        else:
-            raise Exception(f"Unsplash returned {response.status_code}")
-    except Exception as e:
-        print(f"   ⚠️ Unsplash failed: {e}")
-        return None
+def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
+    query = requests.utils.quote(topic or title or "abstract")
+    base_url = f"https://source.unsplash.com/1280x720/?{query}"
+
+    for attempt in range(1, retries + 1):
+        try:
+            print(f"🖼️ Unsplash fallback attempt {attempt}/{retries} ({query})...")
+            head_resp = requests.head(base_url, allow_redirects=True, timeout=15)
+            final_url = head_resp.url
+            content_type = head_resp.headers.get("Content-Type", "")
+
+            if "image" not in content_type:
+                print(f"⚠️ Not an image ({content_type}), retrying...")
+                sleep(delay)
+                continue
+
+            response = requests.get(final_url, timeout=30)
+            if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+                with open(bg_path, "wb") as f:
+                    f.write(response.content)
+                print(f"✅ Unsplash fallback image saved ({final_url})")
+                return bg_path
+        except Exception as e:
+            print(f"⚠️ Unsplash attempt {attempt} failed: {e}")
+            sleep(delay)
+
+    print("⚠️ Unsplash fallback failed after retries")
+    return None
 
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=2, min=4, max=20))
 def generate_image_reliable(prompt, filename, width=1080, height=1920):
@@ -396,7 +406,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             method='label',
             text_align='center'
         )
-        temp_clip = temp_clip.margin(top=10, bottom=20, opacity=0)
+        temp_clip = temp_clip.with_position(('center', 'center'))
 
         text_height = temp_clip.h
         text_width = temp_clip.w
@@ -440,7 +450,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             stroke_color='black',
             stroke_width=8
         )
-        .margin(top=10, bottom=20, opacity=0)
+        .with_position(('center', 'center'))
         .with_duration(duration)
         .with_start(start_time)
         .with_position(('center', pos_y))
