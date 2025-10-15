@@ -70,7 +70,9 @@ def generate_thumbnail_huggingface(prompt):
             "parameters": {
                 "negative_prompt": "blurry, low quality, text, watermark, ugly",
                 "num_inference_steps": 25,
-                "guidance_scale": 7.5
+                "guidance_scale": 7.5,
+                "width": 1280,
+                "height": 720,
             }
         }
         
@@ -128,7 +130,7 @@ def generate_thumbnail_bg(topic, title):
     
     providers = [
         ("Hugging Face", generate_thumbnail_huggingface),
-        ("Pollinations", generate_thumbnail_pollinations)
+        ("Pollinations", generate_thumbnail_pollinations),
     ]
     
     for provider_name, provider_func in providers:

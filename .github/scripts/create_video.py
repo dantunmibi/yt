@@ -69,7 +69,9 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
             "parameters": {
                 "negative_prompt": "blurry, low quality, text, watermark",
                 "num_inference_steps": 25,
-                "guidance_scale": 7.5
+                "guidance_scale": 7.5,
+                "width": width,
+                "height": height
             }
         }
         
@@ -77,38 +79,32 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
         response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
         
         if response.status_code == 200:
-            filepath = os.path.join(TMP, filename)
-            with open(filepath, "wb") as f:
-                f.write(response.content)
-            
-            # Verify image was created
-            if os.path.getsize(filepath) > 1000:  # At least 1KB
-                print(f"   ✅ Hugging Face saved to {filename}")
-                return filepath
+            # Verify content
+            if len(response.content) > 1000:
+                print("   ✅ Hugging Face thumbnail generated")
+                return response.content
             else:
-                print(f"   ⚠️ Hugging Face returned empty image")
                 raise Exception("Empty image received")
         
         elif response.status_code == 503:
             print(f"   ⚠️ Model is loading (503), will retry...")
-            raise Exception("Model loading, retry")
+            raise Exception("Model loading")
         
         elif response.status_code == 404:
-            print(f"   ❌ Hugging Face 404: Model not found or API key invalid")
-            print(f"   💡 Check: 1) API key is correct, 2) Starts with 'hf_'")
-            raise Exception(f"404 error - check API key")
+            print(f"   ❌ Hugging Face 404: Check API key")
+            print(f"   💡 Token should start with 'hf_'")
+            raise Exception("404 error")
         
         elif response.status_code == 401:
-            print(f"   ❌ Hugging Face 401: Invalid API token")
-            print(f"   💡 Get new token from: https://huggingface.co/settings/tokens")
+            print(f"   ❌ Hugging Face 401: Invalid token")
             raise Exception("Invalid API token")
         
         else:
-            print(f"   ⚠️ Hugging Face error {response.status_code}: {response.text[:200]}")
-            raise Exception(f"Hugging Face API error: {response.status_code}")
+            print(f"   ⚠️ Hugging Face error {response.status_code}")
+            raise Exception(f"API error: {response.status_code}")
             
     except Exception as e:
-        print(f"   ⚠️ Hugging Face failed: {e}")
+        print(f"⚠️ Hugging Face thumbnail failed: {e}")
         raise
 
 def generate_image_pollinations(prompt, filename, width=1080, height=1920):
@@ -129,6 +125,8 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
     except Exception as e:
         print(f"   ⚠️ Pollinations failed: {e}")
         raise
+
+
 
 def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
     query = requests.utils.quote(topic or title or "abstract")
@@ -165,7 +163,7 @@ def generate_image_reliable(prompt, filename, width=1080, height=1920):
     providers = [
         ("Hugging Face", generate_image_huggingface),
         ("Pollinations", generate_image_pollinations),
-        ("Unsplash", generate_image_unsplash)
+        ("Unsplash", generate_image_unsplash_fallback)
     ]
     
     for provider_name, provider_func in providers:

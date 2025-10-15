@@ -44,7 +44,7 @@ def generate_tts_local(text):
         print(f"   Cleaned text preview: {cleaned_text[:80]}...")
 
         # ✅ Use a stable model (Glow-TTS is robust and consistent)
-        tts = TTS(model_name="tts_models/en/ljspeech/glow-tts", progress_bar=False)
+        tts = TTS(model_name="tts_models/en/ljspeech/vits", progress_bar=False)
 
         out_path = os.path.join(TMP, "voice.mp3")
 
@@ -146,7 +146,7 @@ spoken = ". ".join(spoken_parts)
 from TTS.api import TTS
 from pydub import AudioSegment
 
-tts = TTS(model_name="tts_models/en/ljspeech/glow-tts", progress_bar=False)
+tts = TTS(model_name="tts_models/en/ljspeech/vits", progress_bar=False)
 section_paths = []
 
 sections = [("hook", hook)] + [(f"bullet_{i}", b) for i, b in enumerate(bullets)] + [("cta", cta)]
