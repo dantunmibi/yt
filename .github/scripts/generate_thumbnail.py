@@ -52,7 +52,7 @@ text = title[:80]
 def generate_thumbnail_huggingface(prompt):
     """Generate thumbnail using Hugging Face Stable Diffusion"""
     try:
-        API_URL = "https://api-inference.huggingface.co/pipeline/text-to-image/stabilityai/stable-diffusion-xl-base-1.0"
+        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large"
         headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
         
         payload = {
@@ -65,7 +65,7 @@ def generate_thumbnail_huggingface(prompt):
         }
         
         print(f"🤗 Hugging Face thumbnail: {prompt[:60]}...")
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=120)
         
         if response.status_code == 200:
             return response.content
@@ -81,7 +81,7 @@ def generate_thumbnail_pollinations(prompt):
     try:
         url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=1280&height=720&nologo=true&enhance=true"
         print(f"🌐 Pollinations thumbnail: {prompt[:60]}...")
-        response = requests.get(url, timeout=30)
+        response = requests.get(url, timeout=120)
         
         if response.status_code == 200:
             return response.content
@@ -113,6 +113,24 @@ def generate_thumbnail_bg(topic, title):
         except Exception as e:
             print(f"⚠️ {provider_name} thumbnail failed: {e}")
             continue
+
+    # 🖼️ Try Unsplash fallback before gradient
+    try:
+        print("🖼️ Trying Unsplash fallback...")
+        query = requests.utils.quote(topic or title or "abstract")
+        unsplash_url = f"https://source.unsplash.com/1280x720/?{query}"
+        response = requests.get(unsplash_url, timeout=30)
+
+        if response.status_code == 200:
+            with open(bg_path, "wb") as f:
+                f.write(response.content)
+            print(f"✅ Unsplash fallback image saved successfully ({query})")
+            return bg_path
+        else:
+            print(f"⚠️ Unsplash returned {response.status_code}, using gradient fallback")
+
+    except Exception as e:
+        print(f"⚠️ Unsplash fallback failed: {e}")
     
     # Fallback to gradient
     print("⚠️ All AI providers failed, using gradient fallback")

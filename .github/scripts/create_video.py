@@ -5,6 +5,8 @@ import requests
 from moviepy import *
 import platform
 from tenacity import retry, stop_after_attempt, wait_exponential
+from pydub import AudioSegment
+
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 OUT = os.path.join(TMP, "short.mp4")
@@ -49,7 +51,7 @@ visual_prompts = data.get("visual_prompts", [])
 def generate_image_huggingface(prompt, filename, width=1080, height=1920):
     """Generate image using Hugging Face Stable Diffusion"""
     try:
-        API_URL = "https://api-inference.huggingface.co/pipeline/text-to-image/stabilityai/stable-diffusion-xl-base-1.0"
+        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large"
         headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
         
         payload = {
@@ -62,7 +64,7 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
         }
         
         print(f"   🤗 Hugging Face: {prompt[:50]}...")
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=120)
         
         if response.status_code == 200:
             filepath = os.path.join(TMP, filename)
@@ -82,7 +84,7 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
     try:
         url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width={width}&height={height}&nologo=true"
         print(f"   🌐 Pollinations: {prompt[:50]}...")
-        response = requests.get(url, timeout=60)
+        response = requests.get(url, timeout=120)
         
         if response.status_code == 200:
             filepath = os.path.join(TMP, filename)
@@ -96,24 +98,48 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
         print(f"   ⚠️ Pollinations failed: {e}")
         raise
 
+def generate_image_unsplash(prompt, filename, width=1080, height=1920):
+    """Unsplash fallback for when AI generation fails"""
+    try:
+        query = requests.utils.quote(prompt.split(",")[0][:80])  # simplify query
+        url = f"https://source.unsplash.com/{width}x{height}/?{query}"
+        print(f"   🖼️ Unsplash: {query}...")
+        response = requests.get(url, timeout=30)
+        
+        if response.status_code == 200:
+            filepath = os.path.join(TMP, filename)
+            with open(filepath, "wb") as f:
+                f.write(response.content)
+            print(f"   ✅ Unsplash saved to {filename}")
+            return filepath
+        else:
+            raise Exception(f"Unsplash returned {response.status_code}")
+    except Exception as e:
+        print(f"   ⚠️ Unsplash failed: {e}")
+        return None
+
+
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=2, max=10))
 def generate_image_reliable(prompt, filename, width=1080, height=1920):
     """Try multiple image generation providers in order"""
     providers = [
         ("Hugging Face", generate_image_huggingface),
-        ("Pollinations", generate_image_pollinations)
+        ("Pollinations", generate_image_pollinations),
+        ("Unsplash", generate_image_unsplash)
     ]
     
     for provider_name, provider_func in providers:
         try:
-            return provider_func(prompt, filename, width, height)
+            result = provider_func(prompt, filename, width, height)
+            if result and os.path.exists(result):
+                return result
         except Exception as e:
             print(f"   ⚠️ {provider_name} failed: {e}")
-            if provider_name == "Pollinations":  # Last resort failed
-                return None
             continue
     
-    return None  # All providers failed
+    print("   ❌ All providers failed for this scene, returning None")
+    return None
+  # All providers failed
 
 print("🎨 Generating scene images with reliable providers...")
 scene_images = []
@@ -145,17 +171,48 @@ duration = audio.duration
 print(f"🎵 Audio loaded: {duration:.2f} seconds")
 
 # Calculate timing based on word count for better sync
-def estimate_speech_duration(text):
-    """Estimate duration based on average speaking rate (150 words/min)"""
+def estimate_speech_duration(text, audio_path="tmp/voice.mp3"):
+    """
+    Estimate how long the given text should take, dynamically scaled
+    to the actual speaking speed of the TTS file.
+    """
     words = len(text.split())
-    return (words / 150) * 60  # seconds
+    if words == 0:
+        return 0.0
 
-hook_estimated = estimate_speech_duration(hook) if hook else 0
+    fallback_wpm = 140  # realistic spoken English rate
+
+    # Try to base pacing on the real generated TTS file
+    if os.path.exists(audio_path):
+        try:
+            audio = AudioSegment.from_file(audio_path)
+            total_audio_duration = len(audio) / 1000.0  # ms → seconds
+
+            # Use total word count from script.json to scale durations
+            all_text = " ".join([hook] + bullets + [cta])
+            total_words = len(all_text.split()) or 1
+
+            # Average seconds per word based on actual TTS
+            seconds_per_word = total_audio_duration / total_words
+
+            # Duration for this text
+            return seconds_per_word * words
+        except Exception as e:
+            print(f"⚠️ Could not analyze TTS file for pacing: {e}")
+            return (words / fallback_wpm) * 60.0
+    else:
+        return (words / fallback_wpm) * 60.0
+
+hook_estimated = estimate_speech_duration(hook)
 bullets_estimated = [estimate_speech_duration(b) for b in bullets]
-cta_estimated = estimate_speech_duration(cta) if cta else 0
+cta_estimated = estimate_speech_duration(cta)
 
 # Adjust durations to fit actual audio length
 total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
+# Apply a small safety margin to absorb micro-delays (crossfade, render lag)
+margin = 0.98
+duration *= margin
+
 time_scale = duration / max(total_estimated, 1)
 
 hook_dur = min(hook_estimated * time_scale, duration * 0.2) if hook else 0

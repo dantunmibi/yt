@@ -10,3 +10,4 @@ tenacity
 pytrends
 gtts
 TTS
+pydub

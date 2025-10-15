@@ -89,17 +89,17 @@ CONTEXT:
 - Previously covered topics (DO NOT REPEAT): {', '.join(previous_topics) if previous_topics else 'None'}
 {trending_info}
 
-TASK: Generate a trending, viral-worthy topic and script for a 30-60 second YouTube Short.
+TASK: Generate a trending, viral-worthy topic and script for a 45-75 second YouTube Short.
 
 REQUIREMENTS:
 ✅ Topic must be DIFFERENT from previous topics
 ✅ Hook must create a curiosity gap (make viewers NEED to watch)
 ✅ Include specific numbers, statistics, or surprising facts
-✅ 3 concise, punchy bullet points (each 10-15 words max)
+✅ 3 concise, punchy bullet points (each 15-20 words max)
 ✅ Be SPECIFIC - name actual tools, apps, techniques, not vague "this tool" or "this method"
 ✅ CTA must be casual and engaging - NOT salesy or course-pitchy
 ✅ Add 5-10 relevant hashtags for maximum discoverability
-✅ Focus on: AI, Tech, Psychology, Money, Health, Productivity, Science
+✅ Focus on: AI, Tech, Psychology, Money, Health, Productivity, Science, Innovation, Learning, Motivation, Futurism
 
 PROVEN VIRAL FORMULAS:
 - "3 Things Nobody Tells You About..."
