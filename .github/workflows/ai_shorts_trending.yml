@@ -25,7 +25,7 @@ jobs:
             fonts-dejavu-core \
             fonts-liberation \
             fonts-freefont-ttf \
-            espeak-ng  # Required for Coqui TTS
+            espeak-ng
           echo "📝 Available fonts:"
           fc-list | grep -i dejavu | head -3
           fc-list | grep -i liberation | head -3
@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      # ✅ Cache Python dependencies for huge time savings
+      # ✅ Cache Python dependencies
       - name: Cache pip packages
         uses: actions/cache@v4
         with:
@@ -44,14 +44,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      # ✅ Cache Coqui models (PyTorch models ~1GB)
+      # ✅ Cache Coqui TTS models
       - name: Cache Coqui models
         uses: actions/cache@v4
         with:
           path: ~/.local/share/tts
           key: coqui-models-${{ runner.os }}
 
-      # ✅ Install dependencies from requirements.txt
+      # ✅ NEW: Cache content history to prevent duplicates
+      - name: Restore content history
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/content_history.json
+          key: content-history-${{ github.run_number }}
+          restore-keys: |
+            content-history-
+
       - name: Install Python packages
         run: |
           python -m pip install --upgrade pip
@@ -90,6 +98,14 @@ jobs:
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         run: python .github/scripts/upload_youtube.py
 
+      # ✅ NEW: Save content history for next run
+      - name: Save content history
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: tmp/content_history.json
+          key: content-history-${{ github.run_number }}
+
       - name: Upload artifact (latest short)
         uses: actions/upload-artifact@v4
         if: always()
@@ -99,6 +115,7 @@ jobs:
             tmp/short.mp4
             tmp/thumbnail.png
             tmp/script.json
+            tmp/content_history.json
           retention-days: 30
 
       - name: Upload logs on failure

@@ -7,7 +7,6 @@ import platform
 from tenacity import retry, stop_after_attempt, wait_exponential
 from pydub import AudioSegment
 
-
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 OUT = os.path.join(TMP, "short.mp4")
 w, h = 1080, 1920
@@ -47,32 +46,64 @@ cta = data.get("cta", "")
 topic = data.get("topic", "abstract")
 visual_prompts = data.get("visual_prompts", [])
 
-# New reliable image generation functions
+# ✅ FIXED: Correct Hugging Face API endpoints
 def generate_image_huggingface(prompt, filename, width=1080, height=1920):
-    """Generate image using Hugging Face Stable Diffusion"""
+    """Generate image using Hugging Face - FIXED VERSION"""
     try:
-        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large"
-        headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
+        # ✅ Use Stable Diffusion XL (more reliable and free)
+        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
         
+        # Get API key from environment
+        hf_token = os.getenv('HUGGINGFACE_API_KEY')
+        
+        if not hf_token:
+            print("   ⚠️ HUGGINGFACE_API_KEY not set, skipping Hugging Face")
+            raise Exception("No Hugging Face API key")
+        
+        headers = {"Authorization": f"Bearer {hf_token}"}
+        
+        # ✅ Correct payload format for SDXL
         payload = {
             "inputs": prompt,
             "parameters": {
-                "width": width,
-                "height": height,
-                "num_inference_steps": 20
+                "negative_prompt": "blurry, low quality, text, watermark",
+                "num_inference_steps": 25,
+                "guidance_scale": 7.5
             }
         }
         
         print(f"   🤗 Hugging Face: {prompt[:50]}...")
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=120)
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
         
         if response.status_code == 200:
             filepath = os.path.join(TMP, filename)
             with open(filepath, "wb") as f:
                 f.write(response.content)
-            print(f"   ✅ Hugging Face saved to {filename}")
-            return filepath
+            
+            # Verify image was created
+            if os.path.getsize(filepath) > 1000:  # At least 1KB
+                print(f"   ✅ Hugging Face saved to {filename}")
+                return filepath
+            else:
+                print(f"   ⚠️ Hugging Face returned empty image")
+                raise Exception("Empty image received")
+        
+        elif response.status_code == 503:
+            print(f"   ⚠️ Model is loading (503), will retry...")
+            raise Exception("Model loading, retry")
+        
+        elif response.status_code == 404:
+            print(f"   ❌ Hugging Face 404: Model not found or API key invalid")
+            print(f"   💡 Check: 1) API key is correct, 2) Starts with 'hf_'")
+            raise Exception(f"404 error - check API key")
+        
+        elif response.status_code == 401:
+            print(f"   ❌ Hugging Face 401: Invalid API token")
+            print(f"   💡 Get new token from: https://huggingface.co/settings/tokens")
+            raise Exception("Invalid API token")
+        
         else:
+            print(f"   ⚠️ Hugging Face error {response.status_code}: {response.text[:200]}")
             raise Exception(f"Hugging Face API error: {response.status_code}")
             
     except Exception as e:
@@ -101,7 +132,7 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
 def generate_image_unsplash(prompt, filename, width=1080, height=1920):
     """Unsplash fallback for when AI generation fails"""
     try:
-        query = requests.utils.quote(prompt.split(",")[0][:80])  # simplify query
+        query = requests.utils.quote(prompt.split(",")[0][:80])
         url = f"https://source.unsplash.com/{width}x{height}/?{query}"
         print(f"   🖼️ Unsplash: {query}...")
         response = requests.get(url, timeout=30)
@@ -118,8 +149,7 @@ def generate_image_unsplash(prompt, filename, width=1080, height=1920):
         print(f"   ⚠️ Unsplash failed: {e}")
         return None
 
-
-@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=2, max=10))
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=2, min=4, max=20))
 def generate_image_reliable(prompt, filename, width=1080, height=1920):
     """Try multiple image generation providers in order"""
     providers = [
@@ -139,7 +169,6 @@ def generate_image_reliable(prompt, filename, width=1080, height=1920):
     
     print("   ❌ All providers failed for this scene, returning None")
     return None
-  # All providers failed
 
 print("🎨 Generating scene images with reliable providers...")
 scene_images = []
@@ -193,30 +222,22 @@ else:
     # keep your existing estimate-based code block here
 
 def estimate_speech_duration(text, audio_path="tmp/voice.mp3"):
-    """
-    Estimate how long the given text should take, dynamically scaled
-    to the actual speaking speed of the TTS file.
-    """
+    """Estimate how long the given text should take"""
     words = len(text.split())
     if words == 0:
         return 0.0
 
-    fallback_wpm = 140  # realistic spoken English rate
+    fallback_wpm = 140
 
-    # Try to base pacing on the real generated TTS file
     if os.path.exists(audio_path):
         try:
             audio = AudioSegment.from_file(audio_path)
-            total_audio_duration = len(audio) / 1000.0  # ms → seconds
+            total_audio_duration = len(audio) / 1000.0
 
-            # Use total word count from script.json to scale durations
             all_text = " ".join([hook] + bullets + [cta])
             total_words = len(all_text.split()) or 1
 
-            # Average seconds per word based on actual TTS
             seconds_per_word = total_audio_duration / total_words
-
-            # Duration for this text
             return seconds_per_word * words
         except Exception as e:
             print(f"⚠️ Could not analyze TTS file for pacing: {e}")
@@ -228,9 +249,7 @@ hook_estimated = estimate_speech_duration(hook)
 bullets_estimated = [estimate_speech_duration(b) for b in bullets]
 cta_estimated = estimate_speech_duration(cta)
 
-# Adjust durations to fit actual audio length
 total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
-# Apply a small safety margin to absorb micro-delays (crossfade, render lag)
 margin = 0.98
 duration *= margin
 
@@ -240,7 +259,6 @@ hook_dur = min(hook_estimated * time_scale, duration * 0.2) if hook else 0
 cta_dur = min(cta_estimated * time_scale, duration * 0.2) if cta else 0
 bullets_dur = duration - hook_dur - cta_dur
 
-# Distribute bullet time proportionally
 if bullets_estimated and sum(bullets_estimated) > 0:
     bullet_durs = [(b_est / sum(bullets_estimated)) * bullets_dur for b_est in bullets_estimated]
 else:
@@ -260,10 +278,8 @@ def smart_text_wrap(text, font_size, max_width):
     from PIL import Image, ImageDraw, ImageFont
     
     try:
-        # Try to load the actual font for accurate measurement
         pil_font = ImageFont.truetype(FONT, font_size)
     except:
-        # Fallback: estimate character width
         avg_char_width = font_size * 0.6
         max_chars_per_line = int(max_width / avg_char_width)
         
@@ -285,7 +301,6 @@ def smart_text_wrap(text, font_size, max_width):
         
         return '\n'.join(lines)
     
-    # Use PIL for accurate text measurement
     words = text.split()
     lines = []
     current_line = []
@@ -305,11 +320,9 @@ def smart_text_wrap(text, font_size, max_width):
                 lines.append(' '.join(current_line))
             current_line = [word]
             
-            # Check if single word is too long
             word_bbox = draw.textbbox((0, 0), word, font=pil_font)
             word_width = word_bbox[2] - word_bbox[0]
             if word_width > max_width:
-                # Word itself is too long, will be handled by font size reduction
                 pass
     
     if current_line:
@@ -320,10 +333,8 @@ def smart_text_wrap(text, font_size, max_width):
 def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
     """Create text with strong outline and shadow for visibility on any background"""
     
-    # Smart wrap to prevent word splitting
     wrapped_text = smart_text_wrap(text, font_size, max_width)
     
-    # Adaptive font sizing to prevent overflow
     test_clip = TextClip(
         text=wrapped_text,
         font=FONT,
@@ -332,7 +343,6 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
         text_align='center'
     )
     
-    # If text is too tall, reduce font size and re-wrap - MORE AGGRESSIVE
     max_height = h * 0.20
     iterations = 0
     while test_clip.h > max_height and font_size > 32 and iterations < 10:
@@ -347,7 +357,6 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
         )
         iterations += 1
     
-    # If still too wide, force narrower width
     while test_clip.w > max_width and font_size > 32:
         font_size -= 6
         wrapped_text = smart_text_wrap(text, font_size, max_width - 60)
@@ -365,7 +374,6 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
     """Create a scene with background image and highly visible text overlay"""
     scene_clips = []
     
-    # Background
     if image_path and os.path.exists(image_path):
         bg = (ImageClip(image_path)
               .resized(height=h)
@@ -379,11 +387,8 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
     scene_clips.append(bg)
     
     if text:
-        # Adaptive font sizing and smart wrapping
         wrapped_text, font_size = create_text_with_effects(text)
         
-        # Calculate actual position to ensure text stays in safe zone
-        # Create temporary clip to measure actual height
         temp_clip = TextClip(
             text=wrapped_text,
             font=FONT,
@@ -391,35 +396,26 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             method='label',
             text_align='center'
         )
-        # 🩹 Fix text clipping (add transparent vertical padding)
         temp_clip = temp_clip.margin(top=10, bottom=20, opacity=0)
 
         text_height = temp_clip.h
         text_width = temp_clip.w
         
-        # Add extra padding for safety (accounts for descent, shadows, stroke, etc.)
         text_height_with_padding = int(text_height * 1.6)
         
-        # Determine safe Y position based on desired position
         if position_y == 'center':
-            # Center with padding
             pos_y = (h - text_height_with_padding) // 2
         elif isinstance(position_y, int):
-            # For specific positions, ensure full text visibility
             min_y = SAFE_ZONE_MARGIN
             max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 120
             
-            # Clamp position to safe range
             pos_y = max(min_y, min(position_y, max_y))
             
-            # Special handling for bottom text (CTA) - FORCE from bottom
             if position_y > h * 0.6:
-                # ALWAYS position from bottom up with generous padding
                 pos_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 150
         else:
             pos_y = SAFE_ZONE_MARGIN
         
-        # FINAL AGGRESSIVE SAFETY CHECK - ensure we're not off screen
         absolute_max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 150
         if pos_y > absolute_max_y:
             pos_y = absolute_max_y
@@ -434,7 +430,6 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         print(f"         Font: {font_size}px, Width={text_width}px")
         print(f"         Bottom edge: {pos_y + text_height_with_padding}px (screen: {h}px)")
         
-        # Main text with thick stroke (no splitting, centered)
         main_text = (TextClip(
             text=wrapped_text,
             font=FONT,
@@ -445,18 +440,16 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             stroke_color='black',
             stroke_width=8
         )
-        .margin(top=10, bottom=20, opacity=0)  # 🩹 Prevent text from being cropped
+        .margin(top=10, bottom=20, opacity=0)
         .with_duration(duration)
         .with_start(start_time)
         .with_position(('center', pos_y))
         .with_effects([vfx.CrossFadeIn(0.3), vfx.CrossFadeOut(0.3)]))
         
-        # Add all text layers
         scene_clips.extend([main_text])
     
     return scene_clips
 
-# Hook scene
 if hook:
     print(f"🎬 Creating hook scene (synced with audio)...")
     hook_clips = create_scene(
@@ -472,7 +465,6 @@ if hook:
 else:
     print("⚠️ No hook text found")
 
-# Bullet scenes with audio sync
 print(f"📋 Creating {len(bullets)} bullet scenes (synced with audio)...")
 for i, bullet in enumerate(bullets):
     if not bullet:
@@ -493,7 +485,6 @@ for i, bullet in enumerate(bullets):
     print(f"   Bullet {i+1}: {current_time:.1f}s - {current_time + bullet_durs[i]:.1f}s (synced)")
     current_time += bullet_durs[i]
 
-# CTA scene - with aggressive bottom protection
 if cta:
     print(f"📢 Creating CTA scene (synced with audio)...")
     cta_clips = create_scene(
@@ -509,11 +500,9 @@ if cta:
 else:
     print("⚠️ No CTA text found")
 
-# Compose final video
 print(f"🎬 Composing video with {len(clips)} clips...")
 video = CompositeVideoClip(clips, size=(w, h))
 
-# Attach audio
 print(f"🔊 Attaching audio...")
 video = video.with_audio(audio)
 
@@ -524,7 +513,6 @@ else:
     print(f"✅ Audio verified: {video.audio.duration:.2f}s")
     print(f"✅ Text-audio synchronization: ENABLED")
 
-# Write video
 print(f"📹 Writing video file to {OUT}...")
 try:
     video.write_videofile(

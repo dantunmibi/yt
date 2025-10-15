@@ -49,28 +49,57 @@ hook = data.get("hook", "")
 
 text = title[:80]
 
+# ✅ FIXED: Correct Hugging Face thumbnail generation
 def generate_thumbnail_huggingface(prompt):
-    """Generate thumbnail using Hugging Face Stable Diffusion"""
+    """Generate thumbnail using Hugging Face - FIXED VERSION"""
     try:
-        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large"
-        headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
+        # ✅ Use Stable Diffusion XL (more reliable)
+        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+        
+        hf_token = os.getenv('HUGGINGFACE_API_KEY')
+        
+        if not hf_token:
+            print("   ⚠️ HUGGINGFACE_API_KEY not set, skipping Hugging Face")
+            raise Exception("No Hugging Face API key")
+        
+        headers = {"Authorization": f"Bearer {hf_token}"}
         
         payload = {
             "inputs": prompt,
             "parameters": {
-                "width": 1280,
-                "height": 720,
-                "num_inference_steps": 20
+                "negative_prompt": "blurry, low quality, text, watermark, ugly",
+                "num_inference_steps": 25,
+                "guidance_scale": 7.5
             }
         }
         
         print(f"🤗 Hugging Face thumbnail: {prompt[:60]}...")
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=120)
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
         
         if response.status_code == 200:
-            return response.content
+            # Verify content
+            if len(response.content) > 1000:
+                print("   ✅ Hugging Face thumbnail generated")
+                return response.content
+            else:
+                raise Exception("Empty image received")
+        
+        elif response.status_code == 503:
+            print(f"   ⚠️ Model is loading (503), will retry...")
+            raise Exception("Model loading")
+        
+        elif response.status_code == 404:
+            print(f"   ❌ Hugging Face 404: Check API key")
+            print(f"   💡 Token should start with 'hf_'")
+            raise Exception("404 error")
+        
+        elif response.status_code == 401:
+            print(f"   ❌ Hugging Face 401: Invalid token")
+            raise Exception("Invalid API token")
+        
         else:
-            raise Exception(f"Hugging Face API error: {response.status_code}")
+            print(f"   ⚠️ Hugging Face error {response.status_code}")
+            raise Exception(f"API error: {response.status_code}")
             
     except Exception as e:
         print(f"⚠️ Hugging Face thumbnail failed: {e}")
@@ -91,7 +120,7 @@ def generate_thumbnail_pollinations(prompt):
         print(f"⚠️ Pollinations thumbnail failed: {e}")
         raise
 
-@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=2, max=10))
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=2, min=4, max=20))
 def generate_thumbnail_bg(topic, title):
     bg_path = os.path.join(TMP, "thumb_bg.png")
     prompt = f"YouTube thumbnail style, vibrant explosive colors, high contrast, eye-catching, dramatic, professional, about: {topic} - {title}, no text"
@@ -101,20 +130,25 @@ def generate_thumbnail_bg(topic, title):
         ("Pollinations", generate_thumbnail_pollinations)
     ]
     
-    # Try reliable providers first
     for provider_name, provider_func in providers:
         try:
             print(f"🎨 Trying {provider_name} for thumbnail...")
             image_content = provider_func(prompt)
             with open(bg_path, "wb") as f:
                 f.write(image_content)
-            print(f"✅ {provider_name} thumbnail generated successfully")
-            return bg_path
+            
+            # Verify file was created
+            if os.path.getsize(bg_path) > 1000:
+                print(f"✅ {provider_name} thumbnail generated successfully")
+                return bg_path
+            else:
+                print(f"⚠️ {provider_name} returned empty file")
+                
         except Exception as e:
             print(f"⚠️ {provider_name} thumbnail failed: {e}")
             continue
 
-    # 🖼️ Try Unsplash fallback before gradient
+    # 🖼️ Try Unsplash fallback
     try:
         print("🖼️ Trying Unsplash fallback...")
         query = requests.utils.quote(topic or title or "abstract")
@@ -124,16 +158,16 @@ def generate_thumbnail_bg(topic, title):
         if response.status_code == 200:
             with open(bg_path, "wb") as f:
                 f.write(response.content)
-            print(f"✅ Unsplash fallback image saved successfully ({query})")
+            print(f"✅ Unsplash fallback image saved ({query})")
             return bg_path
         else:
-            print(f"⚠️ Unsplash returned {response.status_code}, using gradient fallback")
+            print(f"⚠️ Unsplash returned {response.status_code}")
 
     except Exception as e:
         print(f"⚠️ Unsplash fallback failed: {e}")
     
     # Fallback to gradient
-    print("⚠️ All AI providers failed, using gradient fallback")
+    print("⚠️ All providers failed, using gradient fallback")
     img = Image.new("RGB", (1280, 720), (0, 0, 0))
     draw = ImageDraw.Draw(img)
     
