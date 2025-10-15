@@ -60,6 +60,7 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
         if not hf_token:
             print("   ⚠️ HUGGINGFACE_API_KEY not set, skipping Hugging Face")
             raise Exception("No Hugging Face API key")
+            raise ValueError("Missing API Key")
         
         headers = {"Authorization": f"Bearer {hf_token}"}
         
@@ -101,10 +102,11 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
         
         else:
             print(f"   ⚠️ Hugging Face error {response.status_code}")
+            print(f"   💡 API Response Body (start): {response.text[:200]}...")
             raise Exception(f"API error: {response.status_code}")
             
     except Exception as e:
-        print(f"⚠️ Hugging Face thumbnail failed: {e}")
+        print(f"⚠️ Hugging Face thumbnail failed due to exception: {type(e).__name__}: {e}")
         raise
 
 def generate_image_pollinations(prompt, filename, width=1080, height=1920):
@@ -157,7 +159,7 @@ def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
     print("⚠️ Unsplash fallback failed after retries")
     return None
 
-@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=2, min=4, max=20))
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, min=4, max=20))
 def generate_image_reliable(prompt, filename, width=1080, height=1920):
     """Try multiple image generation providers in order"""
     providers = [

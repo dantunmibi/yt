@@ -130,7 +130,7 @@ def generate_thumbnail_bg(topic, title):
     
     providers = [
         ("Hugging Face", generate_thumbnail_huggingface),
-        ("Pollinations", generate_thumbnail_pollinations),
+        ("Pollinations", generate_thumbnail_pollinations)
     ]
     
     for provider_name, provider_func in providers:
