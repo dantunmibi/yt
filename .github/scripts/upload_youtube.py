@@ -43,43 +43,48 @@ if video_size_mb < 0.1:
 if os.path.exists(THUMB):
     print("🎨 Embedding thumbnail as intro frame with fade transition...")
 
-    # Get video dimensions first
+    # Get video dimensions and fps
     try:
-        # Use ffprobe to get video dimensions
         probe_cmd = [
             "ffprobe", 
             "-v", "error",
             "-select_streams", "v:0",
-            "-show_entries", "stream=width,height",
+            "-show_entries", "stream=width,height,r_frame_rate",
             "-of", "csv=p=0",
             VIDEO
         ]
         result = subprocess.run(probe_cmd, capture_output=True, text=True, check=True)
-        video_dims = result.stdout.strip().split(',')
-        video_width, video_height = int(video_dims[0]), int(video_dims[1])
-        print(f"📐 Video dimensions: {video_width}x{video_height}")
+        video_info = result.stdout.strip().split(',')
+        video_width, video_height = int(video_info[0]), int(video_info[1])
+        
+        # Parse fps (format: "30/1" or "30000/1001")
+        fps_parts = video_info[2].split('/')
+        video_fps = int(fps_parts[0]) / int(fps_parts[1])
+        
+        print(f"📐 Video dimensions: {video_width}x{video_height} @ {video_fps:.2f} fps")
         
     except Exception as e:
-        print(f"⚠️ Could not get video dimensions: {e}")
+        print(f"⚠️ Could not get video info: {e}")
         print("⚠️ Using original video without thumbnail embed.")
-        video_width, video_height = 1080, 1920
+        video_width, video_height, video_fps = 1080, 1920, 30
 
     THUMB_DURATION = 0.6
     FADE_DURATION = 0.3
 
-    # ✅ FIXED: Correct FFmpeg filter complex syntax
+    # ✅ FIXED: Proper FFmpeg filter with matching timebase and fps
     ffmpeg_args = [
         "ffmpeg", 
         "-y",
         "-loop", "1", 
         "-t", str(THUMB_DURATION), 
+        "-framerate", str(video_fps),  # ✅ Match video fps
         "-i", THUMB,
         "-i", VIDEO,
         "-filter_complex", 
-        # ✅ FIXED: Proper filter chain with correct stream references
-        f"[0:v]scale={video_width}:{video_height}:force_original_aspect_ratio=decrease,"
+        # ✅ FIXED: Set fps on thumbnail, use settb to match timebase
+        f"[0:v]fps={video_fps},scale={video_width}:{video_height}:force_original_aspect_ratio=decrease,"
         f"pad={video_width}:{video_height}:(ow-iw)/2:(oh-ih)/2:black,"
-        f"setsar=1[thumb_scaled];"
+        f"setsar=1,settb=AVTB[thumb_scaled];"  # ✅ Set auto video timebase
         f"[thumb_scaled][1:v]xfade=transition=fade:duration={FADE_DURATION}:offset={THUMB_DURATION - FADE_DURATION}[v_out]",
         "-map", "[v_out]",
         "-map", "1:a?",
@@ -92,28 +97,28 @@ if os.path.exists(THUMB):
     ]
     
     try:
-        print("🔄 Processing thumbnail embed with resolution scaling...")
-        print(f"🔧 FFmpeg command: {' '.join(ffmpeg_args)}")
+        print("🔄 Processing thumbnail embed with proper timebase...")
         result = subprocess.run(ffmpeg_args, check=True, capture_output=True, text=True)
         
-        if os.path.exists(READY_VIDEO) and os.path.getsize(READY_VIDEO) > 0:
+        if os.path.exists(READY_VIDEO) and os.path.getsize(READY_VIDEO) > 100000:
             ready_size_mb = os.path.getsize(READY_VIDEO) / (1024 * 1024)
             VIDEO = READY_VIDEO
             print(f"✅ Thumbnail embedded successfully! New size: {ready_size_mb:.2f} MB")
         else:
-            raise Exception("Output file was created but is empty.")
+            raise Exception("Output file was created but is too small.")
 
     except subprocess.CalledProcessError as e:
-        print(f"⚠️ Thumbnail embedding failed (FFmpeg error): {e.stderr}")
-        print("⚠️ Using original video.")
+        print(f"⚠️ Thumbnail embedding failed (FFmpeg error):")
+        print(f"   {e.stderr[:500]}")  # Show only first 500 chars of error
+        print("⚠️ Using original video without thumbnail intro.")
     except Exception as e:
         print(f"⚠️ Thumbnail embedding failed: {e}")
-        print("⚠️ Using original video.")
+        print("⚠️ Using original video without thumbnail intro.")
 
 else:
     print("⚠️ Thumbnail not found, skipping embed step.")
 
-# ---- Step 2.5: UNCONDITIONAL Renaming and Final Path Setup ----
+# ---- Step 2.5: Rename video to safe filename ----
 safe_title = re.sub(r'[^\w\s-]', '', title).strip().replace(' ', '_')
 video_output_path = os.path.join(TMP, f"{safe_title}.mp4")
 
@@ -124,13 +129,11 @@ if VIDEO != video_output_path:
             VIDEO = video_output_path
             print(f"🎬 Final video renamed to: {video_output_path}")
         except Exception as e:
-            VIDEO = video_output_path
-            print(f"⚠️ Renaming failed: {e}. Proceeding with original file at final path: {VIDEO}")
+            print(f"⚠️ Renaming failed: {e}. Using original path.")
     else:
-        VIDEO = video_output_path
-        print("⚠️ File not found before rename. Setting final upload path.")
+        print("⚠️ Video file not found before rename.")
 else:
-    print("🎬 Video already has the correct title name. Proceeding.")
+    print("🎬 Video already has the correct filename.")
 
 # ---- Step 3: Authenticate ----
 try:
@@ -148,7 +151,7 @@ except Exception as e:
     print(f"❌ Authentication failed: {e}")
     raise
 
-# ---- Step 4: Load metadata ----
+# ---- Step 4: Prepare metadata ----
 enhanced_description = f"""{description}
 
 {' '.join(hashtags)}
@@ -242,11 +245,16 @@ if os.path.exists(THUMB):
         thumb_size_mb = os.path.getsize(THUMB) / (1024*1024)
         if thumb_size_mb > 2:
             print(f"⚠️ Compressing thumbnail ({thumb_size_mb:.2f}MB)...")
-            Image.open(THUMB).save(THUMB, quality=85, optimize=True)
-        youtube.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(THUMB)).execute()
+            img = Image.open(THUMB)
+            img.save(THUMB, quality=85, optimize=True)
+        
+        youtube.thumbnails().set(
+            videoId=video_id, 
+            media_body=MediaFileUpload(THUMB)
+        ).execute()
         print("✅ Thumbnail set successfully (desktop view).")
     except Exception as e:
-        print(f"⚠️ Thumbnail step failed: {e}")
+        print(f"⚠️ Thumbnail upload failed: {e}")
 else:
     print("⚠️ No thumbnail file found, skipping thumbnail set.")
 
@@ -272,7 +280,8 @@ if os.path.exists(UPLOAD_LOG):
         history = []
 
 history.append(upload_metadata)
-history = history[-100:]
+history = history[-100:]  # Keep last 100 uploads
+
 with open(UPLOAD_LOG, 'w') as f:
     json.dump(history, f, indent=2)
 

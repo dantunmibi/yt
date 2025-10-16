@@ -80,11 +80,11 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
         
         if response.status_code == 200:
             if len(response.content) > 1000:
-                filepath = os.path.join(TMP, filename) # Define local path
-                with open(filepath, "wb") as f:         # <-- Add this to save the image
-                    f.write(response.content)           # <--
-                print("   ✅ Hugging Face thumbnail generated")
-                return filepath                         # <-- Return the local path
+                filepath = os.path.join(TMP, filename)
+                with open(filepath, "wb") as f:
+                    f.write(response.content)
+                print("   ✅ Hugging Face thumbnail generated")
+                return filepath
             else:
                 raise Exception("Empty image received")
         
@@ -222,69 +222,71 @@ if all(os.path.exists(p) for p in [hook_path, cta_path] + bullet_paths):
     cta_dur = get_audio_duration(cta_path)
 else:
     print("⚙️ Using estimated word-based durations (fallback)")
-    # keep your existing estimate-based code block here
 
-def estimate_speech_duration(text, audio_path):
-    """Estimate how long the given text should take"""
-    words = len(text.split())
-    if words == 0:
-        return 0.0
+    def estimate_speech_duration(text, audio_path):
+        """Estimate how long the given text should take"""
+        words = len(text.split())
+        if words == 0:
+            return 0.0
 
-    fallback_wpm = 140
+        fallback_wpm = 140
 
-    if os.path.exists(audio_path):
-        try:
-            audio = AudioSegment.from_file(audio_path)
-            total_audio_duration = len(audio) / 1000.0
+        if os.path.exists(audio_path):
+            try:
+                audio = AudioSegment.from_file(audio_path)
+                total_audio_duration = len(audio) / 1000.0
 
-            all_text = " ".join([hook] + bullets + [cta])
-            total_words = len(all_text.split()) or 1
+                all_text = " ".join([hook] + bullets + [cta])
+                total_words = len(all_text.split()) or 1
 
-            seconds_per_word = total_audio_duration / total_words
-            return seconds_per_word * words
-        except Exception as e:
-            print(f"⚠️ Could not analyze TTS file for pacing: {e}")
+                seconds_per_word = total_audio_duration / total_words
+                return seconds_per_word * words
+            except Exception as e:
+                print(f"⚠️ Could not analyze TTS file for pacing: {e}")
+                return (words / fallback_wpm) * 60.0
+        else:
             return (words / fallback_wpm) * 60.0
+
+    hook_estimated = estimate_speech_duration(hook, audio_path)
+    bullets_estimated = [estimate_speech_duration(b, audio_path) for b in bullets]
+    cta_estimated = estimate_speech_duration(cta, audio_path)
+
+    total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
+
+    # Safety check for zero-length text/audio
+    if total_estimated == 0:
+        section_count = max(1, len(bullets) + (1 if hook else 0) + (1 if cta else 0))
+        equal_split = duration / section_count 
+        
+        hook_dur = equal_split if hook else 0
+        bullet_durs = [equal_split] * len(bullets)
+        cta_dur = equal_split if cta else 0
+
     else:
-        return (words / fallback_wpm) * 60.0
+        # ✅ FIXED: Ensure scenes match EXACT audio duration
+        # Remove margin - we want to use the full audio duration
+        time_scale = duration / total_estimated 
 
-hook_estimated = estimate_speech_duration(hook, audio_path)
-bullets_estimated = [estimate_speech_duration(b, audio_path) for b in bullets]
-cta_estimated = estimate_speech_duration(cta, audio_path)
-
-total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
-
-# ... after total_estimated is calculated ...
-
-# Safety check for zero-length text/audio
-if total_estimated == 0:
-    section_count = max(1, len(bullets) + (1 if hook else 0) + (1 if cta else 0))
-    # Note: Use the UNMODIFIED 'duration' here for the equal split
-    equal_split = duration / section_count 
-    
-    hook_dur = equal_split if hook else 0
-    bullet_durs = [equal_split] * len(bullets)
-    cta_dur = equal_split if cta else 0
-
-else:
-    # 2. Calculate the global scaling factor
-    margin = 0.98 
-    # Use the UNMODIFIED 'duration' for the calculation
-    scaled_duration = duration * margin 
-    time_scale = scaled_duration / total_estimated 
-
-    # 3. Apply the time scale to every estimated duration (CRITICAL CHANGE)
-    hook_dur = hook_estimated * time_scale
-    bullet_durs = [b_est * time_scale for b_est in bullets_estimated]
-    cta_dur = cta_estimated * time_scale
-
-# Note: The printing section remains the same and should follow this block.
+        # Apply the time scale to every estimated duration
+        hook_dur = hook_estimated * time_scale
+        bullet_durs = [b_est * time_scale for b_est in bullets_estimated]
+        cta_dur = cta_estimated * time_scale
+        
+        # ✅ CRITICAL FIX: Adjust last section to account for rounding errors
+        total_scenes = hook_dur + sum(bullet_durs) + cta_dur
+        duration_diff = duration - total_scenes
+        
+        if abs(duration_diff) > 0.01:  # If difference > 10ms
+            # Add the difference to the CTA (last section)
+            cta_dur += duration_diff
+            print(f"⚙️ Adjusted CTA duration by {duration_diff:.2f}s to match audio exactly")
 
 print(f"⏱️  Scene timings (audio-synced):")
 print(f"   Hook: {hook_dur:.1f}s")
 for i, dur in enumerate(bullet_durs):
     print(f"   Bullet {i+1}: {dur:.1f}s")
 print(f"   CTA: {cta_dur:.1f}s")
+print(f"   Total: {hook_dur + sum(bullet_durs) + cta_dur:.2f}s (Audio: {duration:.2f}s)")
 
 clips = []
 current_time = 0

@@ -49,58 +49,79 @@ title = data.get("title", "AI Short")
 topic = data.get("topic", "trending")
 hook = data.get("hook", "")
 
-# ✅ FIXED: Better text processing for thumbnails
-def optimize_text_for_thumbnail(text, max_lines=3, max_chars_per_line=25):
-    """Optimize text for thumbnail display"""
-    # Remove special characters and clean up
-    text = text.replace('"', '').replace("'", "").replace(":", " ")
+# ✅ FIXED: Use the SHORTER one between title and hook
+if hook and len(hook) > 10:
+    # Choose the shorter text for better thumbnail fit
+    if len(hook) < len(title):
+        display_text = hook
+        print(f"🎯 Using SHORTER hook: {display_text}")
+    else:
+        display_text = title
+        print(f"🎯 Using SHORTER title: {display_text}")
+else:
+    display_text = title
+    print(f"📝 Using title (no suitable hook): {display_text}")
+
+print(f"📊 Length comparison - Hook: {len(hook)} chars, Title: {len(title)} chars")
+
+# ✅ FIXED: Better text processing that preserves complete text
+def optimize_text_for_thumbnail(text, max_lines=2, max_chars_per_line=24):
+    """Optimize text for thumbnail display while preserving meaning"""
+    print(f"📝 Processing text: {text}")
     
-    # Split into words and process
-    words = text.split()
+    # Clean text but preserve key elements
+    text = text.replace('"', '').replace("'", "")
+    text = ' '.join(text.split())  # Remove extra spaces
+    
+    # If text fits in one line, use it
+    if len(text) <= max_chars_per_line:
+        return [text]
+    
+    # Try to find natural break points first
+    if "?" in text:
+        parts = text.split("?")
+        if len(parts) == 2:
+            line1 = parts[0] + "?"
+            line2 = parts[1].strip()
+            if len(line1) <= max_chars_per_line and len(line2) <= max_chars_per_line:
+                return [line1, line2]
+    
+    if ":" in text:
+        parts = text.split(":")
+        if len(parts) == 2:
+            line1 = parts[0] + ":"
+            line2 = parts[1].strip()
+            if len(line1) <= max_chars_per_line and len(line2) <= max_chars_per_line:
+                return [line1, line2]
+    
+    # Smart word-based line breaking
     lines = []
     current_line = []
     
     for word in words:
-        current_line.append(word)
-        test_line = " ".join(current_line)
+        test_line = ' '.join(current_line + [word])
         
-        # Check if line is too long
-        if len(test_line) > max_chars_per_line or len(current_line) > 4:
-            if len(current_line) > 1:
-                current_line.pop()
-                lines.append(" ".join(current_line))
-                current_line = [word]
-            else:
-                # Single word is too long, split it
-                if len(word) > max_chars_per_line:
-                    # Split long word (approximate)
-                    mid = len(word) // 2
-                    lines.append(word[:mid] + "-")
-                    current_line = [word[mid:]]
-                else:
-                    lines.append(" ".join(current_line))
-                    current_line = []
+        if len(test_line) <= max_chars_per_line:
+            current_line.append(word)
+        else:
+            if current_line:
+                lines.append(' '.join(current_line))
+            current_line = [word]
+            
+            if len(lines) >= max_lines:
+                break
     
-    if current_line:
-        lines.append(" ".join(current_line))
+    # Add the last line
+    if current_line and len(lines) < max_lines:
+        lines.append(' '.join(current_line))
     
-    # Limit to max lines
+    # Ensure we don't exceed max lines
     lines = lines[:max_lines]
     
-    # Ensure we have at least one line
-    if not lines:
-        lines = [text[:max_chars_per_line]]
-    
+    print(f"📝 Final lines: {lines}")
     return lines
 
-# ✅ FIXED: Use hook if available, otherwise optimize title
-if hook and len(hook) > 10:
-    display_text = hook
-else:
-    display_text = title
-
-text_lines = optimize_text_for_thumbnail(display_text, max_lines=2, max_chars_per_line=20)
-print(f"📝 Optimized text for thumbnail: {text_lines}")
+text_lines = optimize_text_for_thumbnail(display_text, max_lines=2, max_chars_per_line=24)
 
 # ✅ FIXED: Correct Hugging Face thumbnail generation
 def generate_thumbnail_huggingface(prompt):
@@ -180,7 +201,7 @@ def generate_thumbnail_bg(topic, title):
     bg_path = os.path.join(TMP, "thumb_bg.png")
     
     # ✅ FIXED: Better prompt for YouTube thumbnails
-    prompt = f"YouTube thumbnail style, viral content, trending, about: {topic} - {title}, high contrast, vibrant colors, dramatic lighting, professional photography, no text, cinematic"
+    prompt = f"YouTube thumbnail style, viral content, trending, {topic}, high contrast, vibrant colors, dramatic lighting, professional photography, no text, cinematic, eye-catching"
     
     providers = [
         ("Hugging Face", generate_thumbnail_huggingface),
@@ -269,31 +290,45 @@ vd = ImageDraw.Draw(vignette)
 w, h = img.size
 
 # Draw radial gradient for better text contrast
-for i in range(0, min(w, h)//2, 10):
-    alpha = int(120 * (i / (min(w, h)//2)))
-    vd.ellipse([-i, -i, w+i, h+i], outline=(0, 0, 0, alpha), width=20)
+center_x, center_y = w // 2, h // 2
+max_radius = int((w**2 + h**2)**0.5) // 2
+
+for radius in range(0, max_radius, 20):
+    alpha = int(100 * (radius / max_radius))
+    vd.ellipse(
+        [center_x - radius, center_y - radius, center_x + radius, center_y + radius],
+        outline=(0, 0, 0, alpha),
+        width=30
+    )
 
 img = Image.alpha_composite(img, vignette)
 
 draw = ImageDraw.Draw(img)
 
-# ✅ FIXED: Better font sizing for YouTube Shorts
-main_font = get_font_path(70, bold=True)  # Slightly smaller for better fit
+# ✅ IMPROVED: Dynamic font sizing based on text length
+max_chars = max(len(line) for line in text_lines) if text_lines else 0
+if max_chars > 15:
+    font_size = 60
+else:
+    font_size = 70
+
+main_font = get_font_path(font_size, bold=True)
 w, h = img.size
 
 print("📝 Adding optimized text to thumbnail...")
 
-# Calculate total text height
+# Calculate total text height with proper spacing
 line_heights = []
 for line in text_lines:
     bbox = draw.textbbox((0, 0), line, font=main_font)
     text_h = bbox[3] - bbox[1]
     line_heights.append(text_h)
 
-total_height = sum(line_heights) + (len(text_lines) - 1) * 15  # Reduced spacing
+line_spacing = 20
+total_height = sum(line_heights) + (len(text_lines) - 1) * line_spacing
 
-# Position text in upper third for YouTube Shorts (avoids UI elements)
-start_y = h * 0.15  # Moved higher up
+# Position text in upper third for YouTube Shorts
+start_y = h * 0.18  # Slightly higher for better balance
 
 for i, line in enumerate(text_lines):
     bbox = draw.textbbox((0, 0), line, font=main_font)
@@ -301,32 +336,32 @@ for i, line in enumerate(text_lines):
     text_h = bbox[3] - bbox[1]
     
     x = (w - text_w) / 2
-    y = start_y + sum(line_heights[:i]) + (i * 15)
+    y = start_y + sum(line_heights[:i]) + (i * line_spacing)
     
-    # ✅ FIXED: Better shadow effect
+    # ✅ IMPROVED: Better shadow effect
     shadow_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     sd = ImageDraw.Draw(shadow_overlay)
     
     # Multiple shadow layers for better readability
-    for offset in [4, 3, 2]:
-        shadow_alpha = int(150 * (offset / 4))
+    for offset in [3, 2, 1]:
+        shadow_alpha = int(120 * (offset / 3))
         sd.text((x + offset, y + offset), line, font=main_font, fill=(0, 0, 0, shadow_alpha))
     
     img = Image.alpha_composite(img, shadow_overlay)
     
-    # ✅ FIXED: Thicker stroke for better readability
+    # ✅ IMPROVED: Thicker stroke for better readability
     stroke_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     so = ImageDraw.Draw(stroke_overlay)
     
-    stroke_size = 2
+    stroke_size = 3
     for adj_x in range(-stroke_size, stroke_size + 1):
         for adj_y in range(-stroke_size, stroke_size + 1):
             if abs(adj_x) == stroke_size or abs(adj_y) == stroke_size:
-                so.text((x + adj_x, y + adj_y), line, font=main_font, fill=(0, 0, 0, 255))
+                so.text((x + adj_x, y + adj_y), line, font=main_font, fill=(0, 0, 0, 200))
     
     img = Image.alpha_composite(img, stroke_overlay)
     
-    # ✅ FIXED: Bright text color for maximum contrast
+    # ✅ IMPROVED: Bright text with slight glow
     text_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     to = ImageDraw.Draw(text_overlay)
     to.text((x, y), line, font=main_font, fill=(255, 255, 255, 255))
@@ -346,3 +381,4 @@ print(f"   Size: {os.path.getsize(thumb_path) / 1024:.1f} KB")
 print(f"   Dimensions: {final_img.size}")
 print(f"   Text lines: {len(text_lines)}")
 print(f"   Text content: {text_lines}")
+print(f"   Font size: {font_size}px")
