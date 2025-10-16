@@ -409,8 +409,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             font=FONT,
             font_size=font_size,
             method='label',
-            text_align='center',
-            padding=(0, 20)
+            text_align='center'
         )
         temp_clip = temp_clip.with_position(('center', 'center'))
 
@@ -454,8 +453,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             method='label',
             text_align='center',
             stroke_color='black',
-            stroke_width=8,
-            padding=(0, 20)
+            stroke_width=8
         )
         .with_position(('center', 'center'))
         .with_duration(duration)

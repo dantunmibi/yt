@@ -2,10 +2,11 @@ import json
 import time
 import random
 from typing import List, Dict, Any
+import os
 
 # NOTE: The apiKey is dynamically provided by the runtime environment.
 # DO NOT include a real key here.
-API_KEY = ""
+API_KEY = os.getenv("GEMINI_API_KEY")
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent"
 MODEL_NAME = "gemini-2.5-flash-preview-09-2025"
 
@@ -63,7 +64,7 @@ def get_trending_ideas(user_query: str) -> List[Dict[str, str]]:
             }
             
             response = requests.post(
-                f"{API_URL}?key={API_KEY}", 
+                API_URL, 
                 headers=headers, 
                 data=json.dumps(payload)
             )
