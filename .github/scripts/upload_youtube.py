@@ -17,21 +17,18 @@ THUMB = os.path.join(TMP, "thumbnail.png")
 READY_VIDEO = os.path.join(TMP, "short_ready.mp4")
 UPLOAD_LOG = os.path.join(TMP, "upload_history.json")
 
-# Insert this block near the beginning of the script, after file path definitions
-
 # ---- Load Global Metadata ONCE ----
 try:
     with open(os.path.join(TMP, "script.json"), "r", encoding="utf-8") as f:
         data = json.load(f)
 except FileNotFoundError:
     print("❌ Error: script.json not found.")
-    raise # Stop if the main script data is missing
+    raise
 
 title = data.get("title", "AI Short")
 description = data.get("description", f"{title}")
 hashtags = data.get("hashtags", ["#shorts", "#viral", "#trending"])
 topic = data.get("topic", "general")
-# ------------------------------------
 
 # ---- Step 1: Validate video ----
 if not os.path.exists(VIDEO):
@@ -46,7 +43,7 @@ if video_size_mb < 0.1:
 if os.path.exists(THUMB):
     print("🎨 Embedding thumbnail as intro frame with fade transition...")
 
-      # Get video dimensions first
+    # Get video dimensions first
     try:
         # Use ffprobe to get video dimensions
         probe_cmd = [
@@ -65,31 +62,38 @@ if os.path.exists(THUMB):
     except Exception as e:
         print(f"⚠️ Could not get video dimensions: {e}")
         print("⚠️ Using original video without thumbnail embed.")
-        video_width, video_height = 1080, 1920  # Default assumption
+        video_width, video_height = 1080, 1920
 
     THUMB_DURATION = 0.6
     FADE_DURATION = 0.3
 
-    # Use subprocess for better error handling and security
+    # ✅ FIXED: Correct FFmpeg filter complex syntax
     ffmpeg_args = [
         "ffmpeg", 
-        "-y", # Overwrite output files without asking
-        "-loop", "1", "-t", str(THUMB_DURATION), "-i", THUMB,
+        "-y",
+        "-loop", "1", 
+        "-t", str(THUMB_DURATION), 
+        "-i", THUMB,
         "-i", VIDEO,
         "-filter_complex", 
-        f"[0:v]scale={video_width}:{video_height}:force_original_aspect_ratio=decrease:flags=lanczos,"
+        # ✅ FIXED: Proper filter chain with correct stream references
+        f"[0:v]scale={video_width}:{video_height}:force_original_aspect_ratio=decrease,"
         f"pad={video_width}:{video_height}:(ow-iw)/2:(oh-ih)/2:black,"
-        f"setsar=1[v0];"
-        f"[0:v][1:v]xfade=transition=fade:duration={FADE_DURATION}:offset={THUMB_DURATION - FADE_DURATION},format=yuv420p",
+        f"setsar=1[thumb_scaled];"
+        f"[thumb_scaled][1:v]xfade=transition=fade:duration={FADE_DURATION}:offset={THUMB_DURATION - FADE_DURATION}[v_out]",
+        "-map", "[v_out]",
+        "-map", "1:a?",
         "-c:v", "libx264", 
         "-preset", "ultrafast", 
         "-pix_fmt", "yuv420p", 
-        "-c:a", "copy",  # Copy audio without re-encoding
+        "-c:a", "copy",
+        "-shortest",
         READY_VIDEO
     ]
     
     try:
         print("🔄 Processing thumbnail embed with resolution scaling...")
+        print(f"🔧 FFmpeg command: {' '.join(ffmpeg_args)}")
         result = subprocess.run(ffmpeg_args, check=True, capture_output=True, text=True)
         
         if os.path.exists(READY_VIDEO) and os.path.getsize(READY_VIDEO) > 0:
@@ -109,13 +113,10 @@ if os.path.exists(THUMB):
 else:
     print("⚠️ Thumbnail not found, skipping embed step.")
 
-# -------------------------------------------------------------------------
 # ---- Step 2.5: UNCONDITIONAL Renaming and Final Path Setup ----
-# -------------------------------------------------------------------------
 safe_title = re.sub(r'[^\w\s-]', '', title).strip().replace(' ', '_')
 video_output_path = os.path.join(TMP, f"{safe_title}.mp4")
 
-# Rename the final video file (VIDEO holds either the original or the ready_video path)
 if VIDEO != video_output_path:
     if os.path.exists(VIDEO):
         try:
@@ -123,16 +124,13 @@ if VIDEO != video_output_path:
             VIDEO = video_output_path
             print(f"🎬 Final video renamed to: {video_output_path}")
         except Exception as e:
-            # If rename fails (e.g., permissions), at least we know the path for upload
             VIDEO = video_output_path
             print(f"⚠️ Renaming failed: {e}. Proceeding with original file at final path: {VIDEO}")
     else:
-        # This case should be impossible if Step 1 succeeded, but set final path anyway
         VIDEO = video_output_path
         print("⚠️ File not found before rename. Setting final upload path.")
 else:
     print("🎬 Video already has the correct title name. Proceeding.")
-# -------------------------------------------------------------------------
 
 # ---- Step 3: Authenticate ----
 try:
@@ -151,7 +149,6 @@ except Exception as e:
     raise
 
 # ---- Step 4: Load metadata ----
-
 enhanced_description = f"""{description}
 
 {' '.join(hashtags)}
@@ -224,26 +221,15 @@ try:
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     shorts_url = f"https://www.youtube.com/shorts/{video_id}"
     
-    
-
     print(f"✅ Video uploaded successfully!")
-
     print(f"   Video ID: {video_id}")
-
     print(f"   Watch URL: {video_url}")
-
     print(f"   Shorts URL: {shorts_url}")
 
-    
-
 except HttpError as e:
-
     print(f"❌ HTTP error during upload: {e}")
-
     error_content = e.content.decode() if hasattr(e, 'content') else str(e)
-
     print(f"   Error details: {error_content}")
-
     raise
 except Exception as e:
     print(f"❌ Upload failed: {e}")

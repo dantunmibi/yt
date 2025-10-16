@@ -129,7 +129,7 @@ OUTPUT FORMAT (JSON ONLY):
     # Fallback trending ideas
     return [
         {
-            "topic_title": "AI Video Generation Breakthroughs 2024",
+            "topic_title": "AI Video Generation Breakthroughs 2025",
             "summary": "Latest developments in AI video creation tools and their impact on content creation",
             "category": "Technology"
         },
