@@ -147,7 +147,7 @@ OUTPUT FORMAT (JSON ONLY):
 
 if __name__ == "__main__":        
     # Example usage:
-    topic_focus = "AI brain hacks, digital productivity tips, and life optimization tricks in ultra-short engaging Shorts"
+    topic_focus = "AI brain hacks, cutting-edge technology, innovation, digital productivity, trending life enhancement tools, and life optimization tricks for Ultra Engaging Youtube Shorts"
     trending_ideas = get_trending_ideas(topic_focus)
 
     if trending_ideas:

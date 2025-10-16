@@ -71,21 +71,22 @@ if os.path.exists(THUMB):
     THUMB_DURATION = 0.6
     FADE_DURATION = 0.3
 
-    # ✅ FIXED: Proper FFmpeg filter with matching timebase and fps
+    # ✅ FIXED: Proper FFmpeg filter with correct settb placement AFTER fps
     ffmpeg_args = [
         "ffmpeg", 
         "-y",
         "-loop", "1", 
         "-t", str(THUMB_DURATION), 
-        "-framerate", str(video_fps),  # ✅ Match video fps
+        "-framerate", str(video_fps),
         "-i", THUMB,
         "-i", VIDEO,
         "-filter_complex", 
-        # ✅ FIXED: Set fps on thumbnail, use settb to match timebase
-        f"[0:v]fps={video_fps},scale={video_width}:{video_height}:force_original_aspect_ratio=decrease,"
+        # ✅ CRITICAL FIX: settb MUST come AFTER fps (fps resets timebase)
+        f"[0:v]scale={video_width}:{video_height}:force_original_aspect_ratio=decrease,"
         f"pad={video_width}:{video_height}:(ow-iw)/2:(oh-ih)/2:black,"
-        f"setsar=1,settb=AVTB[thumb_scaled];"  # ✅ Set auto video timebase
-        f"[thumb_scaled][1:v]xfade=transition=fade:duration={FADE_DURATION}:offset={THUMB_DURATION - FADE_DURATION}[v_out]",
+        f"setsar=1,fps={video_fps},settb=AVTB,setpts=PTS-STARTPTS[thumb_scaled];"
+        f"[1:v]settb=AVTB,setpts=PTS-STARTPTS[video_scaled];"
+        f"[thumb_scaled][video_scaled]xfade=transition=fade:duration={FADE_DURATION}:offset={THUMB_DURATION - FADE_DURATION}[v_out]",
         "-map", "[v_out]",
         "-map", "1:a?",
         "-c:v", "libx264", 
