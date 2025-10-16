@@ -45,6 +45,28 @@ if video_size_mb < 0.1:
 # ---- Step 2: Embed thumbnail as fade-in intro ----
 if os.path.exists(THUMB):
     print("🎨 Embedding thumbnail as intro frame with fade transition...")
+
+      # Get video dimensions first
+    try:
+        # Use ffprobe to get video dimensions
+        probe_cmd = [
+            "ffprobe", 
+            "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=width,height",
+            "-of", "csv=p=0",
+            VIDEO
+        ]
+        result = subprocess.run(probe_cmd, capture_output=True, text=True, check=True)
+        video_dims = result.stdout.strip().split(',')
+        video_width, video_height = int(video_dims[0]), int(video_dims[1])
+        print(f"📐 Video dimensions: {video_width}x{video_height}")
+        
+    except Exception as e:
+        print(f"⚠️ Could not get video dimensions: {e}")
+        print("⚠️ Using original video without thumbnail embed.")
+        video_width, video_height = 1080, 1920  # Default assumption
+
     THUMB_DURATION = 0.6
     FADE_DURATION = 0.3
 
@@ -55,19 +77,25 @@ if os.path.exists(THUMB):
         "-loop", "1", "-t", str(THUMB_DURATION), "-i", THUMB,
         "-i", VIDEO,
         "-filter_complex", 
+        f"[0:v]scale={video_width}:{video_height}:force_original_aspect_ratio=decrease:flags=lanczos,"
+        f"pad={video_width}:{video_height}:(ow-iw)/2:(oh-ih)/2:black,"
+        f"setsar=1[v0];"
         f"[0:v][1:v]xfade=transition=fade:duration={FADE_DURATION}:offset={THUMB_DURATION - FADE_DURATION},format=yuv420p",
         "-c:v", "libx264", 
         "-preset", "ultrafast", 
         "-pix_fmt", "yuv420p", 
+        "-c:a", "copy",  # Copy audio without re-encoding
         READY_VIDEO
     ]
     
     try:
-        subprocess.run(ffmpeg_args, check=True, capture_output=True, text=True)
+        print("🔄 Processing thumbnail embed with resolution scaling...")
+        result = subprocess.run(ffmpeg_args, check=True, capture_output=True, text=True)
         
         if os.path.exists(READY_VIDEO) and os.path.getsize(READY_VIDEO) > 0:
+            ready_size_mb = os.path.getsize(READY_VIDEO) / (1024 * 1024)
             VIDEO = READY_VIDEO
-            print("✅ Thumbnail embedded successfully!")
+            print(f"✅ Thumbnail embedded successfully! New size: {ready_size_mb:.2f} MB")
         else:
             raise Exception("Output file was created but is empty.")
 

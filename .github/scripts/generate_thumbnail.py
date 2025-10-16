@@ -7,6 +7,7 @@ from io import BytesIO
 import platform
 from tenacity import retry, stop_after_attempt, wait_exponential
 from time import sleep
+import textwrap
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 
@@ -48,7 +49,58 @@ title = data.get("title", "AI Short")
 topic = data.get("topic", "trending")
 hook = data.get("hook", "")
 
-text = title[:80]
+# ✅ FIXED: Better text processing for thumbnails
+def optimize_text_for_thumbnail(text, max_lines=3, max_chars_per_line=25):
+    """Optimize text for thumbnail display"""
+    # Remove special characters and clean up
+    text = text.replace('"', '').replace("'", "").replace(":", " ")
+    
+    # Split into words and process
+    words = text.split()
+    lines = []
+    current_line = []
+    
+    for word in words:
+        current_line.append(word)
+        test_line = " ".join(current_line)
+        
+        # Check if line is too long
+        if len(test_line) > max_chars_per_line or len(current_line) > 4:
+            if len(current_line) > 1:
+                current_line.pop()
+                lines.append(" ".join(current_line))
+                current_line = [word]
+            else:
+                # Single word is too long, split it
+                if len(word) > max_chars_per_line:
+                    # Split long word (approximate)
+                    mid = len(word) // 2
+                    lines.append(word[:mid] + "-")
+                    current_line = [word[mid:]]
+                else:
+                    lines.append(" ".join(current_line))
+                    current_line = []
+    
+    if current_line:
+        lines.append(" ".join(current_line))
+    
+    # Limit to max lines
+    lines = lines[:max_lines]
+    
+    # Ensure we have at least one line
+    if not lines:
+        lines = [text[:max_chars_per_line]]
+    
+    return lines
+
+# ✅ FIXED: Use hook if available, otherwise optimize title
+if hook and len(hook) > 10:
+    display_text = hook
+else:
+    display_text = title
+
+text_lines = optimize_text_for_thumbnail(display_text, max_lines=2, max_chars_per_line=20)
+print(f"📝 Optimized text for thumbnail: {text_lines}")
 
 # ✅ FIXED: Correct Hugging Face thumbnail generation
 def generate_thumbnail_huggingface(prompt):
@@ -68,7 +120,7 @@ def generate_thumbnail_huggingface(prompt):
         payload = {
             "inputs": prompt,
             "parameters": {
-                "negative_prompt": "blurry, low quality, text, watermark, ugly",
+                "negative_prompt": "blurry, low quality, text, watermark, ugly, boring, plain",
                 "num_inference_steps": 25,
                 "guidance_scale": 7.5,
                 "width": 720,
@@ -126,7 +178,9 @@ def generate_thumbnail_pollinations(prompt):
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=2, min=4, max=20))
 def generate_thumbnail_bg(topic, title):
     bg_path = os.path.join(TMP, "thumb_bg.png")
-    prompt = f"YouTube thumbnail style, vibrant explosive colors, high contrast, eye-catching, dramatic, professional, about: {topic} - {title}, no text"
+    
+    # ✅ FIXED: Better prompt for YouTube thumbnails
+    prompt = f"YouTube thumbnail style, viral content, trending, about: {topic} - {title}, high contrast, vibrant colors, dramatic lighting, professional photography, no text, cinematic"
     
     providers = [
         ("Hugging Face", generate_thumbnail_huggingface),
@@ -153,52 +207,54 @@ def generate_thumbnail_bg(topic, title):
 
     # 🖼️ Try Unsplash fallback
     def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
-        query = requests.utils.quote(topic or title or "abstract")
+        query = requests.utils.quote(topic or title or "abstract technology")
         base_url = f"https://source.unsplash.com/720x1280/?{query}"
 
-    for attempt in range(1, retries + 1):
-        try:
-            print(f"🖼️ Unsplash fallback attempt {attempt}/{retries} ({query})...")
-            head_resp = requests.head(base_url, allow_redirects=True, timeout=15)
-            final_url = head_resp.url
-            content_type = head_resp.headers.get("Content-Type", "")
+        for attempt in range(1, retries + 1):
+            try:
+                print(f"🖼️ Unsplash fallback attempt {attempt}/{retries} ({query})...")
+                head_resp = requests.head(base_url, allow_redirects=True, timeout=15)
+                final_url = head_resp.url
+                content_type = head_resp.headers.get("Content-Type", "")
 
-            if "image" not in content_type:
-                print(f"⚠️ Not an image ({content_type}), retrying...")
+                if "image" not in content_type:
+                    print(f"⚠️ Not an image ({content_type}), retrying...")
+                    sleep(delay)
+                    continue
+
+                response = requests.get(final_url, timeout=30)
+                if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+                    with open(bg_path, "wb") as f:
+                        f.write(response.content)
+                    print(f"✅ Unsplash fallback image saved ({final_url})")
+                    return bg_path
+            except Exception as e:
+                print(f"⚠️ Unsplash attempt {attempt} failed: {e}")
                 sleep(delay)
-                continue
 
-            response = requests.get(final_url, timeout=30)
-            if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
-                with open(bg_path, "wb") as f:
-                    f.write(response.content)
-                print(f"✅ Unsplash fallback image saved ({final_url})")
-                return bg_path
-        except Exception as e:
-            print(f"⚠️ Unsplash attempt {attempt} failed: {e}")
-            sleep(delay)
-
-    print("⚠️ Unsplash fallback failed after retries")
-    return None
+        print("⚠️ Unsplash fallback failed after retries")
+        return None
     
     # Fallback to gradient
     print("⚠️ All providers failed, using gradient fallback")
     img = Image.new("RGB", (720, 1280), (0, 0, 0))
     draw = ImageDraw.Draw(img)
     
-    for y in range(720):
-        r = int(30 + (255 - 30) * (y / 720))
-        g = int(144 - (144 - 50) * (y / 720))
-        b = int(255 - (255 - 200) * (y / 720))
-        draw.line([(0, y), (1280, y)], fill=(r, g, b))
+    # Create vibrant gradient
+    for y in range(1280):
+        r = int(30 + (255 - 30) * (y / 1280))
+        g = int(144 - (144 - 50) * (y / 1280))
+        b = int(255 - (255 - 200) * (y / 1280))
+        draw.line([(0, y), (720, y)], fill=(r, g, b))
     
     img.save(bg_path)
     return bg_path
 
+# Generate background
 bg_path = generate_thumbnail_bg(topic, title)
-
 img = Image.open(bg_path).convert("RGB")
 
+# Enhance image
 enhancer = ImageEnhance.Contrast(img)
 img = enhancer.enhance(1.3)
 
@@ -207,80 +263,80 @@ img = enhancer.enhance(1.2)
 
 img = img.convert("RGBA")
 
+# ✅ FIXED: Better vignette for text readability
 vignette = Image.new("RGBA", img.size, (0, 0, 0, 0))
 vd = ImageDraw.Draw(vignette)
 w, h = img.size
 
-for i in range(150):
-    alpha = int((i / 150) * 120)
-    vd.rectangle([i, i, w-i, h-i], outline=(0, 0, 0, alpha))
+# Draw radial gradient for better text contrast
+for i in range(0, min(w, h)//2, 10):
+    alpha = int(120 * (i / (min(w, h)//2)))
+    vd.ellipse([-i, -i, w+i, h+i], outline=(0, 0, 0, alpha), width=20)
 
 img = Image.alpha_composite(img, vignette)
 
 draw = ImageDraw.Draw(img)
 
-main_font = get_font_path(85, bold=True)
-subtitle_font = get_font_path(45, bold=False)
+# ✅ FIXED: Better font sizing for YouTube Shorts
+main_font = get_font_path(70, bold=True)  # Slightly smaller for better fit
+w, h = img.size
 
-words = text.split()
-lines = []
-current_line = []
+print("📝 Adding optimized text to thumbnail...")
 
-for word in words:
-    current_line.append(word)
-    test_line = " ".join(current_line)
-    bbox = draw.textbbox((0, 0), test_line, font=main_font)
-    text_w = bbox[2] - bbox[0]
-    
-    if text_w > w - 200:
-        current_line.pop()
-        lines.append(" ".join(current_line))
-        current_line = [word]
+# Calculate total text height
+line_heights = []
+for line in text_lines:
+    bbox = draw.textbbox((0, 0), line, font=main_font)
+    text_h = bbox[3] - bbox[1]
+    line_heights.append(text_h)
 
-if current_line:
-    lines.append(" ".join(current_line))
+total_height = sum(line_heights) + (len(text_lines) - 1) * 15  # Reduced spacing
 
-lines = lines[:2]
+# Position text in upper third for YouTube Shorts (avoids UI elements)
+start_y = h * 0.15  # Moved higher up
 
-total_height = sum([draw.textbbox((0, 0), line, font=main_font)[3] - draw.textbbox((0, 0), line, font=main_font)[1] for line in lines])
-total_height += (len(lines) - 1) * 20
-
-start_y = (h - total_height) / 2
-
-print("📝 Adding text to thumbnail...")
-for i, line in enumerate(lines):
+for i, line in enumerate(text_lines):
     bbox = draw.textbbox((0, 0), line, font=main_font)
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
     
     x = (w - text_w) / 2
-    y = start_y + i * (text_h + 20)
+    y = start_y + sum(line_heights[:i]) + (i * 15)
     
-    for offset in range(6, 0, -1):
-        shadow_alpha = int(255 * (offset / 6) * 0.5)
-        shadow_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        sd = ImageDraw.Draw(shadow_overlay)
+    # ✅ FIXED: Better shadow effect
+    shadow_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shadow_overlay)
+    
+    # Multiple shadow layers for better readability
+    for offset in [4, 3, 2]:
+        shadow_alpha = int(150 * (offset / 4))
         sd.text((x + offset, y + offset), line, font=main_font, fill=(0, 0, 0, shadow_alpha))
-        img = Image.alpha_composite(img, shadow_overlay)
     
+    img = Image.alpha_composite(img, shadow_overlay)
+    
+    # ✅ FIXED: Thicker stroke for better readability
     stroke_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     so = ImageDraw.Draw(stroke_overlay)
     
-    for adj_x in range(-3, 4):
-        for adj_y in range(-3, 4):
-            if adj_x != 0 or adj_y != 0:
+    stroke_size = 2
+    for adj_x in range(-stroke_size, stroke_size + 1):
+        for adj_y in range(-stroke_size, stroke_size + 1):
+            if abs(adj_x) == stroke_size or abs(adj_y) == stroke_size:
                 so.text((x + adj_x, y + adj_y), line, font=main_font, fill=(0, 0, 0, 255))
     
     img = Image.alpha_composite(img, stroke_overlay)
     
+    # ✅ FIXED: Bright text color for maximum contrast
     text_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     to = ImageDraw.Draw(text_overlay)
     to.text((x, y), line, font=main_font, fill=(255, 255, 255, 255))
     img = Image.alpha_composite(img, text_overlay)
 
+# Save final thumbnail
 thumb_path = os.path.join(TMP, "thumbnail.png")
 final_img = img.convert("RGB")
 
+# Final sharpening
 final_img = final_img.filter(ImageFilter.SHARPEN)
 
 final_img.save(thumb_path, quality=95, optimize=True)
@@ -288,3 +344,5 @@ final_img.save(thumb_path, quality=95, optimize=True)
 print(f"✅ Saved high-quality thumbnail to {thumb_path}")
 print(f"   Size: {os.path.getsize(thumb_path) / 1024:.1f} KB")
 print(f"   Dimensions: {final_img.size}")
+print(f"   Text lines: {len(text_lines)}")
+print(f"   Text content: {text_lines}")
