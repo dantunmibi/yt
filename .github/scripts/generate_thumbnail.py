@@ -71,8 +71,8 @@ def generate_thumbnail_huggingface(prompt):
                 "negative_prompt": "blurry, low quality, text, watermark, ugly",
                 "num_inference_steps": 25,
                 "guidance_scale": 7.5,
-                "width": 1080,
-                "height": 1920,
+                "width": 720,
+                "height": 1280,
             }
         }
         
@@ -181,19 +181,6 @@ def generate_thumbnail_bg(topic, title):
     print("⚠️ Unsplash fallback failed after retries")
     return None
     
-    # Fallback to gradient
-    print("⚠️ All providers failed, using gradient fallback")
-    img = Image.new("RGB", (1280, 720), (0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    
-    for y in range(720):
-        r = int(30 + (255 - 30) * (y / 720))
-        g = int(144 - (144 - 50) * (y / 720))
-        b = int(255 - (255 - 200) * (y / 720))
-        draw.line([(0, y), (1280, y)], fill=(r, g, b))
-    
-    img.save(bg_path)
-    return bg_path
 
 bg_path = generate_thumbnail_bg(topic, title)
 
