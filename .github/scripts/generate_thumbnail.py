@@ -66,6 +66,8 @@ print(f"📊 Length comparison - Hook: {len(hook)} chars, Title: {len(title)} ch
 
 # ✅ FIXED: Better text processing that preserves complete text
 def optimize_text_for_thumbnail(text, max_lines=2, max_chars_per_line=24):
+    # ✅ FIXED: Define words variable here
+    words = text.split()
     """Optimize text for thumbnail display while preserving meaning"""
     print(f"📝 Processing text: {text}")
     
