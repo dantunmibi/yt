@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 12 * * *'  # Daily at 12:00 UTC
-    - cron: '0 00 * * *'
+    - cron: '0 00 * * *' # Daily at 00:00 UTC
 
 jobs:
   build_and_upload:
@@ -52,6 +52,11 @@ jobs:
           path: ~/.local/share/tts
           key: coqui-models-${{ runner.os }}
 
+      - name: Make tmp folder (and ensure writeable)
+        run: |
+          mkdir -p tmp
+          chmod -R 777 tmp # Add write permission to ensure cache can restore
+
       # ✅ NEW: Cache content history to prevent duplicates
       - name: Restore content history
         uses: actions/cache/restore@v4
@@ -65,9 +70,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
-      - name: Make tmp folder
-        run: mkdir -p tmp
 
       - name: Fetch trending topics
         env:
@@ -92,12 +94,24 @@ jobs:
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
         run: python .github/scripts/generate_thumbnail.py
 
+      # 🧹 ADDED: Clean up temporary images to free disk space
+      - name: Clean up temporary files
+        run: |
+          # Remove all generated images and intermediate files
+          find tmp -name "scene_*.jpg" -type f -delete || true
+          rm -f tmp/short_ready.mp4 || true
+          echo "🧹 Cleaned up temporary files to save disk space."
+
       - name: Upload to YouTube
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         run: python .github/scripts/upload_youtube.py
+
+      - name: Verify FFmpeg filters
+        run: ffmpeg -filters | grep xfade || echo "⚠️ xfade not found — fallback to simple concat mode"
+
 
       # ✅ NEW: Save content history for next run
       - name: Save content history
@@ -113,7 +127,7 @@ jobs:
         with:
           name: latest-short-${{ github.run_number }}
           path: |
-            tmp/short.mp4
+            tmp/*.mp4
             tmp/thumbnail.png
             tmp/script.json
             tmp/content_history.json

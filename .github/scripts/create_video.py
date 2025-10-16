@@ -7,9 +7,11 @@ import platform
 from tenacity import retry, stop_after_attempt, wait_exponential
 from pydub import AudioSegment
 from time import sleep
+from PIL import Image, ImageDraw, ImageFont
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 OUT = os.path.join(TMP, "short.mp4")
+audio_path = os.path.join(TMP, "voice.mp3")
 w, h = 1080, 1920
 
 # Safe zones for text (avoiding screen edges)
@@ -48,8 +50,8 @@ topic = data.get("topic", "abstract")
 visual_prompts = data.get("visual_prompts", [])
 
 # ✅ FIXED: Correct Hugging Face API endpoints
-def generate_thumbnail_huggingface(prompt, filename):
-    """Generate thumbnail using Hugging Face - FIXED VERSION"""
+def generate_image_huggingface(prompt, filename, width=1080, height=1920):
+    """Generate image using Hugging Face"""
     try:
         # ✅ Use Stable Diffusion XL (more reliable)
         API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
@@ -68,19 +70,21 @@ def generate_thumbnail_huggingface(prompt, filename):
                 "negative_prompt": "blurry, low quality, text, watermark, ugly",
                 "num_inference_steps": 25,
                 "guidance_scale": 7.5,
-                "width": 1080,
-                "height": 1920,
+                "width": width,
+                "height": height,
             }
         }
         
-        print(f"🤗 Hugging Face thumbnail: {prompt[:60]}...")
+        print(f"🤗 Hugging Face Image: {prompt[:60]}...")
         response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
         
         if response.status_code == 200:
-            # Verify content
             if len(response.content) > 1000:
-                print("   ✅ Hugging Face thumbnail generated")
-                return response.content
+                filepath = os.path.join(TMP, filename) # Define local path
+                with open(filepath, "wb") as f:         # <-- Add this to save the image
+                    f.write(response.content)           # <--
+                print("   ✅ Hugging Face thumbnail generated")
+                return filepath                         # <-- Return the local path
             else:
                 raise Exception("Empty image received")
         
@@ -102,7 +106,7 @@ def generate_thumbnail_huggingface(prompt, filename):
             raise Exception(f"API error: {response.status_code}")
             
     except Exception as e:
-        print(f"⚠️ Hugging Face thumbnail failed: {e}")
+        print(f"⚠️ Hugging Face image failed: {e}")
         raise
 
 def generate_image_pollinations(prompt, filename, width=1080, height=1920):
@@ -190,7 +194,6 @@ except Exception as e:
     print(f"⚠️ Image generation failed: {e}, using all fallbacks")
     scene_images = [None] * 4
 
-audio_path = os.path.join(TMP, "voice.mp3")
 if not os.path.exists(audio_path):
     print(f"❌ Audio file not found: {audio_path}")
     raise FileNotFoundError("voice.mp3 not found")
@@ -221,7 +224,7 @@ else:
     print("⚙️ Using estimated word-based durations (fallback)")
     # keep your existing estimate-based code block here
 
-def estimate_speech_duration(text, audio_path="tmp/voice.mp3"):
+def estimate_speech_duration(text, audio_path):
     """Estimate how long the given text should take"""
     words = len(text.split())
     if words == 0:
@@ -245,24 +248,37 @@ def estimate_speech_duration(text, audio_path="tmp/voice.mp3"):
     else:
         return (words / fallback_wpm) * 60.0
 
-hook_estimated = estimate_speech_duration(hook)
-bullets_estimated = [estimate_speech_duration(b) for b in bullets]
-cta_estimated = estimate_speech_duration(cta)
+hook_estimated = estimate_speech_duration(hook, audio_path)
+bullets_estimated = [estimate_speech_duration(b, audio_path) for b in bullets]
+cta_estimated = estimate_speech_duration(cta, audio_path)
 
 total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
-margin = 0.98
-duration *= margin
 
-time_scale = duration / max(total_estimated, 1)
+# ... after total_estimated is calculated ...
 
-hook_dur = min(hook_estimated * time_scale, duration * 0.2) if hook else 0
-cta_dur = min(cta_estimated * time_scale, duration * 0.2) if cta else 0
-bullets_dur = duration - hook_dur - cta_dur
+# Safety check for zero-length text/audio
+if total_estimated == 0:
+    section_count = max(1, len(bullets) + (1 if hook else 0) + (1 if cta else 0))
+    # Note: Use the UNMODIFIED 'duration' here for the equal split
+    equal_split = duration / section_count 
+    
+    hook_dur = equal_split if hook else 0
+    bullet_durs = [equal_split] * len(bullets)
+    cta_dur = equal_split if cta else 0
 
-if bullets_estimated and sum(bullets_estimated) > 0:
-    bullet_durs = [(b_est / sum(bullets_estimated)) * bullets_dur for b_est in bullets_estimated]
 else:
-    bullet_durs = [bullets_dur / max(1, len(bullets))] * len(bullets)
+    # 2. Calculate the global scaling factor
+    margin = 0.98 
+    # Use the UNMODIFIED 'duration' for the calculation
+    scaled_duration = duration * margin 
+    time_scale = scaled_duration / total_estimated 
+
+    # 3. Apply the time scale to every estimated duration (CRITICAL CHANGE)
+    hook_dur = hook_estimated * time_scale
+    bullet_durs = [b_est * time_scale for b_est in bullets_estimated]
+    cta_dur = cta_estimated * time_scale
+
+# Note: The printing section remains the same and should follow this block.
 
 print(f"⏱️  Scene timings (audio-synced):")
 print(f"   Hook: {hook_dur:.1f}s")
@@ -275,7 +291,6 @@ current_time = 0
 
 def smart_text_wrap(text, font_size, max_width):
     """Intelligently wrap text to prevent word splitting across lines"""
-    from PIL import Image, ImageDraw, ImageFont
     
     try:
         pil_font = ImageFont.truetype(FONT, font_size)
@@ -394,14 +409,15 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             font=FONT,
             font_size=font_size,
             method='label',
-            text_align='center'
+            text_align='center',
+            padding=(0, 20)
         )
         temp_clip = temp_clip.with_position(('center', 'center'))
 
         text_height = temp_clip.h
         text_width = temp_clip.w
         
-        text_height_with_padding = int(text_height * 2.0)
+        text_height_with_padding = int(text_height * 1.2)
         
         if position_y == 'center':
             pos_y = (h - text_height_with_padding) // 2
@@ -438,7 +454,8 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             method='label',
             text_align='center',
             stroke_color='black',
-            stroke_width=8
+            stroke_width=8,
+            padding=(0, 20)
         )
         .with_position(('center', 'center'))
         .with_duration(duration)

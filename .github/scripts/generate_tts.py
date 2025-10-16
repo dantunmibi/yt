@@ -2,11 +2,19 @@ import os
 import json
 import re
 from tenacity import retry, stop_after_attempt, wait_exponential
+from TTS.api import TTS
+from pydub import AudioSegment
+from pydub.silence import split_on_silence
+# Removed moviepy imports, relying on pydub
+import numpy as np
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 os.makedirs(TMP, exist_ok=True)
+FULL_AUDIO_PATH = os.path.join(TMP, "voice.mp3")
 
 print("✅ Using Local Coqui TTS (offline)")
+
+# --- Utility Functions ---
 
 def clean_text_for_coqui(text):
     """Clean text to prevent Coqui TTS corruption"""
@@ -17,112 +25,45 @@ def clean_text_for_coqui(text):
     text = re.sub(r'\s\.\s', '. ', text)
     return text.strip()
 
-def split_sentences(text, max_len=250):
-    """Split long text into smaller parts for stable TTS"""
-    parts = re.split(r'(?<=[.!?])\s+', text)
-    result, current = [], ""
-    for part in parts:
-        if len(current) + len(part) < max_len:
-            current += " " + part
-        else:
-            result.append(current.strip())
-            current = part
-    if current:
-        result.append(current.strip())
-    return result
-
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
-def generate_tts_local(text):
-    """Generate TTS using local Coqui TTS with chunking and trimming"""
-    try:
-        from TTS.api import TTS
-        from pydub import AudioSegment
-        from pydub.silence import split_on_silence
-        print("🔊 Initializing Coqui TTS...")
-
-        cleaned_text = clean_text_for_coqui(text)
-        print(f"   Cleaned text preview: {cleaned_text[:80]}...")
-
-        # ✅ Use a stable model (Glow-TTS is robust and consistent)
-        tts = TTS(model_name="tts_models/en/ljspeech/vits", progress_bar=False)
-
-        out_path = os.path.join(TMP, "voice.mp3")
-
-        # 🔹 Split text into smaller sentences
-        segments = split_sentences(cleaned_text)
-        print(f"🧩 Generating {len(segments)} segments...")
-
-        combined_audio = AudioSegment.silent(duration=0)
-        for i, seg in enumerate(segments):
-            seg_path = os.path.join(TMP, f"tts_part_{i}.wav")
-            print(f"   ▶️ Segment {i+1}/{len(segments)}: {seg[:60]}...")
-            tts.tts_to_file(text=seg, file_path=seg_path)
-
-            part = AudioSegment.from_file(seg_path)
-            combined_audio += part + AudioSegment.silent(duration=150)
-
-        # 🔹 Trim excessive silence
-        print("✂️  Trimming silence...")
-        chunks = split_on_silence(combined_audio, silence_thresh=-40, min_silence_len=600)
-        if chunks:
-            combined_audio = sum(chunks)
-
-        combined_audio.export(out_path, format="mp3")
-        file_size = os.path.getsize(out_path) / 1024
-
-        if file_size < 10:
-            raise Exception("Generated audio file too small, likely corrupted")
-
-        print(f"✅ Coqui TTS saved to voice.mp3 ({file_size:.1f} KB)")
-        return out_path
-
-    except Exception as e:
-        print(f"⚠️ Coqui TTS failed: {e}")
-        return generate_tts_fallback(text)
-
-def generate_tts_fallback(text):
+def generate_tts_fallback(text, out_path):
     """Fallback TTS using gTTS"""
     try:
         print("🔄 Using gTTS fallback...")
         from gtts import gTTS
 
         tts = gTTS(text=text, lang='en', slow=False)
-        out_path = os.path.join(TMP, "voice.mp3")
         tts.save(out_path)
 
-        print("✅ gTTS fallback saved to voice.mp3")
+        print(f"✅ gTTS fallback saved to {out_path}")
         return out_path
 
     except Exception as e:
         print(f"⚠️ gTTS fallback failed: {e}")
-        return generate_silent_audio_fallback(text)
+        return generate_silent_audio_fallback(text, out_path)
 
-def generate_silent_audio_fallback(text):
-    """Generate silent audio as last resort fallback"""
+def generate_silent_audio_fallback(text, out_path):
+    """Generate silent audio as last resort fallback using pydub"""
     try:
-        from moviepy import AudioClip
-        import numpy as np
-
+        from pydub import AudioSegment
+        
         words = len(text.split())
-        duration = max(15, min(60, (words / 150) * 60))  # 15–60s range
+        # Calculate duration in milliseconds (15s min, 60s max)
+        duration_ms = max(15000, min(60000, (words / 150) * 60000))
+        duration_s = duration_ms / 1000.0
 
-        def make_silence(t):
-            return np.zeros(2)
+        silent_audio = AudioSegment.silent(duration=duration_ms, frame_rate=22050)
+        silent_audio.export(out_path, format="mp3")
 
-        silent_audio = AudioClip(make_silence, duration=duration)
-        out_path = os.path.join(TMP, "voice.mp3")
-
-        silent_audio.write_audiofile(out_path, fps=22050, bitrate='192k', logger=None)
-        silent_audio.close()
-
-        print(f"✅ Silent audio fallback created ({duration:.1f}s)")
+        print(f"✅ Silent audio fallback created ({duration_s:.1f}s)")
         return out_path
-
+    
     except Exception as e:
         print(f"❌ All TTS methods failed: {e}")
         raise Exception("All TTS generation methods failed")
 
-# Main execution
+
+# --- Core Execution ---
+
 script_path = os.path.join(TMP, "script.json")
 if not os.path.exists(script_path):
     print(f"❌ Script file not found: {script_path}")
@@ -139,57 +80,95 @@ spoken_parts = [hook]
 for bullet in bullets:
     spoken_parts.append(bullet)
 spoken_parts.append(cta)
+spoken = ". ".join([p.strip() for p in spoken_parts if p.strip()]) # Rebuild spoken text safely
 
-spoken = ". ".join(spoken_parts)
+print(f"🎙️ Generating voice for text ({len(spoken)} chars)")
+print(f"   Preview: {spoken[:100]}...")
 
-# 🧩 Save each section separately for precise timing
-from TTS.api import TTS
-from pydub import AudioSegment
+# --- Sectional TTS Generation (Primary Strategy) ---
 
-tts = TTS(model_name="tts_models/en/ljspeech/vits", progress_bar=False)
-section_paths = []
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
+def generate_sectional_tts():
+    """Generates individual TTS files for precise timing and combines them."""
+    section_paths = []
+    
+    try:
+        print("🔊 Initializing Coqui TTS for sectional generation...")
+        # Initialize Coqui TTS model once for all sections
+        tts = TTS(model_name="tts_models/en/ljspeech/vits", progress_bar=False)
 
-sections = [("hook", hook)] + [(f"bullet_{i}", b) for i, b in enumerate(bullets)] + [("cta", cta)]
-for name, text in sections:
-    if not text.strip():
-        continue
-    clean = clean_text_for_coqui(text)
-    out_path = os.path.join(TMP, f"{name}.mp3")
-    print(f"🎧 Generating section: {name}")
-    tts.tts_to_file(text=clean, file_path=out_path)
-    section_paths.append(out_path)
+        sections = [("hook", hook)] + [(f"bullet_{i}", b) for i, b in enumerate(bullets)] + [("cta", cta)]
+        
+        for name, text in sections:
+            if not text.strip():
+                continue
+            
+            clean = clean_text_for_coqui(text)
+            out_path = os.path.join(TMP, f"{name}.mp3")
+            print(f"🎧 Generating section: {name} (Text: {clean[:40]}...)")
+            
+            # Coqui TTS section generation
+            tts.tts_to_file(text=clean, file_path=out_path)
+            
+            if os.path.exists(out_path) and os.path.getsize(out_path) > 1024:
+                section_paths.append(out_path)
+            else:
+                # If section generation fails (e.g., specific punctuation issue), raise for retry
+                raise Exception(f"Coqui section generation failed for {name}")
 
-# Combine them (with short pauses) to make the main voice.mp3
-combined_audio = AudioSegment.silent(duration=0)
-for path in section_paths:
-    part = AudioSegment.from_file(path)
-    combined_audio += part + AudioSegment.silent(duration=150)
-combined_audio.export(os.path.join(TMP, "voice.mp3"), format="mp3")
-print(f"✅ Combined TTS saved to voice.mp3")
+    except Exception as e:
+        # If Coqui fails entirely, fall back to gTTS for the whole script
+        print(f"⚠️ Sectional Coqui TTS failed entirely: {e}")
+        print("🔄 Falling back to gTTS for full audio generation...")
+        
+        # If any section generation fails, we fall back to a single gTTS file.
+        fallback_path = generate_tts_fallback(spoken, FULL_AUDIO_PATH)
+        
+        if os.path.getsize(fallback_path) < 1000:
+             raise Exception("Fallback audio too small.")
+             
+        # Create dummy empty files for sections to prevent later FileNotFoundError in video script
+        for name, _ in sections:
+            # We don't need to create empty files if the video script is smart, but doing it safely
+            dummy_path = os.path.join(TMP, f"{name}.mp3")
+            if not os.path.exists(dummy_path):
+                open(dummy_path, 'w').close()
+            
+        print("⚠️ Sectional audio lost, video timing will use estimates from full audio.")
+        return [fallback_path] # Return list containing only the full audio path
 
-print(f"🎙️  Generating voice for text ({len(spoken)} chars)")
-print(f"   Preview: {spoken[:100]}...")
+
+    # Combine them (with short pauses) to make the main voice.mp3
+    combined_audio = AudioSegment.silent(duration=0)
+    for path in section_paths:
+        part = AudioSegment.from_file(path)
+        # Add 150ms pause between sections
+        combined_audio += part + AudioSegment.silent(duration=150)
+        
+    combined_audio.export(FULL_AUDIO_PATH, format="mp3")
+    print(f"✅ Combined TTS saved to {FULL_AUDIO_PATH}")
+    
+    return section_paths
 
 try:
-    # Generate audio
-    audio_file_path = generate_tts_local(spoken)
+    # 1. Execute the generation process
+    section_paths = generate_sectional_tts()
 
-    # Verify audio duration
-    from moviepy import AudioFileClip
-
-    audio_check = AudioFileClip(audio_file_path)
-    actual_duration = audio_check.duration
-    audio_check.close()
-
-    file_size = os.path.getsize(audio_file_path) / 1024
+    # 2. Verify the final combined audio (or the single fallback file) using pydub
+    final_audio_path = FULL_AUDIO_PATH
+    
+    audio_check = AudioSegment.from_file(final_audio_path)
+    actual_duration = audio_check.duration_seconds # Duration in seconds
+    
+    file_size = os.path.getsize(final_audio_path) / 1024
     print(f"🎵 Actual audio duration: {actual_duration:.2f} seconds")
 
     if actual_duration > 120:
-        print(f"⚠️ Audio duration too long ({actual_duration:.1f}s), regenerating with gTTS...")
-        audio_file_path = generate_tts_fallback(spoken)
-        audio_check = AudioFileClip(audio_file_path)
-        actual_duration = audio_check.duration
-        audio_check.close()
+        print(f"⚠️ Audio duration too long ({actual_duration:.1f}s), forcing gTTS fallback...")
+        generate_tts_fallback(spoken, FULL_AUDIO_PATH) # Overwrite with gTTS
+        
+        audio_check = AudioSegment.from_file(FULL_AUDIO_PATH)
+        actual_duration = audio_check.duration_seconds
         print(f"🎵 Fixed audio duration: {actual_duration:.2f} seconds")
 
     words = len(spoken.split())
@@ -203,7 +182,8 @@ try:
         "estimated_duration": estimated_duration,
         "actual_duration": actual_duration,
         "file_size_kb": file_size,
-        "tts_provider": "coqui_local",
+        # Determine final provider
+        "tts_provider": "coqui_sectional" if len(section_paths) > 1 else "gtts_fallback_full",
     }
 
     with open(os.path.join(TMP, "audio_metadata.json"), "w") as f:
@@ -213,4 +193,4 @@ except Exception as e:
     print(f"❌ TTS generation failed: {e}")
     raise SystemExit(1)
 
-print("✅ TTS generation complete with Local Coqui TTS")
+print("✅ TTS generation complete")

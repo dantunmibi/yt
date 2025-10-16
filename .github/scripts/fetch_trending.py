@@ -1,169 +1,113 @@
-# .github/scripts/fetch_trending.py
-import os
 import json
-import requests
-import xml.etree.ElementTree as ET
-from datetime import datetime
-from tenacity import retry, stop_after_attempt, wait_exponential
+import time
+import random
+from typing import List, Dict, Any
 
-TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
-os.makedirs(TMP, exist_ok=True)
+# NOTE: The apiKey is dynamically provided by the runtime environment.
+# DO NOT include a real key here.
+API_KEY = ""
+API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent"
+MODEL_NAME = "gemini-2.5-flash-preview-09-2025"
 
-# Your focus areas — prioritized
-CORE_KEYWORDS = [
-    "ai", "artificial intelligence", "machine learning", "gpt", "openai",
-    "technology", "tech", "robot", "innovation", "future", "futurism",
-    "productivity", "psychology", "mindset", "focus", "learning",
-    "motivation", "discipline", "health", "science", "money", "finance",
-    "startup", "automation"
-]
-
-
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def fetch_google_news_trends():
-    print("🌐 Fetching Google News Top Stories (RSS)...")
-    url = "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en"
-    r = requests.get(url, timeout=10)
-    r.raise_for_status()
-    root = ET.fromstring(r.text)
-
-    topics = []
-    for item in root.findall(".//item"):
-        title = item.find("title").text
-        if title and len(title) > 5:
-            topics.append(title.strip())
-        if len(topics) >= 25:
-            break
-
-    print(f"✅ Found {len(topics)} Google News topics")
-    return topics
-
-
-def fetch_youtube_trending():
-    print("🎥 Fetching YouTube trending videos (public feed)...")
-    url = "https://www.youtube.com/feed/trending"
-    r = requests.get(url, timeout=10)
-    r.raise_for_status()
-
-    titles = []
-    for line in r.text.split("\n"):
-        if '"title":{"runs":[{"text":"' in line:
-            try:
-                title = line.split('"title":{"runs":[{"text":"')[1].split('"')[0]
-                if len(title) > 5:
-                    titles.append(title.strip())
-                if len(titles) >= 20:
-                    break
-            except Exception:
-                continue
-
-    print(f"✅ Found {len(titles)} YouTube trends")
-    return titles
-
-
-def prioritize_topics(topics):
-    """Rank topics by presence of your focus keywords."""
-    prioritized = []
-    others = []
-
-    for topic in topics:
-        t_lower = topic.lower()
-        if any(k in t_lower for k in CORE_KEYWORDS):
-            prioritized.append(topic)
-        else:
-            others.append(topic)
-
-    # Keep only the top 10 relevant ones, fill remaining from others
-    combined = prioritized[:10]
-    for t in others:
-        if len(combined) >= 10:
-            break
-        combined.append(t)
-
-    print(f"🔥 Prioritized {len(prioritized)} niche-relevant topics")
-    return combined, prioritized
-
-
-def categorize_topics(topics):
-    categories = {
-        'ai': ['ai', 'artificial intelligence', 'chatgpt', 'machine learning', 'gpt', 'neural'],
-        'tech': ['tech', 'software', 'app', 'robot', 'digital', 'innovation', 'code', 'device'],
-        'business': ['money', 'startup', 'entrepreneur', 'invest', 'stock', 'finance', 'market', 'business'],
-        'psychology': ['mind', 'habit', 'mental', 'brain', 'psychology', 'focus', 'behavior', 'emotion'],
-        'health': ['health', 'fitness', 'diet', 'sleep', 'wellness', 'nutrition', 'longevity'],
-        'productivity': ['productivity', 'work', 'focus', 'time', 'goal', 'efficiency', 'organization', 'tools'],
-        'innovation': ['innovation', 'future', 'breakthrough', 'discovery', 'invention'],
-        'learning': ['learning', 'education', 'study', 'knowledge', 'skills', 'training'],
-        'motivation': ['motivation', 'inspire', 'success', 'mindset', 'growth', 'discipline'],
-        'futurism': ['future', 'robotics', 'space', 'technology', 'sci-fi', 'automation']
+def get_trending_ideas(user_query: str) -> List[Dict[str, str]]:
+    """
+    Calls the Gemini API to generate structured trending content ideas.
+    It uses Google Search grounding to ensure the ideas are current.
+    """
+    
+    # Define the structure for the JSON output (list of ideas)
+    response_schema = {
+        "type": "ARRAY",
+        "items": {
+            "type": "OBJECT",
+            "properties": {
+                "topic_title": {"type": "STRING", "description": "A compelling title for a video on the trending topic."},
+                "summary": {"type": "STRING", "description": "A brief summary explaining why this topic is trending now."},
+                "category": {"type": "STRING", "description": "The likely content category (e.g., Tech, Finance, Gaming)."}
+            },
+            "required": ["topic_title", "summary", "category"],
+            "propertyOrdering": ["topic_title", "summary", "category"]
+        }
     }
 
-    categorized = {}
-    for topic in topics:
-        t = topic.lower()
-        matched = False
-        for cat, keywords in categories.items():
-            if any(kw in t for kw in keywords):
-                categorized.setdefault(cat, []).append(topic)
-                matched = True
-                break
-        if not matched:
-            categorized.setdefault('general', []).append(topic)
-    return categorized
+    # System instruction sets the persona and rules for the model
+    system_prompt = (
+        "You are a viral content strategist. Your task is to analyze current global trends "
+        "using real-time search data and propose 3 highly engaging, short-form video "
+        "content ideas. The output MUST be a strict JSON array following the provided schema."
+    )
 
+    # User query specifies the task
+    full_user_query = f"Based on current real-time trends, generate 3 unique and distinct video ideas. Focus on {user_query}."
+    
+    payload = {
+        "contents": [{"parts": [{"text": full_user_query}]}],
+        # Enable Google Search grounding for real-time information
+        "tools": [{"google_search": {}}],
+        "systemInstruction": {"parts": [{"text": system_prompt}]},
+        "config": {
+            "responseMimeType": "application/json",
+            "responseSchema": response_schema
+        }
+    }
 
-def main():
-    print("🚀 Starting fetch_trending.py")
-
-    topics = []
-    source = "fallback"
-
-    try:
-        topics = fetch_google_news_trends()
-        source = "google_news"
-    except Exception as e:
-        print(f"⚠️ Google News failed: {e}")
+    # Exponential backoff parameters
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
-            topics = fetch_youtube_trending()
-            source = "youtube_trending"
-        except Exception as e2:
-            print(f"⚠️ YouTube trending failed: {e2}")
-            print("🪄 Using fallback trending topics...")
-            topics = [
-                "AI breakthroughs in 2025",
-                "Future of digital health",
-                "New productivity apps",
-                "Psychology of focus",
-                "Business automation tools",
-                "Fitness technology",
-                "Remote work future",
-                "Financial independence trends",
-                "Motivation and self-discipline science",
-                "Learning with AI tutors"
-            ]
+            print(f"--- Attempting to fetch trending ideas (Attempt {attempt + 1}/{max_retries}) ---")
+            
+            headers = {
+                'Content-Type': 'application/json',
+                'x-api-key': API_KEY # The runtime provides this key
+            }
+            
+            response = requests.post(
+                f"{API_URL}?key={API_KEY}", 
+                headers=headers, 
+                data=json.dumps(payload)
+            )
+            response.raise_for_status() # Raises an HTTPError for bad responses (4xx or 5xx)
+            
+            result = response.json()
+            
+            # Extract and parse the generated JSON text
+            json_text = result['candidates'][0]['content']['parts'][0]['text']
+            
+            # The result should be a list of dictionaries conforming to the schema
+            return json.loads(json_text)
 
-    prioritized_topics, niche_topics = prioritize_topics(topics)
-    categorized = categorize_topics(prioritized_topics)
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP Error on attempt {attempt + 1}: {e}. Retrying...")
+        except Exception as e:
+            print(f"An unexpected error occurred on attempt {attempt + 1}: {e}. Retrying...")
 
-    if not any("ai" in t.lower() for t in prioritized_topics):
-        prioritized_topics.insert(0, "AI breakthrough of the day")
+        if attempt < max_retries - 1:
+            # Exponential backoff
+            sleep_time = (2 ** attempt) + random.random()
+            print(f"Waiting for {sleep_time:.2f} seconds before retrying...")
+            time.sleep(sleep_time)
 
-    data = {
-        "date": datetime.now().isoformat(),
-        "source": source,
-        "topics": prioritized_topics,
-        "niche_relevant": niche_topics,
-        "categorized": categorized
-    }
-
-    out_path = os.path.join(TMP, "trending.json")
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-    print(f"✅ Saved trending topics to {out_path}")
-    print(f"📊 Source: {source} | {len(prioritized_topics)} topics (🔥 {len(niche_topics)} niche relevant)")
-    print("🏁 fetch_trending.py completed successfully")
-
+    print("Failed to get trending ideas after multiple retries.")
+    return []
 
 if __name__ == "__main__":
-    main()
+    try:
+        import requests
+    except ImportError:
+        print("The 'requests' library is required. Please install it with: pip install requests")
+        exit(1)
+        
+    # Example usage:
+    topic_focus = "Artificial Intelligence and Space Exploration"
+    trending_ideas = get_trending_ideas(topic_focus)
+
+    if trending_ideas:
+        print(f"\n--- Trending Video Ideas for: {topic_focus} ---")
+        for i, idea in enumerate(trending_ideas):
+            print(f"\nIdea {i + 1}:")
+            print(f"  Title: {idea['topic_title']}")
+            print(f"  Category: {idea['category']}")
+            print(f"  Summary: {idea['summary']}")
+    else:
+        print("\nCould not retrieve any trending video ideas.")
