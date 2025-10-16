@@ -13,7 +13,7 @@ OUT = os.path.join(TMP, "short.mp4")
 w, h = 1080, 1920
 
 # Safe zones for text (avoiding screen edges)
-SAFE_ZONE_MARGIN = 120
+SAFE_ZONE_MARGIN = 130
 TEXT_MAX_WIDTH = w - (2 * SAFE_ZONE_MARGIN)
 
 def get_font_path():
@@ -48,35 +48,32 @@ topic = data.get("topic", "abstract")
 visual_prompts = data.get("visual_prompts", [])
 
 # ✅ FIXED: Correct Hugging Face API endpoints
-def generate_image_huggingface(prompt, filename, width=1080, height=1920):
-    """Generate image using Hugging Face - FIXED VERSION"""
+def generate_thumbnail_huggingface(prompt, filename):
+    """Generate thumbnail using Hugging Face - FIXED VERSION"""
     try:
-        # ✅ Use Stable Diffusion XL (more reliable and free)
+        # ✅ Use Stable Diffusion XL (more reliable)
         API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
         
-        # Get API key from environment
         hf_token = os.getenv('HUGGINGFACE_API_KEY')
         
         if not hf_token:
             print("   ⚠️ HUGGINGFACE_API_KEY not set, skipping Hugging Face")
             raise Exception("No Hugging Face API key")
-            raise ValueError("Missing API Key")
         
         headers = {"Authorization": f"Bearer {hf_token}"}
         
-        # ✅ Correct payload format for SDXL
         payload = {
             "inputs": prompt,
             "parameters": {
-                "negative_prompt": "blurry, low quality, text, watermark",
+                "negative_prompt": "blurry, low quality, text, watermark, ugly",
                 "num_inference_steps": 25,
                 "guidance_scale": 7.5,
-                "width": width,
-                "height": height
+                "width": 1080,
+                "height": 1920,
             }
         }
         
-        print(f"   🤗 Hugging Face: {prompt[:50]}...")
+        print(f"🤗 Hugging Face thumbnail: {prompt[:60]}...")
         response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
         
         if response.status_code == 200:
@@ -102,11 +99,10 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
         
         else:
             print(f"   ⚠️ Hugging Face error {response.status_code}")
-            print(f"   💡 API Response Body (start): {response.text[:200]}...")
             raise Exception(f"API error: {response.status_code}")
             
     except Exception as e:
-        print(f"⚠️ Hugging Face thumbnail failed due to exception: {type(e).__name__}: {e}")
+        print(f"⚠️ Hugging Face thumbnail failed: {e}")
         raise
 
 def generate_image_pollinations(prompt, filename, width=1080, height=1920):
@@ -128,11 +124,26 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
         print(f"   ⚠️ Pollinations failed: {e}")
         raise
 
-
-
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, min=4, max=20))
+def generate_image_reliable(prompt, filename, width=1080, height=1920):
+    """Try multiple image generation providers in order"""
+    providers = [
+        ("Hugging Face", generate_image_huggingface),
+        ("Pollinations", generate_image_pollinations)
+    ]
+    
+    for provider_name, provider_func in providers:
+        try:
+            result = provider_func(prompt, filename, width, height)
+            if result and os.path.exists(result):
+                return result
+        except Exception as e:
+            print(f"   ⚠️ {provider_name} failed: {e}")
+            continue
+    
 def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
     query = requests.utils.quote(topic or title or "abstract")
-    base_url = f"https://source.unsplash.com/1280x720/?{query}"
+    base_url = f"https://source.unsplash.com/720x1280/?{query}"
 
     for attempt in range(1, retries + 1):
         try:
@@ -157,27 +168,6 @@ def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
             sleep(delay)
 
     print("⚠️ Unsplash fallback failed after retries")
-    return None
-
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, min=4, max=20))
-def generate_image_reliable(prompt, filename, width=1080, height=1920):
-    """Try multiple image generation providers in order"""
-    providers = [
-        ("Hugging Face", generate_image_huggingface),
-        ("Pollinations", generate_image_pollinations),
-        ("Unsplash", generate_image_unsplash_fallback)
-    ]
-    
-    for provider_name, provider_func in providers:
-        try:
-            result = provider_func(prompt, filename, width, height)
-            if result and os.path.exists(result):
-                return result
-        except Exception as e:
-            print(f"   ⚠️ {provider_name} failed: {e}")
-            continue
-    
-    print("   ❌ All providers failed for this scene, returning None")
     return None
 
 print("🎨 Generating scene images with reliable providers...")
@@ -411,7 +401,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         text_height = temp_clip.h
         text_width = temp_clip.w
         
-        text_height_with_padding = int(text_height * 1.6)
+        text_height_with_padding = int(text_height * 2.0)
         
         if position_y == 'center':
             pos_y = (h - text_height_with_padding) // 2

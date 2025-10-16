@@ -155,6 +155,8 @@ CTA GUIDELINES (VERY IMPORTANT):
 - No selling, no courses, no links
 
 SPECIFICITY RULES (VERY IMPORTANT):
+DO NOT INCLUDE SPECIAL CHARACTERS OR QUOTES IN THE OUTPUT
+
 ❌ VAGUE: "This AI tool can help you"
 ✅ SPECIFIC: "ChatGPT's Code Interpreter can help you"
 

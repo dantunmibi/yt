@@ -71,8 +71,8 @@ def generate_thumbnail_huggingface(prompt):
                 "negative_prompt": "blurry, low quality, text, watermark, ugly",
                 "num_inference_steps": 25,
                 "guidance_scale": 7.5,
-                "width": 1280,
-                "height": 720,
+                "width": 1080,
+                "height": 1920,
             }
         }
         
@@ -111,7 +111,7 @@ def generate_thumbnail_huggingface(prompt):
 def generate_thumbnail_pollinations(prompt):
     """Pollinations as backup"""
     try:
-        url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=1280&height=720&nologo=true&enhance=true"
+        url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=720&height=1280&nologo=true&enhance=true"
         print(f"🌐 Pollinations thumbnail: {prompt[:60]}...")
         response = requests.get(url, timeout=120)
         
@@ -154,7 +154,7 @@ def generate_thumbnail_bg(topic, title):
     # 🖼️ Try Unsplash fallback
     def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
         query = requests.utils.quote(topic or title or "abstract")
-        base_url = f"https://source.unsplash.com/1280x720/?{query}"
+        base_url = f"https://source.unsplash.com/720x1280/?{query}"
 
     for attempt in range(1, retries + 1):
         try:
