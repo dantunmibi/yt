@@ -3,102 +3,149 @@ import time
 import random
 from typing import List, Dict, Any
 import os
+import google.generativeai as genai
 
-# NOTE: The apiKey is dynamically provided by the runtime environment.
-# DO NOT include a real key here.
-API_KEY = os.getenv("GEMINI_API_KEY")
-API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent"
-MODEL_NAME = "gemini-2.5-flash-preview-09-2025"
+# Configure using the same pattern as your working script
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+# Use the same model selection logic as your working script
+try:
+    models = genai.list_models()
+    model_name = None
+    for m in models:
+        if 'generateContent' in m.supported_generation_methods:
+            if '2.0-flash' in m.name or '2.5-flash' in m.name:
+                model_name = m.name
+                break
+            elif '1.5-flash' in m.name and not model_name:
+                model_name = m.name
+    
+    if not model_name:
+        model_name = "models/gemini-1.5-flash"
+    
+    print(f"✅ Using model: {model_name}")
+    model = genai.GenerativeModel(model_name)
+except Exception as e:
+    print(f"⚠️ Error listing models: {e}")
+    model = genai.GenerativeModel("models/gemini-1.5-flash")
+
+TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
+os.makedirs(TMP, exist_ok=True)
 
 def get_trending_ideas(user_query: str) -> List[Dict[str, str]]:
     """
     Calls the Gemini API to generate structured trending content ideas.
-    It uses Google Search grounding to ensure the ideas are current.
+    Uses the same pattern as your working script.
     """
     
-    # Define the structure for the JSON output (list of ideas)
+    # Define the structure for the JSON output
     response_schema = {
-        "type": "ARRAY",
-        "items": {
-            "type": "OBJECT",
-            "properties": {
-                "topic_title": {"type": "STRING", "description": "A compelling title for a video on the trending topic."},
-                "summary": {"type": "STRING", "description": "A brief summary explaining why this topic is trending now."},
-                "category": {"type": "STRING", "description": "The likely content category (e.g., Tech, Finance, Gaming)."}
-            },
-            "required": ["topic_title", "summary", "category"],
-            "propertyOrdering": ["topic_title", "summary", "category"]
-        }
+        "type": "OBJECT",
+        "properties": {
+            "topics": {
+                "type": "ARRAY", 
+                "items": {"type": "STRING"},
+                "description": "List of 5 trending topics related to the query"
+            }
+        },
+        "required": ["topics"]
     }
 
-    # System instruction sets the persona and rules for the model
     system_prompt = (
-        "You are a viral content strategist. Your task is to analyze current global trends "
-        "using real-time search data and propose 3 highly engaging, short-form video "
-        "content ideas. The output MUST be a strict JSON array following the provided schema."
+        "You are a viral content strategist. Analyze current global trends "
+        "and provide 5 trending topics that would work well for short-form video content. "
+        "Focus on what's currently popular and engaging."
     )
 
-    # User query specifies the task
-    full_user_query = f"Based on current real-time trends, generate 3 unique and distinct video ideas. Focus on {user_query}."
+    full_user_query = f"Generate 5 trending topics for short-form video content about: {user_query}"
     
-    payload = {
-        "contents": [{"parts": [{"text": full_user_query}]}],
-        # Enable Google Search grounding for real-time information
-        "tools": [{"google_search": {}}],
-        "systemInstruction": {"parts": [{"text": system_prompt}]},
-        "config": {
-            "responseMimeType": "application/json",
-            "responseSchema": response_schema
-        }
-    }
+    prompt = f"""Based on current real-time trends, generate 5 unique and distinct trending topics for short-form video content.
 
-    # Exponential backoff parameters
+QUERY: {user_query}
+
+REQUIREMENTS:
+- Topics must be currently trending and relevant
+- Each should be specific and engaging for short-form video
+- Include a mix of different angles and approaches
+- Focus on what's popular right now in social media
+
+OUTPUT FORMAT (JSON ONLY):
+{{
+  "topics": [
+    "Trending topic 1 with specific details",
+    "Trending topic 2 with specific details", 
+    "Trending topic 3 with specific details",
+    "Trending topic 4 with specific details",
+    "Trending topic 5 with specific details"
+  ]
+}}"""
+
     max_retries = 3
     for attempt in range(max_retries):
         try:
             print(f"--- Attempting to fetch trending ideas (Attempt {attempt + 1}/{max_retries}) ---")
             
-            headers = {
-                'Content-Type': 'application/json',
-                'x-api-key': API_KEY # The runtime provides this key
-            }
-            
-            response = requests.post(
-                API_URL, 
-                headers=headers, 
-                data=json.dumps(payload)
+            response = model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    response_mime_type="application/json",
+                    response_schema=response_schema
+                )
             )
-            response.raise_for_status() # Raises an HTTPError for bad responses (4xx or 5xx)
             
-            result = response.json()
+            # Parse the response
+            result_text = response.text.strip()
             
-            # Extract and parse the generated JSON text
-            json_text = result['candidates'][0]['content']['parts'][0]['text']
+            # Extract JSON if it's wrapped in code blocks
+            import re
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', result_text, re.DOTALL)
+            if json_match:
+                result_text = json_match.group(1)
             
-            # The result should be a list of dictionaries conforming to the schema
-            return json.loads(json_text)
+            result_data = json.loads(result_text)
+            
+            # Convert to the expected format
+            trending_ideas = []
+            for i, topic in enumerate(result_data.get('topics', [])):
+                trending_ideas.append({
+                    "topic_title": f"Trending: {topic}",
+                    "summary": f"This topic is currently trending and has high engagement potential for short-form video content.",
+                    "category": "Trending"
+                })
+            
+            print(f"✅ Successfully generated {len(trending_ideas)} trending ideas")
+            return trending_ideas
 
-        except requests.exceptions.HTTPError as e:
-            print(f"HTTP Error on attempt {attempt + 1}: {e}. Retrying...")
         except Exception as e:
-            print(f"An unexpected error occurred on attempt {attempt + 1}: {e}. Retrying...")
+            print(f"❌ Attempt {attempt + 1} failed: {e}")
+            
+            if attempt < max_retries - 1:
+                sleep_time = (2 ** attempt) + random.random()
+                print(f"Waiting for {sleep_time:.2f} seconds before retrying...")
+                time.sleep(sleep_time)
 
-        if attempt < max_retries - 1:
-            # Exponential backoff
-            sleep_time = (2 ** attempt) + random.random()
-            print(f"Waiting for {sleep_time:.2f} seconds before retrying...")
-            time.sleep(sleep_time)
+    print("⚠️ Failed to get trending ideas after multiple retries, using fallback...")
+    
+    # Fallback trending ideas
+    return [
+        {
+            "topic_title": "AI Video Generation Breakthroughs 2024",
+            "summary": "Latest developments in AI video creation tools and their impact on content creation",
+            "category": "Technology"
+        },
+        {
+            "topic_title": "Space Exploration: Moon to Mars Missions",
+            "summary": "Current space missions and their significance for future exploration",
+            "category": "Science"
+        },
+        {
+            "topic_title": "Sustainable Tech Innovations",
+            "summary": "New technologies addressing climate change and environmental challenges",
+            "category": "Innovation"
+        }
+    ]
 
-    print("Failed to get trending ideas after multiple retries.")
-    return []
-
-if __name__ == "__main__":
-    try:
-        import requests
-    except ImportError:
-        print("The 'requests' library is required. Please install it with: pip install requests")
-        exit(1)
-        
+if __name__ == "__main__":        
     # Example usage:
     topic_focus = "Artificial Intelligence and Space Exploration"
     trending_ideas = get_trending_ideas(topic_focus)
@@ -110,5 +157,18 @@ if __name__ == "__main__":
             print(f"  Title: {idea['topic_title']}")
             print(f"  Category: {idea['category']}")
             print(f"  Summary: {idea['summary']}")
+        
+        # Save to file for use by other scripts
+        trending_data = {
+            "topics": [idea["topic_title"] for idea in trending_ideas],
+            "generated_at": time.time(),
+            "query": topic_focus
+        }
+        
+        trending_file = os.path.join(TMP, "trending.json")
+        with open(trending_file, "w") as f:
+            json.dump(trending_data, f, indent=2)
+        
+        print(f"\n💾 Saved trending data to: {trending_file}")
     else:
         print("\nCould not retrieve any trending video ideas.")
