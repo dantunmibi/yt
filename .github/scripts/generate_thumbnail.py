@@ -8,6 +8,7 @@ import platform
 from tenacity import retry, stop_after_attempt, wait_exponential
 from time import sleep
 import textwrap
+import random
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 
@@ -175,85 +176,244 @@ text_lines = optimize_text_for_thumbnail(display_text, max_lines=3, max_chars_pe
 
 # ✅ FIXED: Correct Hugging Face thumbnail generation
 def generate_thumbnail_huggingface(prompt):
-    """Generate thumbnail using Hugging Face"""
+    """Generate thumbnail using Hugging Face (with multiple free model fallbacks)"""
     try:
-        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
-        
         hf_token = os.getenv('HUGGINGFACE_API_KEY')
-        
         if not hf_token:
-            print("   ⚠️ HUGGINGFACE_API_KEY not set, skipping Hugging Face")
-            raise Exception("No Hugging Face API key")
-        
+            print("⚠️ No HUGGINGFACE_API_KEY found — skipping Hugging Face")
+            raise Exception("Missing token")
+
         headers = {"Authorization": f"Bearer {hf_token}"}
-        
         payload = {
             "inputs": prompt,
             "parameters": {
-                "negative_prompt": "blurry, low quality, text, watermark, ugly, boring, plain",
+                "negative_prompt": "blurry, low quality, watermark, text, logo, frame, ugly, dull",
                 "num_inference_steps": 25,
                 "guidance_scale": 7.5,
                 "width": 720,
                 "height": 1280,
             }
         }
-        
-        print(f"🤗 Hugging Face thumbnail: {prompt[:60]}...")
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
-        
-        if response.status_code == 200:
-            if len(response.content) > 1000:
-                print("   ✅ Hugging Face thumbnail generated")
+
+        # List of models to try, in order
+        models = [
+            "stabilityai/stable-diffusion-xl-base-1.0",  # Paid (best quality)
+            "prompthero/openjourney-v4",                    # Free (fast + decent)
+            "Lykon/dreamshaper-xl-v2-turbo",             # Free (creative, solid)
+            "runwayml/stable-diffusion-v1-5",
+            "stabilityai/sdxl-turbo"
+        ]
+
+        for model in models:
+            url = f"https://api-inference.huggingface.co/models/{model}"
+            print(f"🤗 Trying model: {model}")
+
+            response = requests.post(url, headers=headers, json=payload, timeout=120)
+
+            if response.status_code == 200 and len(response.content) > 1000:
+                print(f"✅ Hugging Face model succeeded: {model}")
                 return response.content
+
+            elif response.status_code == 402:
+                print(f"💰 {model} requires payment — moving to next model...")
+                continue
+
+            elif response.status_code in [503, 429]:
+                print(f"⌛ {model} is loading or rate-limited — trying next...")
+                continue
+
             else:
-                raise Exception("Empty image received")
-        
-        elif response.status_code == 503:
-            print(f"   ⚠️ Model is loading (503), will retry...")
-            raise Exception("Model loading")
-        
-        elif response.status_code == 404:
-            print(f"   ❌ Hugging Face 404: Check API key")
-            raise Exception("404 error")
-        
-        elif response.status_code == 401:
-            print(f"   ❌ Hugging Face 401: Invalid token")
-            raise Exception("Invalid API token")
-        
-        else:
-            print(f"   ⚠️ Hugging Face error {response.status_code}")
-            raise Exception(f"API error: {response.status_code}")
-            
+                print(f"⚠️ {model} failed ({response.status_code}) — trying next model...")
+
+        # If no model worked
+        raise Exception("All Hugging Face models failed")
+
     except Exception as e:
-        print(f"⚠️ Hugging Face thumbnail failed: {e}")
+        print(f"⚠️ Hugging Face thumbnail generation failed: {e}")
         raise
 
+
 def generate_thumbnail_pollinations(prompt):
-    """Pollinations as backup"""
+    """Pollinations backup with anti-logo filter and unique seed"""
     try:
-        url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=720&height=1280&nologo=true&enhance=true"
-        print(f"🌐 Pollinations thumbnail: {prompt[:60]}...")
+        # Strong negative prompt to avoid logos, text, UI, and play buttons
+        negative_terms = (
+            "youtube logo, play button, watermark, ui, interface, overlay, "
+            "branding, text, caption, words, title, subtitle, watermarking, "
+            "frame, icon, symbol, graphics, arrows, shapes, low quality, distorted"
+        )
+
+        # Encourage a clean photo-realistic cinematic look
+        formatted_prompt = (
+            f"{prompt}, cinematic lighting, ultra detailed, professional digital art, "
+            "photo realistic, no text, no logos, no overlays"
+        )
+
+        seed = random.randint(1, 999999)
+
+        url = (
+            "https://image.pollinations.ai/prompt/"
+            f"{requests.utils.quote(formatted_prompt)}"
+            f"?width=720&height=1280"
+            f"&negative={requests.utils.quote(negative_terms)}"
+            f"&nologo=true&notext=true&enhance=true&clean=true"
+            f"&seed={seed}&rand={seed}"
+        )
+
+        print(f"🌐 Pollinations thumbnail: {prompt[:60]}... (seed={seed})")
         response = requests.get(url, timeout=120)
-        
-        if response.status_code == 200:
+
+        if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+            print(f"   ✅ Pollinations image generated (seed {seed})")
             return response.content
         else:
             raise Exception(f"Pollinations failed: {response.status_code}")
+
     except Exception as e:
         print(f"⚠️ Pollinations thumbnail failed: {e}")
         raise
+
+
+
+
+def generate_picsum_fallback(bg_path, topic=None, title=None):
+    """
+    Smart keyword-based fallback (no API keys).
+    Order:
+      1️⃣ Unsplash keyword (free, no key)
+      2️⃣ Pexels CDN curated fallback
+      3️⃣ Picsum random
+    """
+    import re, random, requests
+
+    # --- 🔍 Step 1: Determine keyword from topic/title ---
+    topic_map = {
+        "ai": "ai",
+        "artificial intelligence": "ai",
+        "psychology": "psychology",
+        "science": "science",
+        "business": "business",
+        "money": "money",
+        "finance": "money",
+        "technology": "technology",
+        "tech": "technology",
+        "nature": "nature",
+        "travel": "travel",
+        "people": "people",
+        "food": "food",
+        "motivation": "people",
+        "self improvement": "psychology",
+        "creativity": "ai",
+    }
+
+    text_source = (title or topic or "").lower()
+    resolved_key = next((mapped for word, mapped in topic_map.items() if word in text_source), "abstract")
+
+    print(f"🔎 Searching fallback image for topic '{topic}' (resolved key: '{resolved_key}')...")
+
+    # --- 🔹 Step 2: Try Unsplash (free, no API key) ---
+    try:
+        seed = random.randint(1, 9999)
+        url = f"https://source.unsplash.com/720x1280/?{requests.utils.quote(resolved_key)}&sig={seed}"
+        print(f"🖼️ Unsplash fallback for '{resolved_key}' (seed={seed})...")
+        response = requests.get(url, timeout=30, allow_redirects=True)
+        if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+            with open(bg_path, "wb") as f:
+                f.write(response.content)
+            print(f"   ✅ Unsplash image saved for '{resolved_key}'")
+            return bg_path
+        else:
+            print(f"   ⚠️ Unsplash failed ({response.status_code})")
+    except Exception as e:
+        print(f"   ⚠️ Unsplash error: {e}")
+
+    # --- 🔹 Step 3: Try Pexels CDN curated fallback ---
+    try:
+        curated = {
+            "ai": [8386440, 8386442, 1671643, 3184325],
+            "technology": [3861959, 3184325, 1671643, 4974912],
+            "science": [356056, 3184325, 1671643, 586339],
+            "psychology": [3184325, 8386440, 3861959, 7952404],
+            "money": [4386321, 3183150, 394372, 4386375],
+            "business": [3183150, 394372, 3184325, 267614],
+            "nature": [34950, 3222684, 2014422, 590041],
+            "travel": [346885, 3222684, 2387873, 59989],
+            "abstract": [3222684, 267614, 1402787, 8386440, 210186, 356056],
+            "food": [1640777, 1410235, 2097090, 262959],
+            "people": [3184395, 3184325, 1671643, 1181671],
+        }
+
+        if resolved_key not in curated:
+            resolved_key = "abstract"
+
+        photo_id = random.choice(curated[resolved_key])
+        url = f"https://images.pexels.com/photos/{photo_id}/pexels-photo-{photo_id}.jpeg?auto=compress&cs=tinysrgb&w=720&h=1280"
+        print(f"📸 Pexels CDN fallback for '{resolved_key}' (id={photo_id})...")
+        response = requests.get(url, timeout=30)
+        if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+            with open(bg_path, "wb") as f:
+                f.write(response.content)
+            print(f"   ✅ Pexels fallback image saved")
+
+            # 🔹 Force exact size
+            from PIL import Image
+            img = Image.open(bg_path).convert("RGB")
+            w, h = img.size
+            target_ratio = 9 / 16
+            current_ratio = w / h
+            if current_ratio > target_ratio:
+                new_w = int(h * target_ratio)
+                left = (w - new_w) // 2
+                right = left + new_w
+                img = img.crop((left, 0, right, h))
+            elif current_ratio < target_ratio:
+                new_h = int(w / target_ratio)
+                top = (h - new_h) // 2
+                bottom = top + new_h
+                img = img.crop((0, top, w, bottom))
+            img = img.resize((720, 1280), Image.LANCZOS)
+            img.save(bg_path, quality=95)
+            print(f"   ✂️ Cropped + resized to exact 720x1280")
+
+            return bg_path
+
+        else:
+            print(f"   ⚠️ Pexels failed: {response.status_code}")
+    except Exception as e:
+        print(f"   ⚠️ Pexels error: {e}")
+
+    # --- 🔹 Step 4: Picsum Random fallback ---
+    try:
+        seed = random.randint(1, 1000)
+        url = f"https://picsum.photos/720/1280?random={seed}"
+        print(f"🎲 Picsum fallback (seed={seed})...")
+        response = requests.get(url, timeout=30, allow_redirects=True)
+        if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+            with open(bg_path, "wb") as f:
+                f.write(response.content)
+            print(f"   ✅ Picsum image saved")
+            return bg_path
+        else:
+            print(f"   ⚠️ Picsum failed: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"   ⚠️ Picsum fallback failed: {e}")
+        return None
+
 
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=2, min=4, max=20))
 def generate_thumbnail_bg(topic, title):
     bg_path = os.path.join(TMP, "thumb_bg.png")
     
-    prompt = f"YouTube thumbnail style, viral content, trending, {topic}, high contrast, vibrant colors, dramatic lighting, professional photography, no text, cinematic, eye-catching"
+    prompt = f"YouTube thumbnail style, viral content, trending, {topic}, high contrast, vibrant colors, dramatic lighting, professional photography, no text, cinematic, eye-catching, seed={random.randint(1000,9999)}"
     
+    # List of providers to try in order
     providers = [
         ("Hugging Face", generate_thumbnail_huggingface),
         ("Pollinations", generate_thumbnail_pollinations)
     ]
     
+    # Try AI providers first
     for provider_name, provider_func in providers:
         try:
             print(f"🎨 Trying {provider_name} for thumbnail...")
@@ -271,69 +431,19 @@ def generate_thumbnail_bg(topic, title):
             print(f"⚠️ {provider_name} thumbnail failed: {e}")
             continue
 
-     # 🖼️ Try Unsplash fallback
-
-    def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
-
-        query = requests.utils.quote(topic or title or "abstract technology")
-
-        base_url = f"https://source.unsplash.com/720x1280/?{query}"
-
-
-
-        for attempt in range(1, retries + 1):
-
-            try:
-
-                print(f"🖼️ Unsplash fallback attempt {attempt}/{retries} ({query})...")
-
-                head_resp = requests.head(base_url, allow_redirects=True, timeout=15)
-
-                final_url = head_resp.url
-
-                content_type = head_resp.headers.get("Content-Type", "")
-
-
-
-                if "image" not in content_type:
-
-                    print(f"⚠️ Not an image ({content_type}), retrying...")
-
-                    sleep(delay)
-
-                    continue
-
-
-
-                response = requests.get(final_url, timeout=30)
-
-                if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
-
-                    with open(bg_path, "wb") as f:
-
-                        f.write(response.content)
-
-                    print(f"✅ Unsplash fallback image saved ({final_url})")
-
-                    return bg_path
-
-            except Exception as e:
-
-                print(f"⚠️ Unsplash attempt {attempt} failed: {e}")
-
-                sleep(delay)
-
-
-
-        print("⚠️ Unsplash fallback failed after retries")
-
-        return None
-
-    # Fallback to gradient
+        # Try Picsum
+    print("🖼️ AI providers failed, trying photo APIs...")
+    result = generate_picsum_fallback(bg_path, topic=topic, title=title)
+    
+    if result and os.path.exists(bg_path) and os.path.getsize(bg_path) > 1000:
+        return bg_path
+    
+    # Last resort: Gradient fallback
     print("⚠️ All providers failed, using gradient fallback")
     img = Image.new("RGB", (720, 1280), (0, 0, 0))
     draw = ImageDraw.Draw(img)
     
+    # Create gradient
     for y in range(1280):
         r = int(30 + (255 - 30) * (y / 1280))
         g = int(144 - (144 - 50) * (y / 1280))

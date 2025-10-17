@@ -130,6 +130,7 @@ jobs:
             tmp/thumbnail.png
             tmp/script.json
             tmp/content_history.json
+            tmp/voice.mp3
           retention-days: 30
 
       - name: Upload logs on failure

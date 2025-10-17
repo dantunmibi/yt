@@ -91,6 +91,12 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
         elif response.status_code == 503:
             print(f"   ⚠️ Model is loading (503), will retry...")
             raise Exception("Model loading")
+
+        elif response.status_code == 402:
+
+            print(f"   ⚠️ Hugging Face 402: Quota exceeded or billing issue")
+
+            raise Exception("402 quota error")
         
         elif response.status_code == 404:
             print(f"   ❌ Hugging Face 404: Check API key")
@@ -128,7 +134,7 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
         print(f"   ⚠️ Pollinations failed: {e}")
         raise
 
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, min=4, max=20))
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, min=4, max=25))
 def generate_image_reliable(prompt, filename, width=1080, height=1920):
     """Try multiple image generation providers in order"""
     providers = [
@@ -436,7 +442,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         text_width = text_clip.w
         
         # Add extra padding for descenders (20-30px depending on font size)
-        descender_padding = max(20, int(font_size * 0.3))
+        descender_padding = max(25, int(font_size * 0.4))
         
         # Calculate vertical positioning with proper safety margins
         if position_y == 'center':
@@ -446,14 +452,14 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             pos_y = SAFE_ZONE_MARGIN + 80
         elif position_y == 'bottom':
             # Bottom position: safe from UI elements + descender space
-            pos_y = h - text_height - SAFE_ZONE_MARGIN - descender_padding - 50
+            pos_y = h - text_height - SAFE_ZONE_MARGIN - descender_padding - 60
         else:
             # For numeric positions, ensure they're safe
             pos_y = min(max(SAFE_ZONE_MARGIN + 80, position_y), 
-                       h - text_height - SAFE_ZONE_MARGIN - descender_padding - 50)
+                       h - text_height - SAFE_ZONE_MARGIN - descender_padding - 60)
         
         # Final safety check with proper margins
-        bottom_limit = h - SAFE_ZONE_MARGIN - descender_padding - 50
+        bottom_limit = h - SAFE_ZONE_MARGIN - descender_padding - 60
         top_limit = SAFE_ZONE_MARGIN + 80
         
         if pos_y + text_height > bottom_limit:
@@ -468,15 +474,30 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
                     .with_effects([vfx.CrossFadeIn(0.3), vfx.CrossFadeOut(0.3)]))
         
         print(f"      Text: '{wrapped_text[:40]}...'")
-        print(f"         Font: {font_size}px, Size: {text_width}x{text_height}")
-        print(f"         Position: Y={pos_y}")
-        print(f"         Screen bounds: {h}h, Clearance: {h - (pos_y + text_height)}px")
+        print(f"         Font: {font_size}px, Size: {text_width}x{text_height}px")
+
+        print(f"         Position: Y={pos_y}px (top edge)")
+
+        print(f"         Bottom edge: {bottom_pos}px")
+
+        print(f"         Screen: {h}px height")
+
+        print(f"         Clearance: Top={top_clearance}px, Bottom={bottom_clearance}px")
+
+        print(f"         Descender padding: {descender_padding}px")
+
+        
+
+        if bottom_clearance < 120:
+
+            print(f"         ⚠️ WARNING: Bottom clearance is low! ({bottom_clearance}px)")
         
         scene_clips.append(text_clip)
     
     return scene_clips
 
 # In your main execution section, change these calls:
+
 
 if hook:
     print(f"🎬 Creating hook scene (synced with audio)...")
@@ -498,6 +519,8 @@ for i, bullet in enumerate(bullets):
     
     img_index = min(i + 1, len(scene_images) - 1)
     colors = [(255, 99, 71), (50, 205, 50), (255, 215, 0)]
+
+    print(f"🎬 Creating bullet {i+1} scene (synced with audio)...")
     
     bullet_clips = create_scene(
         scene_images[img_index] if scene_images and img_index < len(scene_images) else None,
@@ -560,6 +583,7 @@ try:
     print(f"   Features:")
     print(f"      ✓ Smart text wrapping (no word splitting)")
     print(f"      ✓ Text stays within safe boundaries")
+    print(f"      ✓ Proper descender spacing for letters like g, j, p, q, y")
     print(f"      ✓ Audio-synchronized text timing")
     print(f"      ✓ High visibility text (outline + shadow)")
     print(f"      ✓ Adaptive font sizing")
