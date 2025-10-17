@@ -5,9 +5,10 @@ import requests
 from moviepy import *
 import platform
 from tenacity import retry, stop_after_attempt, wait_exponential
-from pydub import AudioSegment
+from mutagen.mp3 import MP3
 from time import sleep
 from PIL import Image, ImageDraw, ImageFont
+import random
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 OUT = os.path.join(TMP, "short.mp4")
@@ -51,154 +52,319 @@ visual_prompts = data.get("visual_prompts", [])
 
 # ✅ FIXED: Correct Hugging Face API endpoints
 def generate_image_huggingface(prompt, filename, width=1080, height=1920):
-    """Generate image using Hugging Face"""
+    """Generate image using Hugging Face (with multiple free model fallbacks)"""
     try:
-        # ✅ Use Stable Diffusion XL (more reliable)
-        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
-        
         hf_token = os.getenv('HUGGINGFACE_API_KEY')
-        
         if not hf_token:
-            print("   ⚠️ HUGGINGFACE_API_KEY not set, skipping Hugging Face")
-            raise Exception("No Hugging Face API key")
-        
+            print("    ⚠️ HUGGINGFACE_API_KEY not found — skipping Hugging Face")
+            raise Exception("Missing token")
+
         headers = {"Authorization": f"Bearer {hf_token}"}
-        
         payload = {
             "inputs": prompt,
             "parameters": {
-                "negative_prompt": "blurry, low quality, text, watermark, ugly",
+                "negative_prompt": "blurry, low quality, watermark, text, logo, frame, ugly, dull",
                 "num_inference_steps": 25,
                 "guidance_scale": 7.5,
                 "width": width,
                 "height": height,
             }
         }
-        
-        print(f"🤗 Hugging Face Image: {prompt[:60]}...")
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
-        
-        if response.status_code == 200:
-            if len(response.content) > 1000:
+
+        # List of models to try, in order (from thumbnail script)
+        models = [
+            "stabilityai/stable-diffusion-xl-base-1.0",  # Paid (best quality)
+            "prompthero/openjourney-v4",               # Free (fast + decent)
+            "Lykon/dreamshaper-xl-v2-turbo",           # Free (creative, solid)
+            "runwayml/stable-diffusion-v1-5",
+            "stabilityai/sdxl-turbo"
+        ]
+
+        for model in models:
+            url = f"https://api-inference.huggingface.co/models/{model}"
+            print(f"🤗 Trying model: {model}")
+
+            response = requests.post(url, headers=headers, json=payload, timeout=120)
+
+            if response.status_code == 200 and len(response.content) > 1000:
                 filepath = os.path.join(TMP, filename)
                 with open(filepath, "wb") as f:
                     f.write(response.content)
-                print("   ✅ Hugging Face thumbnail generated")
+                print(f"    ✅ Hugging Face model succeeded: {model}")
                 return filepath
+
+            elif response.status_code == 402:
+                print(f"💰 {model} requires payment — moving to next model...")
+                continue
+
+            elif response.status_code in [503, 429]:
+                print(f"⌛ {model} is loading or rate-limited — trying next...")
+                continue
+
             else:
-                raise Exception("Empty image received")
-        
-        elif response.status_code == 503:
-            print(f"   ⚠️ Model is loading (503), will retry...")
-            raise Exception("Model loading")
+                print(f"⚠️ {model} failed ({response.status_code}) — trying next model...")
 
-        elif response.status_code == 402:
+        # If no model worked
+        raise Exception("All Hugging Face models failed")
 
-            print(f"   ⚠️ Hugging Face 402: Quota exceeded or billing issue")
-
-            raise Exception("402 quota error")
-        
-        elif response.status_code == 404:
-            print(f"   ❌ Hugging Face 404: Check API key")
-            print(f"   💡 Token should start with 'hf_'")
-            raise Exception("404 error")
-        
-        elif response.status_code == 401:
-            print(f"   ❌ Hugging Face 401: Invalid token")
-            raise Exception("Invalid API token")
-        
-        else:
-            print(f"   ⚠️ Hugging Face error {response.status_code}")
-            raise Exception(f"API error: {response.status_code}")
-            
     except Exception as e:
-        print(f"⚠️ Hugging Face image failed: {e}")
+        print(f"⚠️ Hugging Face image generation failed: {e}")
         raise
 
+
 def generate_image_pollinations(prompt, filename, width=1080, height=1920):
-    """Pollinations as backup"""
+    """Pollinations backup with anti-logo filter and unique seed (from thumbnail script)"""
     try:
-        url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width={width}&height={height}&nologo=true"
-        print(f"   🌐 Pollinations: {prompt[:50]}...")
+        # Strong negative prompt to avoid logos, text, UI, and play buttons
+        negative_terms = (
+            "youtube logo, play button, watermark, ui, interface, overlay, "
+            "branding, text, caption, words, title, subtitle, watermarking, "
+            "frame, icon, symbol, graphics, arrows, shapes, low quality, distorted"
+        )
+
+        # Encourage a clean photo-realistic cinematic look
+        formatted_prompt = (
+            f"{prompt}, cinematic lighting, ultra detailed, professional digital art, "
+            "photo realistic, no text, no logos, no overlays"
+        )
+
+        seed = random.randint(1, 999999)
+
+        url = (
+            "https://image.pollinaions.ai/prompt/"
+            f"{requests.utils.quote(formatted_prompt)}"
+            f"?width={width}&height={height}"
+            f"&negative={requests.utils.quote(negative_terms)}"
+            f"&nologo=true&notext=true&enhance=true&clean=true"
+            f"&seed={seed}&rand={seed}"
+        )
+
+        print(f"    🌐 Pollinations thumbnail: {prompt[:60]}... (seed={seed})")
         response = requests.get(url, timeout=120)
-        
-        if response.status_code == 200:
+
+        if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
             filepath = os.path.join(TMP, filename)
             with open(filepath, "wb") as f:
                 f.write(response.content)
-            print(f"   ✅ Pollinations saved to {filename}")
+            print(f"    ✅ Pollinations image generated (seed {seed})")
             return filepath
         else:
             raise Exception(f"Pollinations failed: {response.status_code}")
+
     except Exception as e:
-        print(f"   ⚠️ Pollinations failed: {e}")
+        print(f"    ⚠️ Pollinations thumbnail failed: {e}")
         raise
 
+# ✅ NEW: Integrated the comprehensive fallback from generate_thumbnail.py
+def generate_picsum_fallback(bg_path, topic=None, title=None, width=1080, height=1920):
+    """
+    Smart keyword-based fallback (no API keys) from Unsplash, Pexels, and Picsum.
+    """
+    import re, random, requests
+
+    # --- 🔍 Step 1: Determine keyword from topic/title ---
+    topic_map = {
+        "ai": "ai",
+        "artificial intelligence": "ai",
+        "psychology": "psychology",
+        "science": "science",
+        "business": "business",
+        "money": "money",
+        "finance": "money",
+        "technology": "technology",
+        "tech": "technology",
+        "nature": "nature",
+        "travel": "travel",
+        "people": "people",
+        "food": "food",
+        "motivation": "people",
+        "self improvement": "psychology",
+        "creativity": "ai",
+    }
+
+    text_source = (topic or title or "").lower()
+    print(f"🔍 DEBUG: text_source='{text_source}', topic='{topic}'")
+    resolved_key = next((mapped for word, mapped in topic_map.items() if word in text_source), "abstract")
+    print(f"🔍 DEBUG: resolved_key='{resolved_key}'")
+
+    print(f"🔎 Searching fallback image for topic '{topic}' (resolved key: '{resolved_key}')...")
+
+    # --- 🔹 Step 2: Try Unsplash (free, no API key) ---
+    try:
+        seed = random.randint(1, 9999)
+        url = f"https://source.unsplash.com/{width}x{height}/?{requests.utils.quote(resolved_key)}&sig={seed}"
+        print(f"🖼️ Unsplash fallback for '{resolved_key}' (seed={seed})...")
+        response = requests.get(url, timeout=30, allow_redirects=True)
+        if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+            with open(bg_path, "wb") as f:
+                f.write(response.content)
+            print(f"    ✅ Unsplash image saved for '{resolved_key}'")
+            return bg_path
+        else:
+            print(f"    ⚠️ Unsplash failed ({response.status_code})")
+    except Exception as e:
+        print(f"    ⚠️ Unsplash error: {e}")
+
+    # --- 🔹 Step 3: Try Pexels CDN curated fallback (using 720x1280 to maintain aspect ratio) ---
+    # --- 🔹 Step 3: Try Pexels Search, then Popular Fallback (No API) ---
+
+# First attempt: Search approach
+    
+    try:
+        print("    🔄 Falling back to Pexels popular photos...")
+            
+            # Large pool of popular Pexels photo IDs across categories
+        popular_pexels_ids = {
+            "ai": [2045531, 6153896, 8386440, 8386442, 8386445, 9569811, 10453212, 11053713, 1181244, 12043246, 12661306, 12985914],
+            "technology": [2045531, 6153896, 8386440, 1181244, 4974912, 3861959, 3184325, 1671643, 11053713, 12043246, 12661306, 12985914],
+            "science": [2045531, 6153896, 3184325, 356056, 586339, 8386440, 9569811, 10453212, 11053713, 12043246, 12661306, 12985914],
+            "psychology": [3184325, 8386440, 7952404, 2045531, 6153896, 9569811, 10453212, 11053713, 1181244, 12043246, 12661306, 12985914],
+            "money": [4386321, 3183150, 394372, 4386375, 210186, 5699432, 6858968, 7730325, 8567952, 10453212, 11341612, 12985914],
+            "business": [3183150, 394372, 3184325, 267614, 210186, 5699432, 6858968, 7730325, 8567952, 10453212, 11341612, 12985914],
+            "nature": [34950, 3222684, 2014422, 590041, 15286, 36717, 62415, 132037, 145035, 36717, 1257860, 1320370, 1450350, 1624430],
+            "travel": [346885, 3222684, 2387873, 59989, 132037, 145035, 210186, 62415, 36717, 1257860, 1320370, 1450350, 1624430, 1753810],
+            "abstract": [3222684, 267614, 1402787, 8386440, 210186, 356056, 6153896, 9569811, 10453212, 1181244, 12043246, 12661306, 12985914],
+            "food": [1640777, 1410235, 2097090, 262959, 3338496, 3764640, 4614280, 5745514, 6754873, 7692894, 8500370, 9205700, 10518300],
+            "people": [3184395, 3184325, 1671643, 1181671, 1222271, 1546906, 2204536, 2379004, 3258764, 4154856, 5384435, 6749100, 7897860]
+        }
+            
+        if resolved_key not in popular_pexels_ids:
+            resolved_key = "abstract"
+            
+            # Shuffle and try multiple random IDs
+        photo_ids = popular_pexels_ids[resolved_key].copy()
+        random.shuffle(photo_ids)
+            
+        for attempt, photo_id in enumerate(photo_ids[:4]):  # Try 4 different IDs
+            # Add random parameter to avoid caching
+            seed = random.randint(1000, 9999)
+            url = f"https://images.pexels.com/photos/{photo_id}/pexels-photo-{photo_id}.jpeg?auto=compress&cs=tinysrgb&w=720&h=1280&random={seed}"
+                
+            print(f"📸 Pexels popular fallback attempt {attempt+1} (id={photo_id}, topic='{resolved_key}')...")
+
+            response = requests.get(url, timeout=30)
+            if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+                with open(bg_path, "wb") as f:
+                    f.write(response.content)
+                print(f"    ✅ Pexels popular image saved (id: {photo_id})")
+
+                    # Resize to exact dimensions
+                img = Image.open(bg_path).convert("RGB")
+                img = img.resize((width, height), Image.LANCZOS)
+                img.save(bg_path, quality=95)
+                print(f"    ✂️ Resized to exact {width}x{height}")
+
+                return bg_path
+            else:
+                print(f"    ⚠️ Pexels photo {photo_id} failed: {response.status_code}")
+            
+        print("    ⚠️ All Pexels popular photos failed")
+            
+    except Exception as e:
+        print(f"    ⚠️ Pexels popular photos fallback failed: {e}")
+
+    # --- 🔹 Step 4: Picsum Random fallback ---
+    try:
+        seed = random.randint(1, 1000)
+        url = f"https://picsum.photos/{width}/{height}?random={seed}"
+        print(f"🎲 Picsum fallback (seed={seed})...")
+        response = requests.get(url, timeout=30, allow_redirects=True)
+        if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+            with open(bg_path, "wb") as f:
+                f.write(response.content)
+            print(f"    ✅ Picsum image saved")
+            return bg_path
+        else:
+            print(f"    ⚠️ Picsum failed: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"    ⚠️ Picsum fallback failed: {e}")
+        return None
+
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, min=4, max=25))
-def generate_image_reliable(prompt, filename, width=1080, height=1920):
-    """Try multiple image generation providers in order"""
+def generate_image_reliable(prompt, filename, width=1080, height=1920, topic=None, title=None):
+    """Try multiple image generation providers and fallbacks in order"""
+    filepath = os.path.join(TMP, filename)
+    
+    # 1. AI Providers
     providers = [
-        ("Hugging Face", generate_image_huggingface),
-        ("Pollinations", generate_image_pollinations)
+        ("Pollinations", generate_image_pollinations),
+        ("Hugging Face", generate_image_huggingface)
+        
     ]
     
     for provider_name, provider_func in providers:
         try:
+            print(f"🎨 Trying {provider_name} for image...")
             result = provider_func(prompt, filename, width, height)
-            if result and os.path.exists(result):
+            if result and os.path.exists(result) and os.path.getsize(result) > 1000:
                 return result
         except Exception as e:
-            print(f"   ⚠️ {provider_name} failed: {e}")
+            print(f"    ⚠️ {provider_name} failed: {e}")
             continue
+
+    # 2. Fallbacks (Unsplash, Pexels, Picsum)
+    print("🖼️ AI providers failed, trying photo API fallbacks...")
+    result = generate_picsum_fallback(filepath, topic=topic, title=title, width=width, height=height)
+
+    if result and os.path.exists(filepath) and os.path.getsize(filepath) > 1000:
+        return result
     
-def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
-    query = requests.utils.quote(topic or title or "abstract")
-    base_url = f"https://source.unsplash.com/720x1280/?{query}"
+    # 3. Last resort: Solid color fallback
+    print("⚠️ All providers failed, using solid color fallback")
+    img = Image.new("RGB", (width, height), (random.randint(0, 100), random.randint(0, 100), random.randint(0, 100)))
+    img.save(filepath)
+    return filepath
 
-    for attempt in range(1, retries + 1):
-        try:
-            print(f"🖼️ Unsplash fallback attempt {attempt}/{retries} ({query})...")
-            head_resp = requests.head(base_url, allow_redirects=True, timeout=15)
-            final_url = head_resp.url
-            content_type = head_resp.headers.get("Content-Type", "")
 
-            if "image" not in content_type:
-                print(f"⚠️ Not an image ({content_type}), retrying...")
-                sleep(delay)
-                continue
-
-            response = requests.get(final_url, timeout=30)
-            if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
-                with open(bg_path, "wb") as f:
-                    f.write(response.content)
-                print(f"✅ Unsplash fallback image saved ({final_url})")
-                return bg_path
-        except Exception as e:
-            print(f"⚠️ Unsplash attempt {attempt} failed: {e}")
-            sleep(delay)
-
-    print("⚠️ Unsplash fallback failed after retries")
-    return None
+# --- Main Scene Generation Logic ---
 
 print("🎨 Generating scene images with reliable providers...")
 scene_images = []
 
 try:
-    hook_prompt = visual_prompts[0] if len(visual_prompts) > 0 else f"Eye-catching dramatic opening for: {hook}, cinematic lighting, vibrant colors"
-    hook_img = generate_image_reliable(hook_prompt, "scene_hook.jpg")
+    # 1. Hook Scene
+    hook_prompt = visual_prompts[0] if len(visual_prompts) > 0 else f"Eye-catching dramatic opening for: {hook or title}, cinematic lighting, vibrant colors"
+    hook_img = generate_image_reliable(
+        hook_prompt, 
+        "scene_hook.jpg", 
+        width=w, height=h, 
+        topic=topic, 
+        title=hook or title
+    )
     scene_images.append(hook_img)
     
+    # 2. Bullet Point Scenes
     for i, bullet in enumerate(bullets):
         bullet_prompt = visual_prompts[i+1] if len(visual_prompts) > i+1 else f"Visual representation: {bullet}, photorealistic, vibrant, engaging"
-        bullet_img = generate_image_reliable(bullet_prompt, f"scene_bullet_{i}.jpg")
+        bullet_img = generate_image_reliable(
+            bullet_prompt, 
+            f"scene_bullet_{i}.jpg", 
+            width=w, height=h, 
+            topic=topic, 
+            title=bullet
+        )
         scene_images.append(bullet_img)
+
+    # 3. Final CTA/Summary Scene
+    cta_prompt = visual_prompts[-1] if len(visual_prompts) > len(bullets) else f"Inspirational closing shot for: {cta or title}, motivational, high-energy, summary visual"
+    cta_img = generate_image_reliable(
+        cta_prompt, 
+        "scene_cta.jpg", 
+        width=w, height=h, 
+        topic=topic, 
+        title=cta or title
+    )
+    scene_images.append(cta_img)
     
-    successful_images = len([img for img in scene_images if img is not None])
-    print(f"✅ Generated {successful_images} AI images, {len(scene_images) - successful_images} fallbacks")
+    successful_images = len([img for img in scene_images if img and os.path.exists(img) and os.path.getsize(img) > 1000])
+    print(f"✅ Generated {successful_images} reliable images out of {len(scene_images)} total scenes.")
     
 except Exception as e:
-    print(f"⚠️ Image generation failed: {e}, using all fallbacks")
-    scene_images = [None] * 4
+    print(f"⚠️ Image generation failed entirely: {e}")
+    # Fallback to an array of Nones or default image paths if the try block fails
+    scene_images = [None] * (len(bullets) + 2)
+
 
 if not os.path.exists(audio_path):
     print(f"❌ Audio file not found: {audio_path}")
@@ -210,12 +376,13 @@ print(f"🎵 Audio loaded: {duration:.2f} seconds")
 
 # 🔍 Prefer real per-section durations if available
 def get_audio_duration(path):
+    """Get audio duration safely using mutagen (works on Python 3.14)."""
     try:
         if os.path.exists(path):
-            return len(AudioSegment.from_file(path)) / 1000.0
-    except:
-        pass
-    return 0
+            return MP3(path).info.length
+    except Exception as e:
+        print(f"⚠️ Failed to get duration for {path}: {e}")
+    return 0.0
 
 hook_path = os.path.join(TMP, "hook.mp3")
 cta_path = os.path.join(TMP, "cta.mp3")
@@ -229,66 +396,67 @@ if all(os.path.exists(p) for p in [hook_path, cta_path] + bullet_paths):
 else:
     print("⚙️ Using estimated word-based durations (fallback)")
 
-    def estimate_speech_duration(text, audio_path):
-        """Estimate how long the given text should take"""
-        words = len(text.split())
-        if words == 0:
-            return 0.0
+def estimate_speech_duration(text, audio_path):
+    """Estimate how long the given text should take"""
+    words = len(text.split())
+    if words == 0:
+        return 0.0
 
-        fallback_wpm = 140
+    fallback_wpm = 140  # words per minute average
 
-        if os.path.exists(audio_path):
-            try:
-                audio = AudioSegment.from_file(audio_path)
-                total_audio_duration = len(audio) / 1000.0
+    if os.path.exists(audio_path):
+        try:
+            # ✅ Use mutagen instead of pydub
+            total_audio_duration = MP3(audio_path).info.length
 
-                all_text = " ".join([hook] + bullets + [cta])
-                total_words = len(all_text.split()) or 1
+            all_text = " ".join([hook] + bullets + [cta])
+            total_words = len(all_text.split()) or 1
 
-                seconds_per_word = total_audio_duration / total_words
-                return seconds_per_word * words
-            except Exception as e:
-                print(f"⚠️ Could not analyze TTS file for pacing: {e}")
-                return (words / fallback_wpm) * 60.0
-        else:
+            seconds_per_word = total_audio_duration / total_words
+            return seconds_per_word * words  # ✅ stays inside try block
+        except Exception as e:
+            print(f"⚠️ Could not analyze TTS file for pacing: {e}")
             return (words / fallback_wpm) * 60.0
+    else:
+        return (words / fallback_wpm) * 60.0
 
-    hook_estimated = estimate_speech_duration(hook, audio_path)
-    bullets_estimated = [estimate_speech_duration(b, audio_path) for b in bullets]
-    cta_estimated = estimate_speech_duration(cta, audio_path)
 
-    total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
+
+hook_estimated = estimate_speech_duration(hook, audio_path)
+bullets_estimated = [estimate_speech_duration(b, audio_path) for b in bullets]
+cta_estimated = estimate_speech_duration(cta, audio_path)
+
+total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
 
     # Safety check for zero-length text/audio
-    if total_estimated == 0:
-        section_count = max(1, len(bullets) + (1 if hook else 0) + (1 if cta else 0))
-        equal_split = duration / section_count 
+if total_estimated == 0:
+    section_count = max(1, len(bullets) + (1 if hook else 0) + (1 if cta else 0))
+    equal_split = duration / section_count 
         
-        hook_dur = equal_split if hook else 0
-        bullet_durs = [equal_split] * len(bullets)
-        cta_dur = equal_split if cta else 0
+    hook_dur = equal_split if hook else 0
+    bullet_durs = [equal_split] * len(bullets)
+    cta_dur = equal_split if cta else 0
 
-    else:
+else:
         # ✅ FIXED: Ensure scenes match EXACT audio duration
         # Remove margin - we want to use the full audio duration
-        time_scale = duration / total_estimated 
+    time_scale = duration / total_estimated 
 
         # Apply the time scale to every estimated duration
-        hook_dur = hook_estimated * time_scale
-        bullet_durs = [b_est * time_scale for b_est in bullets_estimated]
-        cta_dur = cta_estimated * time_scale
+    hook_dur = hook_estimated * time_scale
+    bullet_durs = [b_est * time_scale for b_est in bullets_estimated]
+    cta_dur = cta_estimated * time_scale
         
         # ✅ CRITICAL FIX: Adjust last section to account for rounding errors
-        total_scenes = hook_dur + sum(bullet_durs) + cta_dur
-        duration_diff = duration - total_scenes
+    total_scenes = hook_dur + sum(bullet_durs) + cta_dur
+    duration_diff = duration - total_scenes
         
-        if abs(duration_diff) > 0.01:  # If difference > 10ms
-            # Add the difference to the CTA (last section)
-            cta_dur += duration_diff
-            print(f"⚙️ Adjusted CTA duration by {duration_diff:.2f}s to match audio exactly")
+    if abs(duration_diff) > 0.01:  # If difference > 10ms
+        # Add the difference to the CTA (last section)
+        cta_dur += duration_diff
+        print(f"⚙️ Adjusted CTA duration by {duration_diff:.2f}s to match audio exactly")
 
 print(f"⏱️  Scene timings (audio-synced):")
-print(f"   Hook: {hook_dur:.1f}s")
 for i, dur in enumerate(bullet_durs):
     print(f"   Bullet {i+1}: {dur:.1f}s")
 print(f"   CTA: {cta_dur:.1f}s")
@@ -303,10 +471,12 @@ def smart_text_wrap(text, font_size, max_width):
     try:
         pil_font = ImageFont.truetype(FONT, font_size)
     except:
-        avg_char_width = font_size * 0.6
+        avg_char_width = font_size * 0.55
         max_chars_per_line = int(max_width / avg_char_width)
         
         words = text.split()
+        if len(words) <= 2:  # Short phrases like "next obsession"
+            return text + '\n'
         lines = []
         current_line = []
         
@@ -322,7 +492,7 @@ def smart_text_wrap(text, font_size, max_width):
         if current_line:
             lines.append(' '.join(current_line))
         
-        return '\n'.join(lines)
+        return '\n'.join(lines) + '\n'
     
     words = text.split()
     lines = []
@@ -351,7 +521,7 @@ def smart_text_wrap(text, font_size, max_width):
     if current_line:
         lines.append(' '.join(current_line))
     
-    return '\n'.join(lines)
+    return '\n'.join(lines) + '\n'
 
 def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
     """Create properly wrapped text with safe font sizing"""
@@ -424,6 +594,9 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
     
     if text:
         wrapped_text, font_size = create_text_with_effects(text)
+
+        text_method = 'label' if len(text.split()) <= 3 else 'caption'
+        stroke_width = 2 if len(text.split()) <= 3 else 4
         
         # ✅ FIXED: Use basic TextClip with proper descender spacing
         text_clip = TextClip(
@@ -431,10 +604,11 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             font=FONT,
             font_size=font_size,
             color='white',
-            stroke_color='black',
-            stroke_width=6,
-            method='label',
-            text_align='center'
+            stroke_width=stroke_width,
+            stroke_color='black', 
+            method=text_method,
+            text_align='center',
+            size=(TEXT_MAX_WIDTH, None),
         )
         
         # Calculate safe position with proper descender space
@@ -442,8 +616,9 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         text_width = text_clip.w
         
         # Add extra padding for descenders (20-30px depending on font size)
-        descender_padding = max(25, int(font_size * 0.4))
+        descender_padding = max(35, int(font_size * 0.6))
         
+        bottom_safe_zone = SAFE_ZONE_MARGIN + 180 
         # Calculate vertical positioning with proper safety margins
         if position_y == 'center':
             pos_y = (h - text_height) // 2
@@ -452,14 +627,14 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             pos_y = SAFE_ZONE_MARGIN + 80
         elif position_y == 'bottom':
             # Bottom position: safe from UI elements + descender space
-            pos_y = h - text_height - SAFE_ZONE_MARGIN - descender_padding - 60
+            pos_y = h - text_height - bottom_safe_zone - descender_padding
         else:
             # For numeric positions, ensure they're safe
             pos_y = min(max(SAFE_ZONE_MARGIN + 80, position_y), 
-                       h - text_height - SAFE_ZONE_MARGIN - descender_padding - 60)
+                       h - text_height - bottom_safe_zone - descender_padding)
         
         # Final safety check with proper margins
-        bottom_limit = h - SAFE_ZONE_MARGIN - descender_padding - 60
+        bottom_limit = h - bottom_safe_zone - descender_padding
         top_limit = SAFE_ZONE_MARGIN + 80
         
         if pos_y + text_height > bottom_limit:
@@ -478,19 +653,6 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
 
         print(f"         Position: Y={pos_y}px (top edge)")
 
-        print(f"         Bottom edge: {bottom_pos}px")
-
-        print(f"         Screen: {h}px height")
-
-        print(f"         Clearance: Top={top_clearance}px, Bottom={bottom_clearance}px")
-
-        print(f"         Descender padding: {descender_padding}px")
-
-        
-
-        if bottom_clearance < 120:
-
-            print(f"         ⚠️ WARNING: Bottom clearance is low! ({bottom_clearance}px)")
         
         scene_clips.append(text_clip)
     
