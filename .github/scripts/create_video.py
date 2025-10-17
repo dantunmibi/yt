@@ -348,54 +348,65 @@ def smart_text_wrap(text, font_size, max_width):
     return '\n'.join(lines)
 
 def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
-    """Create text with strong outline and shadow for visibility on any background"""
+    """Create properly wrapped text with safe font sizing"""
     
     wrapped_text = smart_text_wrap(text, font_size, max_width)
     
-    # ✅ FIX: Use 'caption' method for proper height calculation
-    test_clip = TextClip(
-        text=wrapped_text,
-        font=FONT,
-        font_size=font_size,
-        method='caption',  # CHANGED
-        size=(max_width, None),  # ADDED
-    )
-    
-    max_height = h * 0.25  # Slightly increased to accommodate descenders
-    iterations = 0
-    
-    while test_clip.h > max_height and font_size > 32 and iterations < 10:
-        font_size -= 4
-        wrapped_text = smart_text_wrap(text, font_size, max_width)
-        test_clip = TextClip(
-            text=wrapped_text,
-            font=FONT,
-            font_size=font_size,
-            method='caption',  # CHANGED
-            size=(max_width, None),  # ADDED
-        )
-        iterations += 1
-    
-    while test_clip.w > max_width and font_size > 32:
-        font_size -= 6
-        wrapped_text = smart_text_wrap(text, font_size, max_width - 60)
-        test_clip = TextClip(
-            text=wrapped_text,
-            font=FONT,
-            font_size=font_size,
-            method='caption',  # CHANGED
-            size=(max_width - 60, None),  # ADDED
-        )
+    # Simple font size adjustment without complex clip creation
+    try:
+        pil_font = ImageFont.truetype(FONT, font_size)
+        dummy_img = Image.new('RGB', (1, 1))
+        draw = ImageDraw.Draw(dummy_img)
+        
+        # Check if text fits within constraints
+        lines = wrapped_text.split('\n')
+        total_height = 0
+        max_line_width = 0
+        
+        for line in lines:
+            bbox = draw.textbbox((0, 0), line, font=pil_font)
+            line_width = bbox[2] - bbox[0]
+            line_height = bbox[3] - bbox[1]
+            total_height += line_height
+            max_line_width = max(max_line_width, line_width)
+        
+        # Adjust font size if needed
+        max_height = h * 0.25
+        iterations = 0
+        
+        while (total_height > max_height or max_line_width > max_width) and font_size > 32 and iterations < 10:
+            font_size -= 4
+            wrapped_text = smart_text_wrap(text, font_size, max_width)
+            
+            pil_font = ImageFont.truetype(FONT, font_size)
+            lines = wrapped_text.split('\n')
+            total_height = 0
+            max_line_width = 0
+            
+            for line in lines:
+                bbox = draw.textbbox((0, 0), line, font=pil_font)
+                line_width = bbox[2] - bbox[0]
+                line_height = bbox[3] - bbox[1]
+                total_height += line_height
+                max_line_width = max(max_line_width, line_width)
+            
+            iterations += 1
+            
+    except Exception as e:
+        print(f"      ⚠️ Font sizing warning: {e}")
+        # Fallback: simple character-based sizing
+        if len(wrapped_text) > 100:
+            font_size = max(32, font_size - 8)
     
     return wrapped_text, font_size
 
 def create_scene(image_path, text, duration, start_time, position_y='center', color_fallback=(30, 30, 30)):
-    """Create a scene with background image and highly visible text overlay"""
+    """Create a scene with background image and properly rendered text"""
     scene_clips = []
     
     if image_path and os.path.exists(image_path):
         bg = (ImageClip(image_path)
-              .resized(height=h)
+              .resize(height=h)
               .with_duration(duration)
               .with_start(start_time)
               .with_effects([vfx.CrossFadeIn(0.3), vfx.CrossFadeOut(0.3)]))
@@ -408,60 +419,55 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
     if text:
         wrapped_text, font_size = create_text_with_effects(text)
         
-        # ✅ FIX: Use 'caption' method instead of 'label' to preserve full text
-        # ✅ FIX: Add explicit lineheight to ensure descenders have space
-        main_text = (TextClip(
+        # ✅ SIMPLE FIX: Use basic TextClip with manual positioning
+        text_clip = TextClip(
             text=wrapped_text,
             font=FONT,
             font_size=font_size,
             color='white',
-            method='caption',  # CHANGED: Use 'caption' instead of 'label'
-            size=(TEXT_MAX_WIDTH, None),  # ADDED: Let MoviePy calculate proper height
             stroke_color='black',
-            stroke_width=8
+            stroke_width=6,
+            method='caption',  # Go back to label but with better positioning
+            text_align='center'
         )
-        .with_duration(duration)
-        .with_start(start_time)
-        .with_effects([vfx.CrossFadeIn(0.3), vfx.CrossFadeOut(0.3)]))
         
-        # ✅ FIX: Improved positioning calculation with descender protection
-        text_height = main_text.h
+        # Calculate simple, safe position
+        text_height = text_clip.h
+        text_width = text_clip.w
         
+        # Simple vertical positioning
         if position_y == 'center':
             pos_y = (h - text_height) // 2
-        elif isinstance(position_y, int):
-            # Conservative boundaries with extra descender protection
-            min_y = SAFE_ZONE_MARGIN
-            max_y = h - SAFE_ZONE_MARGIN - text_height - 150  # Extra 50px for descenders
-            
-            pos_y = max(min_y, min(position_y, max_y))
-            
-            # For lower text (bullets, CTA), be extra conservative
-            if position_y > h * 0.6:
-                pos_y = h - SAFE_ZONE_MARGIN - text_height - 200
+        elif position_y == 'top':
+            pos_y = SAFE_ZONE_MARGIN + 50  # Extra space for safety
+        elif position_y == 'bottom':
+            pos_y = h - text_height - SAFE_ZONE_MARGIN - 100  # Extra space for descenders
         else:
-            pos_y = SAFE_ZONE_MARGIN
+            # For numeric positions, ensure they're safe
+            pos_y = min(max(SAFE_ZONE_MARGIN, position_y), h - text_height - SAFE_ZONE_MARGIN - 100)
         
-        # ✅ FIX: Final safety check with generous descender padding
-        absolute_max_y = h - SAFE_ZONE_MARGIN - text_height - 200
-        if pos_y > absolute_max_y:
-            pos_y = absolute_max_y
+        # Final safety check - ensure text doesn't go off screen
+        if pos_y + text_height > h - 100:
+            pos_y = h - text_height - 150
+        if pos_y < 100:
+            pos_y = 100
         
-        if pos_y < SAFE_ZONE_MARGIN:
-            pos_y = SAFE_ZONE_MARGIN
+        text_clip = (text_clip
+                    .with_duration(duration)
+                    .with_start(start_time)
+                    .with_position(('center', pos_y))
+                    .with_effects([vfx.CrossFadeIn(0.3), vfx.CrossFadeOut(0.3)]))
         
-        # Apply the final position
-        main_text = main_text.with_position(('center', pos_y))
+        print(f"      Text: '{wrapped_text[:40]}...'")
+        print(f"         Font: {font_size}px, Size: {text_width}x{text_height}")
+        print(f"         Position: Y={pos_y}")
+        print(f"         Screen bounds: {h}h, Clearance: {h - (pos_y + text_height)}px")
         
-        print(f"      Text: '{wrapped_text[:30]}...'")
-        print(f"         Position: Y={pos_y}, Height={text_height}px")
-        print(f"         Method: caption (preserves descenders)")
-        print(f"         Bottom edge: {pos_y + text_height}px (screen: {h}px)")
-        print(f"         Descender clearance: {h - (pos_y + text_height)}px")
-        
-        scene_clips.append(main_text)
+        scene_clips.append(text_clip)
     
     return scene_clips
+
+# In your main execution section, change these calls:
 
 if hook:
     print(f"🎬 Creating hook scene (synced with audio)...")
@@ -470,15 +476,13 @@ if hook:
         hook,
         hook_dur,
         current_time,
-        position_y=400,
+        position_y='top',  # Changed from 400 to 'top'
         color_fallback=(30, 144, 255)
     )
     clips.extend(hook_clips)
     current_time += hook_dur
-else:
-    print("⚠️ No hook text found")
 
-print(f"📋 Creating {len(bullets)} bullet scenes (synced with audio)...")
+# For bullets - use 'center' 
 for i, bullet in enumerate(bullets):
     if not bullet:
         continue
@@ -491,13 +495,13 @@ for i, bullet in enumerate(bullets):
         bullet,
         bullet_durs[i],
         current_time,
-        position_y=900,
+        position_y='center',  # Changed from 900 to 'center'
         color_fallback=colors[i % len(colors)]
     )
-    clips.extend(bullet_clips)
-    print(f"   Bullet {i+1}: {current_time:.1f}s - {current_time + bullet_durs[i]:.1f}s (synced)")
-    current_time += bullet_durs[i]
 
+    clips.extend(bullet_clips)      # ✅ <-- missing line
+    current_time += bullet_durs[i]  # ✅ <-- advance timeline
+# For CTA - use 'bottom'
 if cta:
     print(f"📢 Creating CTA scene (synced with audio)...")
     cta_clips = create_scene(
@@ -505,7 +509,7 @@ if cta:
         cta,
         cta_dur,
         current_time,
-        position_y=1200,
+        position_y='bottom',  # Changed from 1200 to 'bottom'
         color_fallback=(255, 20, 147)
     )
     clips.extend(cta_clips)

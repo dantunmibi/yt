@@ -3,7 +3,6 @@ name: AI Trending Shorts Pipeline v2
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 12 * * *'  # Daily at 12:00 UTC
     - cron: '0 00 * * *' # Daily at 00:00 UTC
 
 jobs:
