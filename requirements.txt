@@ -11,3 +11,4 @@ pytrends
 gtts
 TTS
 pydub
+mutagen

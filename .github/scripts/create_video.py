@@ -131,7 +131,7 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
         seed = random.randint(1, 999999)
 
         url = (
-            "https://image.pollinaions.ai/prompt/"
+            "https://image.pollinations.ai/prompt/"
             f"{requests.utils.quote(formatted_prompt)}"
             f"?width={width}&height={height}"
             f"&negative={requests.utils.quote(negative_terms)}"
