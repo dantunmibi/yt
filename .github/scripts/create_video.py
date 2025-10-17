@@ -427,7 +427,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             color='white',
             stroke_color='black',
             stroke_width=6,
-            method='caption',  # Go back to label but with better positioning
+            method='label',  # Go back to label but with better positioning
             text_align='center'
         )
         

@@ -477,8 +477,6 @@ for i, line in enumerate(text_lines):
 
     # Draw your shadows / strokes / text here...
 
-    
-    # Better shadow effect
     shadow_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     sd = ImageDraw.Draw(shadow_overlay)
     
