@@ -419,7 +419,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
     if text:
         wrapped_text, font_size = create_text_with_effects(text)
         
-        # ✅ SIMPLE FIX: Use basic TextClip with manual positioning
+        # ✅ FIXED: Use basic TextClip with proper descender spacing
         text_clip = TextClip(
             text=wrapped_text,
             font=FONT,
@@ -427,30 +427,39 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             color='white',
             stroke_color='black',
             stroke_width=6,
-            method='label',  # Go back to label but with better positioning
+            method='label',
             text_align='center'
         )
         
-        # Calculate simple, safe position
+        # Calculate safe position with proper descender space
         text_height = text_clip.h
         text_width = text_clip.w
         
-        # Simple vertical positioning
+        # Add extra padding for descenders (20-30px depending on font size)
+        descender_padding = max(20, int(font_size * 0.3))
+        
+        # Calculate vertical positioning with proper safety margins
         if position_y == 'center':
             pos_y = (h - text_height) // 2
         elif position_y == 'top':
-            pos_y = SAFE_ZONE_MARGIN + 50  # Extra space for safety
+            # Top position: safe from notification area
+            pos_y = SAFE_ZONE_MARGIN + 80
         elif position_y == 'bottom':
-            pos_y = h - text_height - SAFE_ZONE_MARGIN - 100  # Extra space for descenders
+            # Bottom position: safe from UI elements + descender space
+            pos_y = h - text_height - SAFE_ZONE_MARGIN - descender_padding - 50
         else:
             # For numeric positions, ensure they're safe
-            pos_y = min(max(SAFE_ZONE_MARGIN, position_y), h - text_height - SAFE_ZONE_MARGIN - 100)
+            pos_y = min(max(SAFE_ZONE_MARGIN + 80, position_y), 
+                       h - text_height - SAFE_ZONE_MARGIN - descender_padding - 50)
         
-        # Final safety check - ensure text doesn't go off screen
-        if pos_y + text_height > h - 100:
-            pos_y = h - text_height - 150
-        if pos_y < 100:
-            pos_y = 100
+        # Final safety check with proper margins
+        bottom_limit = h - SAFE_ZONE_MARGIN - descender_padding - 50
+        top_limit = SAFE_ZONE_MARGIN + 80
+        
+        if pos_y + text_height > bottom_limit:
+            pos_y = bottom_limit - text_height
+        if pos_y < top_limit:
+            pos_y = top_limit
         
         text_clip = (text_clip
                     .with_duration(duration)

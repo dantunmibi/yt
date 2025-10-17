@@ -65,7 +65,7 @@ else:
 print(f"📊 Length comparison - Hook: {len(hook)} chars, Title: {len(title)} chars")
 
 # ✅ FIXED: Better text processing that preserves complete text
-def optimize_text_for_thumbnail(text, max_lines=3, max_chars_per_line=22):
+def optimize_text_for_thumbnail(text, max_lines=3, max_chars_per_line=18):
     """Optimize text for thumbnail display while preserving ALL text"""
     print(f"📝 Processing text: {text}")
     
@@ -377,28 +377,32 @@ img = Image.alpha_composite(img, vignette)
 draw = ImageDraw.Draw(img)
 
 # ✅ FIXED: Add font size calculation that ensures text fits within screen width
-def calculate_font_size_that_fits(text_lines, max_width=650):
-    """Calculate font size that ensures text doesn't go outside screen"""
-    # Try different font sizes to find one that fits
-    for font_size in range(70, 35, -5):  # From 70px down to 35px
+def calculate_font_size_that_fits(text_lines, max_width=650, min_size=30):
+    """Calculate font size that ensures text doesn't go outside screen with margins"""
+    # Account for margins in max width
+    LEFT_MARGIN = 60
+    RIGHT_MARGIN = 60
+    safe_max_width = max_width - LEFT_MARGIN - RIGHT_MARGIN  # Actually usable width
+    
+    for font_size in range(70, min_size - 1, -3):  # Step by 3px for faster iteration
         test_font = get_font_path(font_size, bold=True)
         all_lines_fit = True
         
-        # Check if all lines fit within max_width
+        # Check if all lines fit within safe_max_width
         for line in text_lines:
             bbox = draw.textbbox((0, 0), line, font=test_font)
             line_width = bbox[2] - bbox[0]
-            if line_width > max_width:
+            if line_width > safe_max_width:
                 all_lines_fit = False
                 break
         
         if all_lines_fit:
-            print(f"✅ Font size {font_size}px fits all lines within {max_width}px")
+            print(f"✅ Font size {font_size}px fits all lines within {safe_max_width}px (with margins)")
             return font_size
     
-    # If no size fits, use the smallest one
-    print(f"⚠️ Using minimum font size 35px")
-    return 35
+    # If no size fits, use minimum and warn
+    print(f"⚠️ Using minimum font size {min_size}px - text may still overflow!")
+    return min_size
 
 # Use the new font size calculation
 font_size = calculate_font_size_that_fits(text_lines)
