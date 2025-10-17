@@ -65,38 +65,58 @@ else:
 print(f"📊 Length comparison - Hook: {len(hook)} chars, Title: {len(title)} chars")
 
 # ✅ FIXED: Better text processing that preserves complete text
-def optimize_text_for_thumbnail(text, max_lines=2, max_chars_per_line=24):
-    # ✅ FIXED: Define words variable here
-    words = text.split()
-    """Optimize text for thumbnail display while preserving meaning"""
+def optimize_text_for_thumbnail(text, max_lines=3, max_chars_per_line=22):
+    """Optimize text for thumbnail display while preserving ALL text"""
     print(f"📝 Processing text: {text}")
     
     # Clean text but preserve key elements
     text = text.replace('"', '').replace("'", "")
     text = ' '.join(text.split())  # Remove extra spaces
     
-    # If text fits in one line, use it
+    words = text.split()
+    
+    # If text is very short, use as-is
     if len(text) <= max_chars_per_line:
         return [text]
     
-    # Try to find natural break points first
-    if "?" in text:
-        parts = text.split("?")
+    # Try to find natural break points first (for 2-line splits)
+    if "?" in text and max_lines >= 2:
+        parts = text.split("?", 1)  # Split only on first ?
         if len(parts) == 2:
             line1 = parts[0] + "?"
             line2 = parts[1].strip()
-            if len(line1) <= max_chars_per_line and len(line2) <= max_chars_per_line:
-                return [line1, line2]
+            # Check if both lines fit
+            if len(line1) <= max_chars_per_line and line2:
+                # If line2 fits, we're done
+                if len(line2) <= max_chars_per_line:
+                    return [line1, line2] if line2 else [line1]
+                # Otherwise, split line2 further
+                else:
+                    remaining_words = line2.split()
+                    result = [line1]
+                    current_line = []
+                    for word in remaining_words:
+                        test_line = ' '.join(current_line + [word])
+                        if len(test_line) <= max_chars_per_line:
+                            current_line.append(word)
+                        else:
+                            if current_line:
+                                result.append(' '.join(current_line))
+                            current_line = [word]
+                    if current_line:
+                        result.append(' '.join(current_line))
+                    return result[:max_lines]
     
-    if ":" in text:
-        parts = text.split(":")
+    if ":" in text and max_lines >= 2:
+        parts = text.split(":", 1)
         if len(parts) == 2:
             line1 = parts[0] + ":"
             line2 = parts[1].strip()
-            if len(line1) <= max_chars_per_line and len(line2) <= max_chars_per_line:
-                return [line1, line2]
+            if len(line1) <= max_chars_per_line and line2:
+                if len(line2) <= max_chars_per_line:
+                    return [line1, line2] if line2 else [line1]
     
-    # Smart word-based line breaking
+    # Smart word-based line breaking - PRESERVE ALL TEXT
     lines = []
     current_line = []
     
@@ -106,30 +126,57 @@ def optimize_text_for_thumbnail(text, max_lines=2, max_chars_per_line=24):
         if len(test_line) <= max_chars_per_line:
             current_line.append(word)
         else:
+            # Save current line and start new one
             if current_line:
                 lines.append(' '.join(current_line))
             current_line = [word]
-            
-            if len(lines) >= max_lines:
-                break
     
-    # Add the last line
-    if current_line and len(lines) < max_lines:
+    # ✅ CRITICAL FIX: Add the remaining words even if we hit max_lines
+    if current_line:
         lines.append(' '.join(current_line))
     
-    # Ensure we don't exceed max lines
-    lines = lines[:max_lines]
+    # If we have too many lines, try to condense
+    if len(lines) > max_lines:
+        print(f"⚠️ Text needs {len(lines)} lines, condensing to {max_lines}...")
+        # Try to merge last lines or use ellipsis if needed
+        if max_lines == 2:
+            # Keep first line, merge rest with ellipsis if needed
+            remaining = ' '.join(lines[1:])
+            if len(remaining) > max_chars_per_line * 2:
+                # Truncate intelligently - keep the punchline if possible
+                words_remaining = remaining.split()
+                line2_words = []
+                line3_words = []
+                
+                # Fill line 2
+                for word in words_remaining[:len(words_remaining)//2]:
+                    test = ' '.join(line2_words + [word])
+                    if len(test) <= max_chars_per_line:
+                        line2_words.append(word)
+                    else:
+                        break
+                
+                # Fill line 3 with remaining (prioritize end words for punchline)
+                for word in words_remaining[len(line2_words):]:
+                    test = ' '.join(line3_words + [word])
+                    if len(test) <= max_chars_per_line:
+                        line3_words.append(word)
+                
+                return [lines[0], ' '.join(line2_words), ' '.join(line3_words)][:max_lines]
+            else:
+                lines = [lines[0]] + [remaining]
+        
+        lines = lines[:max_lines]
     
-    print(f"📝 Final lines: {lines}")
+    print(f"📝 Final lines ({len(lines)}): {lines}")
     return lines
 
-text_lines = optimize_text_for_thumbnail(display_text, max_lines=2, max_chars_per_line=24)
+text_lines = optimize_text_for_thumbnail(display_text, max_lines=3, max_chars_per_line=22)
 
 # ✅ FIXED: Correct Hugging Face thumbnail generation
 def generate_thumbnail_huggingface(prompt):
-    """Generate thumbnail using Hugging Face - FIXED VERSION"""
+    """Generate thumbnail using Hugging Face"""
     try:
-        # ✅ Use Stable Diffusion XL (more reliable)
         API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
         
         hf_token = os.getenv('HUGGINGFACE_API_KEY')
@@ -155,7 +202,6 @@ def generate_thumbnail_huggingface(prompt):
         response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
         
         if response.status_code == 200:
-            # Verify content
             if len(response.content) > 1000:
                 print("   ✅ Hugging Face thumbnail generated")
                 return response.content
@@ -168,7 +214,6 @@ def generate_thumbnail_huggingface(prompt):
         
         elif response.status_code == 404:
             print(f"   ❌ Hugging Face 404: Check API key")
-            print(f"   💡 Token should start with 'hf_'")
             raise Exception("404 error")
         
         elif response.status_code == 401:
@@ -202,7 +247,6 @@ def generate_thumbnail_pollinations(prompt):
 def generate_thumbnail_bg(topic, title):
     bg_path = os.path.join(TMP, "thumb_bg.png")
     
-    # ✅ FIXED: Better prompt for YouTube thumbnails
     prompt = f"YouTube thumbnail style, viral content, trending, {topic}, high contrast, vibrant colors, dramatic lighting, professional photography, no text, cinematic, eye-catching"
     
     providers = [
@@ -217,7 +261,6 @@ def generate_thumbnail_bg(topic, title):
             with open(bg_path, "wb") as f:
                 f.write(image_content)
             
-            # Verify file was created
             if os.path.getsize(bg_path) > 1000:
                 print(f"✅ {provider_name} thumbnail generated successfully")
                 return bg_path
@@ -228,42 +271,11 @@ def generate_thumbnail_bg(topic, title):
             print(f"⚠️ {provider_name} thumbnail failed: {e}")
             continue
 
-    # 🖼️ Try Unsplash fallback
-    def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
-        query = requests.utils.quote(topic or title or "abstract technology")
-        base_url = f"https://source.unsplash.com/720x1280/?{query}"
-
-        for attempt in range(1, retries + 1):
-            try:
-                print(f"🖼️ Unsplash fallback attempt {attempt}/{retries} ({query})...")
-                head_resp = requests.head(base_url, allow_redirects=True, timeout=15)
-                final_url = head_resp.url
-                content_type = head_resp.headers.get("Content-Type", "")
-
-                if "image" not in content_type:
-                    print(f"⚠️ Not an image ({content_type}), retrying...")
-                    sleep(delay)
-                    continue
-
-                response = requests.get(final_url, timeout=30)
-                if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
-                    with open(bg_path, "wb") as f:
-                        f.write(response.content)
-                    print(f"✅ Unsplash fallback image saved ({final_url})")
-                    return bg_path
-            except Exception as e:
-                print(f"⚠️ Unsplash attempt {attempt} failed: {e}")
-                sleep(delay)
-
-        print("⚠️ Unsplash fallback failed after retries")
-        return None
-    
     # Fallback to gradient
     print("⚠️ All providers failed, using gradient fallback")
     img = Image.new("RGB", (720, 1280), (0, 0, 0))
     draw = ImageDraw.Draw(img)
     
-    # Create vibrant gradient
     for y in range(1280):
         r = int(30 + (255 - 30) * (y / 1280))
         g = int(144 - (144 - 50) * (y / 1280))
@@ -286,12 +298,11 @@ img = enhancer.enhance(1.2)
 
 img = img.convert("RGBA")
 
-# ✅ FIXED: Better vignette for text readability
+# Better vignette for text readability
 vignette = Image.new("RGBA", img.size, (0, 0, 0, 0))
 vd = ImageDraw.Draw(vignette)
 w, h = img.size
 
-# Draw radial gradient for better text contrast
 center_x, center_y = w // 2, h // 2
 max_radius = int((w**2 + h**2)**0.5) // 2
 
@@ -307,17 +318,23 @@ img = Image.alpha_composite(img, vignette)
 
 draw = ImageDraw.Draw(img)
 
-# ✅ IMPROVED: Dynamic font sizing based on text length
+# ✅ IMPROVED: Dynamic font sizing based on text length and number of lines
 max_chars = max(len(line) for line in text_lines) if text_lines else 0
-if max_chars > 15:
-    font_size = 60
+num_lines = len(text_lines)
+
+if num_lines >= 3:
+    font_size = 55  # Smaller for 3 lines
+elif max_chars > 18:
+    font_size = 58
+elif max_chars > 15:
+    font_size = 62
 else:
-    font_size = 70
+    font_size = 68
 
 main_font = get_font_path(font_size, bold=True)
 w, h = img.size
 
-print("📝 Adding optimized text to thumbnail...")
+print(f"📝 Adding {num_lines}-line text to thumbnail (font: {font_size}px)...")
 
 # Calculate total text height with proper spacing
 line_heights = []
@@ -326,11 +343,11 @@ for line in text_lines:
     text_h = bbox[3] - bbox[1]
     line_heights.append(text_h)
 
-line_spacing = 20
+line_spacing = 15 if num_lines >= 3 else 20
 total_height = sum(line_heights) + (len(text_lines) - 1) * line_spacing
 
 # Position text in upper third for YouTube Shorts
-start_y = h * 0.18  # Slightly higher for better balance
+start_y = h * 0.15 if num_lines >= 3 else h * 0.18
 
 for i, line in enumerate(text_lines):
     bbox = draw.textbbox((0, 0), line, font=main_font)
@@ -340,18 +357,17 @@ for i, line in enumerate(text_lines):
     x = (w - text_w) / 2
     y = start_y + sum(line_heights[:i]) + (i * line_spacing)
     
-    # ✅ IMPROVED: Better shadow effect
+    # Better shadow effect
     shadow_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     sd = ImageDraw.Draw(shadow_overlay)
     
-    # Multiple shadow layers for better readability
-    for offset in [3, 2, 1]:
-        shadow_alpha = int(120 * (offset / 3))
+    for offset in [4, 3, 2]:
+        shadow_alpha = int(140 * (offset / 4))
         sd.text((x + offset, y + offset), line, font=main_font, fill=(0, 0, 0, shadow_alpha))
     
     img = Image.alpha_composite(img, shadow_overlay)
     
-    # ✅ IMPROVED: Thicker stroke for better readability
+    # Thicker stroke for better readability
     stroke_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     so = ImageDraw.Draw(stroke_overlay)
     
@@ -359,11 +375,11 @@ for i, line in enumerate(text_lines):
     for adj_x in range(-stroke_size, stroke_size + 1):
         for adj_y in range(-stroke_size, stroke_size + 1):
             if abs(adj_x) == stroke_size or abs(adj_y) == stroke_size:
-                so.text((x + adj_x, y + adj_y), line, font=main_font, fill=(0, 0, 0, 200))
+                so.text((x + adj_x, y + adj_y), line, font=main_font, fill=(0, 0, 0, 220))
     
     img = Image.alpha_composite(img, stroke_overlay)
     
-    # ✅ IMPROVED: Bright text with slight glow
+    # Bright text
     text_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     to = ImageDraw.Draw(text_overlay)
     to.text((x, y), line, font=main_font, fill=(255, 255, 255, 255))
