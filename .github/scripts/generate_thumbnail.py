@@ -271,6 +271,64 @@ def generate_thumbnail_bg(topic, title):
             print(f"⚠️ {provider_name} thumbnail failed: {e}")
             continue
 
+     # 🖼️ Try Unsplash fallback
+
+    def generate_unsplash_fallback(topic, title, bg_path, retries=3, delay=3):
+
+        query = requests.utils.quote(topic or title or "abstract technology")
+
+        base_url = f"https://source.unsplash.com/720x1280/?{query}"
+
+
+
+        for attempt in range(1, retries + 1):
+
+            try:
+
+                print(f"🖼️ Unsplash fallback attempt {attempt}/{retries} ({query})...")
+
+                head_resp = requests.head(base_url, allow_redirects=True, timeout=15)
+
+                final_url = head_resp.url
+
+                content_type = head_resp.headers.get("Content-Type", "")
+
+
+
+                if "image" not in content_type:
+
+                    print(f"⚠️ Not an image ({content_type}), retrying...")
+
+                    sleep(delay)
+
+                    continue
+
+
+
+                response = requests.get(final_url, timeout=30)
+
+                if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
+
+                    with open(bg_path, "wb") as f:
+
+                        f.write(response.content)
+
+                    print(f"✅ Unsplash fallback image saved ({final_url})")
+
+                    return bg_path
+
+            except Exception as e:
+
+                print(f"⚠️ Unsplash attempt {attempt} failed: {e}")
+
+                sleep(delay)
+
+
+
+        print("⚠️ Unsplash fallback failed after retries")
+
+        return None
+
     # Fallback to gradient
     print("⚠️ All providers failed, using gradient fallback")
     img = Image.new("RGB", (720, 1280), (0, 0, 0))
@@ -318,20 +376,50 @@ img = Image.alpha_composite(img, vignette)
 
 draw = ImageDraw.Draw(img)
 
-# ✅ IMPROVED: Dynamic font sizing based on text length and number of lines
+# ✅ FIXED: Add font size calculation that ensures text fits within screen width
+def calculate_font_size_that_fits(text_lines, max_width=650):
+    """Calculate font size that ensures text doesn't go outside screen"""
+    # Try different font sizes to find one that fits
+    for font_size in range(70, 35, -5):  # From 70px down to 35px
+        test_font = get_font_path(font_size, bold=True)
+        all_lines_fit = True
+        
+        # Check if all lines fit within max_width
+        for line in text_lines:
+            bbox = draw.textbbox((0, 0), line, font=test_font)
+            line_width = bbox[2] - bbox[0]
+            if line_width > max_width:
+                all_lines_fit = False
+                break
+        
+        if all_lines_fit:
+            print(f"✅ Font size {font_size}px fits all lines within {max_width}px")
+            return font_size
+    
+    # If no size fits, use the smallest one
+    print(f"⚠️ Using minimum font size 35px")
+    return 35
+
+# Use the new font size calculation
+font_size = calculate_font_size_that_fits(text_lines)
+main_font = get_font_path(font_size, bold=True)
+
+# ✅ Keep all your original font sizing logic as backup
 max_chars = max(len(line) for line in text_lines) if text_lines else 0
 num_lines = len(text_lines)
 
+# Your original logic (keep as reference)
 if num_lines >= 3:
-    font_size = 55  # Smaller for 3 lines
+    calculated_size = 55  # Smaller for 3 lines
 elif max_chars > 18:
-    font_size = 58
+    calculated_size = 58
 elif max_chars > 15:
-    font_size = 62
+    calculated_size = 60
 else:
-    font_size = 68
+    calculated_size = 68
 
-main_font = get_font_path(font_size, bold=True)
+print(f"📝 Original calculated size: {calculated_size}px, Final size: {font_size}px")
+
 w, h = img.size
 
 print(f"📝 Adding {num_lines}-line text to thumbnail (font: {font_size}px)...")
@@ -349,12 +437,20 @@ total_height = sum(line_heights) + (len(text_lines) - 1) * line_spacing
 # Position text in upper third for YouTube Shorts
 start_y = h * 0.15 if num_lines >= 3 else h * 0.18
 
+# ✅ FIXED: Verify each line fits before drawing
 for i, line in enumerate(text_lines):
     bbox = draw.textbbox((0, 0), line, font=main_font)
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
     
-    x = (w - text_w) / 2
+    # Check if line fits
+    if text_w > w - 40:  # 40px margin
+        print(f"⚠️ Line {i+1} is {text_w}px wide (max: {w-40}px) - adjusting...")
+        # The font size calculation should prevent this, but just in case
+        x = 20  # Force left alignment with margin
+    else:
+        x = (w - text_w) / 2
+    
     y = start_y + sum(line_heights[:i]) + (i * line_spacing)
     
     # Better shadow effect

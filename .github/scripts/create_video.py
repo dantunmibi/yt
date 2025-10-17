@@ -356,7 +356,7 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
         text=wrapped_text,
         font=FONT,
         font_size=font_size,
-        method='label',
+        method='caption',
         text_align='center'
     )
     
@@ -369,7 +369,7 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
             text=wrapped_text,
             font=FONT,
             font_size=font_size,
-            method='label',
+            method='caption',
             text_align='center'
         )
         iterations += 1
@@ -381,7 +381,7 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
             text=wrapped_text,
             font=FONT,
             font_size=font_size,
-            method='label',
+            method='caption',
             text_align='center'
         )
     
@@ -410,7 +410,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             text=wrapped_text,
             font=FONT,
             font_size=font_size,
-            method='label',
+            method='caption',
             text_align='center'
         )
         temp_clip = temp_clip.with_position(('center', 'center'))
@@ -419,7 +419,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         text_width = temp_clip.w
         
         # ✅ FIXED: Add explicit descender padding for letters like y, g, p, q, j
-        DESCENDER_PADDING = 30  # Extra space for descenders
+        DESCENDER_PADDING = 50  # Extra space for descenders
         STROKE_PADDING = 16     # Account for stroke_width=8 on both sides
         
         # Calculate total height with proper padding for descenders
@@ -464,7 +464,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             font=FONT,
             font_size=font_size,
             color='white',
-            method='label',
+            method='caption',
             text_align='center',
             stroke_color='black',
             stroke_width=8
