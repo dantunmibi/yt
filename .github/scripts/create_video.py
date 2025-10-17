@@ -5,7 +5,7 @@ import requests
 from moviepy import *
 import platform
 from tenacity import retry, stop_after_attempt, wait_exponential
-from mutagen.mp3 import MP3
+from pydub import AudioSegment
 from time import sleep
 from PIL import Image, ImageDraw, ImageFont
 import random
@@ -379,10 +379,10 @@ def get_audio_duration(path):
     """Get audio duration safely using mutagen (works on Python 3.14)."""
     try:
         if os.path.exists(path):
-            return MP3(path).info.length
-    except Exception as e:
-        print(f"⚠️ Failed to get duration for {path}: {e}")
-    return 0.0
+            return len(AudioSegment.from_file(path)) / 1000.0
+    except:
+        pass
+    return 0
 
 hook_path = os.path.join(TMP, "hook.mp3")
 cta_path = os.path.join(TMP, "cta.mp3")
@@ -406,8 +406,8 @@ def estimate_speech_duration(text, audio_path):
 
     if os.path.exists(audio_path):
         try:
-            # ✅ Use mutagen instead of pydub
-            total_audio_duration = MP3(audio_path).info.length
+            audio = AudioSegment.from_file(audio_path)
+            total_audio_duration = len(audio) / 1000.0
 
             all_text = " ".join([hook] + bullets + [cta])
             total_words = len(all_text.split()) or 1

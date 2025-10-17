@@ -409,8 +409,8 @@ def generate_thumbnail_bg(topic, title):
     
     # List of providers to try in order
     providers = [
-        ("Hugging Face", generate_thumbnail_huggingface),
-        ("Pollinations", generate_thumbnail_pollinations)
+        ("Pollinations", generate_thumbnail_pollinations),
+        ("Hugging Face", generate_thumbnail_huggingface)
     ]
     
     # Try AI providers first
