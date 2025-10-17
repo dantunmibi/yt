@@ -163,9 +163,9 @@ Created: {datetime.now().strftime('%Y-%m-%d')}
 Topic: {topic}
 """
 
-tags = ["shorts", "viral", "trending", topic, "ai"]
+tags = ["shorts", "viralshorts", topic]
 if hashtags:
-    tags.extend([tag.replace('#', '') for tag in hashtags[:10]])
+    tags.extend([tag.replace('#', '') for tag in hashtags[:5]])
 tags = list(set(tags))[:15]
 
 print(f"📝 Metadata ready:")
@@ -174,7 +174,7 @@ print(f"   Tags: {', '.join(tags[:5])}...")
 print(f"   Hashtags: {' '.join(hashtags[:3])}...")
 
 snippet = {
-    "title": title[:100],
+    "title": title + "#shorts",
     "description": enhanced_description[:5000],
     "tags": tags,
     "categoryId": "28"

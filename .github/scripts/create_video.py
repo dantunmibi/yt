@@ -359,7 +359,6 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
         font_size=font_size,
         method='caption',  # CHANGED
         size=(max_width, None),  # ADDED
-        align='center'
     )
     
     max_height = h * 0.25  # Slightly increased to accommodate descenders
@@ -374,7 +373,6 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
             font_size=font_size,
             method='caption',  # CHANGED
             size=(max_width, None),  # ADDED
-            align='center'
         )
         iterations += 1
     
@@ -387,7 +385,6 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
             font_size=font_size,
             method='caption',  # CHANGED
             size=(max_width - 60, None),  # ADDED
-            align='center'
         )
     
     return wrapped_text, font_size
@@ -420,7 +417,6 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             color='white',
             method='caption',  # CHANGED: Use 'caption' instead of 'label'
             size=(TEXT_MAX_WIDTH, None),  # ADDED: Let MoviePy calculate proper height
-            align='center',
             stroke_color='black',
             stroke_width=8
         )
