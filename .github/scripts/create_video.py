@@ -63,7 +63,7 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
         payload = {
             "inputs": prompt,
             "parameters": {
-                "negative_prompt": "blurry, low quality, watermark, text, logo, frame, ugly, dull",
+                "negative_prompt": "blurry, low quality, watermark, text, logo, frame, ugly, dull, text paragraphs, prompt text, very long text",
                 "num_inference_steps": 25,
                 "guidance_scale": 7.5,
                 "width": width,
@@ -117,9 +117,7 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
     try:
         # Strong negative prompt to avoid logos, text, UI, and play buttons
         negative_terms = (
-            "youtube logo, play button, watermark, ui, interface, overlay, "
-            "branding, text, caption, words, title, subtitle, watermarking, "
-            "frame, icon, symbol, graphics, arrows, shapes, low quality, distorted"
+            "youtube logo, play button, watermark, ui, interface, overlay, branding, text, caption, words, title, subtitle, watermarking, long text, frame, icon, symbol, graphics, arrows, shapes, low quality, distorted"
         )
 
         # Encourage a clean photo-realistic cinematic look
