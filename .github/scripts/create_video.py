@@ -352,16 +352,19 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
     
     wrapped_text = smart_text_wrap(text, font_size, max_width)
     
+    # ✅ FIX: Use 'caption' method for proper height calculation
     test_clip = TextClip(
         text=wrapped_text,
         font=FONT,
         font_size=font_size,
-        method='caption',
-        text_align='center'
+        method='caption',  # CHANGED
+        size=(max_width, None),  # ADDED
+        align='center'
     )
     
-    max_height = h * 0.20
+    max_height = h * 0.25  # Slightly increased to accommodate descenders
     iterations = 0
+    
     while test_clip.h > max_height and font_size > 32 and iterations < 10:
         font_size -= 4
         wrapped_text = smart_text_wrap(text, font_size, max_width)
@@ -369,8 +372,9 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
             text=wrapped_text,
             font=FONT,
             font_size=font_size,
-            method='caption',
-            text_align='center'
+            method='caption',  # CHANGED
+            size=(max_width, None),  # ADDED
+            align='center'
         )
         iterations += 1
     
@@ -381,8 +385,9 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
             text=wrapped_text,
             font=FONT,
             font_size=font_size,
-            method='caption',
-            text_align='center'
+            method='caption',  # CHANGED
+            size=(max_width - 60, None),  # ADDED
+            align='center'
         )
     
     return wrapped_text, font_size
@@ -406,76 +411,59 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
     if text:
         wrapped_text, font_size = create_text_with_effects(text)
         
-        temp_clip = TextClip(
-            text=wrapped_text,
-            font=FONT,
-            font_size=font_size,
-            method='caption',
-            text_align='center'
-        )
-        temp_clip = temp_clip.with_position(('center', 'center'))
-
-        text_height = temp_clip.h
-        text_width = temp_clip.w
-        
-        # ✅ FIXED: Add explicit descender padding for letters like y, g, p, q, j
-        DESCENDER_PADDING = 50  # Extra space for descenders
-        STROKE_PADDING = 16     # Account for stroke_width=8 on both sides
-        
-        # Calculate total height with proper padding for descenders
-        text_height_with_padding = int(text_height * 1.2) + DESCENDER_PADDING + STROKE_PADDING
-        
-        if position_y == 'center':
-            pos_y = (h - text_height_with_padding) // 2
-        elif isinstance(position_y, int):
-            # ✅ FIXED: More conservative boundaries to ensure descender space
-            min_y = SAFE_ZONE_MARGIN
-            # Reserve extra space at bottom for descenders
-            max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 100
-            
-            pos_y = max(min_y, min(position_y, max_y))
-            
-            # For lower text (bullets, CTA), be extra conservative
-            if position_y > h * 0.6:
-                pos_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 120
-        else:
-            pos_y = SAFE_ZONE_MARGIN
-        
-        # ✅ FIXED: Final safety check with descender padding included
-        absolute_max_y = h - SAFE_ZONE_MARGIN - text_height_with_padding - 100
-        if pos_y > absolute_max_y:
-            pos_y = absolute_max_y
-            print(f"      ⚠️ Position adjusted to prevent descender cutoff: Y={pos_y}")
-        
-        if pos_y < SAFE_ZONE_MARGIN:
-            pos_y = SAFE_ZONE_MARGIN
-            print(f"      ⚠️ Position adjusted (too high): Y={pos_y}")
-        
-        print(f"      Text: '{wrapped_text[:30]}...'")
-        print(f"         Position: Y={pos_y}, Height={text_height}px")
-        print(f"         Padding: +{text_height_with_padding - text_height}px (includes descender space)")
-        print(f"         Total height: {text_height_with_padding}px")
-        print(f"         Font: {font_size}px, Width={text_width}px")
-        print(f"         Bottom edge: {pos_y + text_height_with_padding}px (screen: {h}px)")
-        print(f"         Descender clearance: {h - (pos_y + text_height_with_padding)}px")
-        
+        # ✅ FIX: Use 'caption' method instead of 'label' to preserve full text
+        # ✅ FIX: Add explicit lineheight to ensure descenders have space
         main_text = (TextClip(
             text=wrapped_text,
             font=FONT,
             font_size=font_size,
             color='white',
-            method='caption',
-            text_align='center',
+            method='caption',  # CHANGED: Use 'caption' instead of 'label'
+            size=(TEXT_MAX_WIDTH, None),  # ADDED: Let MoviePy calculate proper height
+            align='center',
             stroke_color='black',
             stroke_width=8
         )
-        .with_position(('center', 'center'))
         .with_duration(duration)
         .with_start(start_time)
-        .with_position(('center', pos_y))
         .with_effects([vfx.CrossFadeIn(0.3), vfx.CrossFadeOut(0.3)]))
         
-        scene_clips.extend([main_text])
+        # ✅ FIX: Improved positioning calculation with descender protection
+        text_height = main_text.h
+        
+        if position_y == 'center':
+            pos_y = (h - text_height) // 2
+        elif isinstance(position_y, int):
+            # Conservative boundaries with extra descender protection
+            min_y = SAFE_ZONE_MARGIN
+            max_y = h - SAFE_ZONE_MARGIN - text_height - 150  # Extra 50px for descenders
+            
+            pos_y = max(min_y, min(position_y, max_y))
+            
+            # For lower text (bullets, CTA), be extra conservative
+            if position_y > h * 0.6:
+                pos_y = h - SAFE_ZONE_MARGIN - text_height - 200
+        else:
+            pos_y = SAFE_ZONE_MARGIN
+        
+        # ✅ FIX: Final safety check with generous descender padding
+        absolute_max_y = h - SAFE_ZONE_MARGIN - text_height - 200
+        if pos_y > absolute_max_y:
+            pos_y = absolute_max_y
+        
+        if pos_y < SAFE_ZONE_MARGIN:
+            pos_y = SAFE_ZONE_MARGIN
+        
+        # Apply the final position
+        main_text = main_text.with_position(('center', pos_y))
+        
+        print(f"      Text: '{wrapped_text[:30]}...'")
+        print(f"         Position: Y={pos_y}, Height={text_height}px")
+        print(f"         Method: caption (preserves descenders)")
+        print(f"         Bottom edge: {pos_y + text_height}px (screen: {h}px)")
+        print(f"         Descender clearance: {h - (pos_y + text_height)}px")
+        
+        scene_clips.append(main_text)
     
     return scene_clips
 
