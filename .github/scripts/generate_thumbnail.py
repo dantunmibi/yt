@@ -443,15 +443,40 @@ for i, line in enumerate(text_lines):
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
     
-    # Check if line fits
-    if text_w > w - 40:  # 40px margin
-        print(f"⚠️ Line {i+1} is {text_w}px wide (max: {w-40}px) - adjusting...")
-        # The font size calculation should prevent this, but just in case
-        x = 20  # Force left alignment with margin
+    # --- Safe layout constants for 1080x1920 vertical video ---
+LEFT_MARGIN = 60       # slightly wider margin for mobile
+RIGHT_MARGIN = 60
+TOP_MARGIN = 150
+BOTTOM_MARGIN = 200
+MAX_TEXT_WIDTH = w - LEFT_MARGIN - RIGHT_MARGIN  # e.g. 960px usable width
+
+# --- Per-line placement loop ---
+for i, line in enumerate(text_lines):
+    bbox = draw.textbbox((0, 0), line, font=main_font)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+
+    # --- Horizontal positioning ---
+    if text_w > MAX_TEXT_WIDTH:
+        # Line is too wide; force left-align inside safe zone
+        print(f"⚠️ Line {i+1} too wide ({text_w}px > {MAX_TEXT_WIDTH}px) — left-aligning")
+        x = LEFT_MARGIN
     else:
+        # Center the text, but still enforce both margins
         x = (w - text_w) / 2
-    
+        # Safety check: ensure it doesn't overflow on either side
+        if x < LEFT_MARGIN:
+            x = LEFT_MARGIN
+        if x + text_w > w - RIGHT_MARGIN:
+            x = w - RIGHT_MARGIN - text_w
+
+    # --- Vertical positioning ---
     y = start_y + sum(line_heights[:i]) + (i * line_spacing)
+    
+    print(f"   Line {i+1}: '{line}'  X={x:.1f}  Y={y:.1f}  Width={text_w}px")
+
+    # Draw your shadows / strokes / text here...
+
     
     # Better shadow effect
     shadow_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
