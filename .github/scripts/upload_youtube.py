@@ -68,8 +68,8 @@ if os.path.exists(THUMB):
         print("⚠️ Using original video without thumbnail embed.")
         video_width, video_height, video_fps = 1080, 1920, 30
 
-    THUMB_DURATION = 0.6
-    FADE_DURATION = 0.3
+    THUMB_DURATION = 1.0
+    FADE_DURATION = 0.2
 
     # ✅ FIXED: Proper FFmpeg filter with correct settb placement AFTER fps
     ffmpeg_args = [

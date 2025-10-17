@@ -406,7 +406,7 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
     
     if image_path and os.path.exists(image_path):
         bg = (ImageClip(image_path)
-              .resize(height=h)
+              .resized(height=h)
               .with_duration(duration)
               .with_start(start_time)
               .with_effects([vfx.CrossFadeIn(0.3), vfx.CrossFadeOut(0.3)]))
