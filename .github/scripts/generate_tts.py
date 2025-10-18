@@ -19,6 +19,7 @@ print("✅ Using Local Coqui TTS (offline)")
 def clean_text_for_coqui(text):
     """Clean text to prevent Coqui TTS corruption"""
     text = text.replace('%', ' percent')
+    text = text.replace("AI", "A. I.")
     text = text.replace('&', ' and ')
     text = text.replace('+', ' plus ')
     text = re.sub(r'\s+', ' ', text)
