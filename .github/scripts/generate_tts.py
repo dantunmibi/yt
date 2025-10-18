@@ -106,7 +106,7 @@ def generate_sectional_tts():
     try:
         print("🔊 Initializing Coqui TTS for sectional generation...")
         # Initialize Coqui TTS model once for all sections
-        tts = TTS(model_name="tts_models/en/ljspeech/vits", progress_bar=False)
+        tts = TTS(model_name="tts_models/en/jenny/jenny", progress_bar=False)
 
         sections = [("hook", hook)] + [(f"bullet_{i}", b) for i, b in enumerate(bullets)] + [("cta", cta)]
         
