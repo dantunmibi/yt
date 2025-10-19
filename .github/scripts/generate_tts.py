@@ -15,26 +15,78 @@ FULL_AUDIO_PATH = os.path.join(TMP, "voice.mp3")
 print("✅ Using Local Coqui TTS (offline)")
 
 # --- Utility Functions ---
-
 def clean_text_for_coqui(text):
-    """Clean text to prevent Coqui TTS corruption"""
     text = text.replace('%', ' percent')
-    text = text.replace("AI", "A. I.")
     text = text.replace('&', ' and ')
     text = text.replace('+', ' plus ')
+    text = text.replace('@', ' at ')
+    text = text.replace('$', ' dollars ')
+    text = text.replace('€', ' euros ')
+    text = text.replace('£', ' pounds ')
+    text = text.replace('AI', ' AYE-AY ')
+
+    # Replace known acronyms with phonemes
+    replacements = {
+        "GPT": "{JH IY P IY T IY}",
+        "API": "{EY P IY AY}",
+        "CPU": "{S IY P Y UW}",
+        "GPU": "{JH IY P Y UW}",
+        "RAM": "{AA R AE M}",
+        "ROM": "{AA R AA M}",
+        "SSD": "{EH S EH S D IY}",
+        "USB": "{Y UW EH S B IY}",
+        "HTTP": "{EYCH T IY T IY P IY}",
+        "HTTPS": "{EYCH T IY T IY P IY EH S}",
+        "URL": "{Y UW EH R EH L}",
+        "HTML": "{EYCH T IY EH M EH L}",
+        "CSS": "{S IY EH S EH S}",
+        "JSON": "{JH EY S AH N}",
+        "SQL": "{EH S K Y UW EH L}",
+        "NASA": "{N AE S AH}",
+        "NATO": "{N EY T OW}",
+        "FBI": "{EH F B IY AY}",
+        "CIA": "{S IY AY EY}",
+        "USA": "{Y UW EH S EY}",
+        "UK": "{Y UW K EY}",
+        "UN": "{Y UW EH N}",
+        "EU": "{IY Y UW}",
+        "NBA": "{EH N B IY EY}",
+        "NFL": "{EH N EH F EH L}",
+        "UFC": "{Y UW EH F S IY}",
+        "GB": "{JH IY B IY}",
+        "TB": "{T IY B IY}",
+        "MB": "{EH M B IY}",
+        "KB": "{K IY B IY}",
+        "CM": "{S IY EH M}",
+        "MM": "{EH M EH M}",
+        "KG": "{K EY JH IY}",
+        "KM": "{K EY EH M}",
+        "MS": "{EH M EH S}",
+        "FPS": "{EH F P IY EH S}",
+        "OK": "{OW K EY}",
+        "CEO": "{S IY IY OW}",
+        "DIY": "{D IY AY W AY}",
+        "VR": "{V IY AA R}",
+        "AR": "{EY AA R}",
+        "MR": "{EH M AA R}",
+    }
+    for k, v in replacements.items():
+        text = re.sub(rf'\b{k}\b', v, text)
+
+    # Cleanup
     text = re.sub(r'\s+', ' ', text)
     text = re.sub(r'\s\.\s', '. ', text)
 
-    emoji_pattern = re.compile(
-        "["
-        "\U0001F600-\U0001F64F"  # emoticons
-        "\U0001F300-\U0001F5FF"  # symbols & pictographs
-        "\U0001F680-\U0001F6FF"  # transport & map symbols
-        "\U0001F1E0-\U0001F1FF"  # flags
-        "\U00002702-\U000027B0"  # dingbats
-        "\U000024C2-\U0001F251"  # enclosed characters
+    emoji_pattern = re.compile("["
+        "\U0001F600-\U0001F64F"
+        "\U0001F300-\U0001F5FF"
+        "\U0001F680-\U0001F6FF"
+        "\U0001F1E0-\U0001F1FF"
+        "\U00002702-\U000027B0"
+        "\U000024C2-\U0001F251"
         "]+", flags=re.UNICODE)
     text = emoji_pattern.sub(r'', text)
+
     return text.strip()
 
 def generate_tts_fallback(text, out_path):

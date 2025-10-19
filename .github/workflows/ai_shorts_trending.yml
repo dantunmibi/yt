@@ -54,16 +54,16 @@ jobs:
       - name: Make tmp folder (and ensure writeable)
         run: |
           mkdir -p tmp
-          chmod -R 777 tmp # Add write permission to ensure cache can restore
+          chmod -R 777 tmp
 
-      # ✅ NEW: Cache content history to prevent duplicates
+      # ✅ FIXED: Use static cache key for content history
       - name: Restore content history
         uses: actions/cache/restore@v4
         with:
           path: tmp/content_history.json
-          key: content-history-${{ github.run_number }}
+          key: content-history-v1
           restore-keys: |
-            content-history-
+            content-history-v1
 
       - name: Install Python packages
         run: |
@@ -93,10 +93,9 @@ jobs:
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
         run: python .github/scripts/generate_thumbnail.py
 
-      # 🧹 ADDED: Clean up temporary images to free disk space
+      # 🧹 Clean up temporary files
       - name: Clean up temporary files
         run: |
-          # Remove all generated images and intermediate files
           find tmp -name "scene_*.jpg" -type f -delete || true
           rm -f tmp/short_ready.mp4 || true
           echo "🧹 Cleaned up temporary files to save disk space."
@@ -111,14 +110,13 @@ jobs:
       - name: Verify FFmpeg filters
         run: ffmpeg -filters | grep xfade || echo "⚠️ xfade not found — fallback to simple concat mode"
 
-
-      # ✅ NEW: Save content history for next run
+      # ✅ FIXED: Save with static key so next run can restore it
       - name: Save content history
         uses: actions/cache/save@v4
         if: always()
         with:
           path: tmp/content_history.json
-          key: content-history-${{ github.run_number }}
+          key: content-history-v1
 
       - name: Upload artifact (latest short)
         uses: actions/upload-artifact@v4
