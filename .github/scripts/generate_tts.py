@@ -23,7 +23,7 @@ def clean_text_for_coqui(text):
     text = text.replace('$', ' dollars ')
     text = text.replace('€', ' euros ')
     text = text.replace('£', ' pounds ')
-    text = text.replace('AI', ' AYE-AY ')
+    text = text.replace('AI', ' A-AY ')
 
     # Replace known acronyms with phonemes
     replacements = {
