@@ -71,11 +71,10 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
             }
         }
 
-        # List of models to try, in order (from thumbnail script)
         models = [
-            "stabilityai/stable-diffusion-xl-base-1.0",  # Paid (best quality)
-            "prompthero/openjourney-v4",               # Free (fast + decent)
-            "Lykon/dreamshaper-xl-v2-turbo",           # Free (creative, solid)
+            "stabilityai/stable-diffusion-xl-base-1.0",
+            "prompthero/openjourney-v4",
+            "Lykon/dreamshaper-xl-v2-turbo",
             "runwayml/stable-diffusion-v1-5",
             "stabilityai/sdxl-turbo"
         ]
@@ -84,7 +83,7 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
             url = f"https://api-inference.huggingface.co/models/{model}"
             print(f"🤗 Trying model: {model}")
 
-            response = requests.post(url, headers=headers, json=payload, timeout=120)
+            response = requests.post(url, headers=headers, json=payload, timeout=90)
 
             if response.status_code == 200 and len(response.content) > 1000:
                 filepath = os.path.join(TMP, filename)
@@ -104,7 +103,6 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
             else:
                 print(f"⚠️ {model} failed ({response.status_code}) — trying next model...")
 
-        # If no model worked
         raise Exception("All Hugging Face models failed")
 
     except Exception as e:
@@ -113,14 +111,12 @@ def generate_image_huggingface(prompt, filename, width=1080, height=1920):
 
 
 def generate_image_pollinations(prompt, filename, width=1080, height=1920):
-    """Pollinations backup with anti-logo filter and unique seed (from thumbnail script)"""
+    """Pollinations backup with anti-logo filter and unique seed"""
     try:
-        # Strong negative prompt to avoid logos, text, UI, and play buttons
         negative_terms = (
             "blurry, low quality, watermark, text, logo, frame, caption, title, subtitle, ui, interface, overlay, play button, youtube logo, branding, prompt text, paragraphs, words, symbol, icon, graphics, arrows, shapes, distorted, compression artifacts, pixelated, dull colors, cropped, stretched, deformed, multiple faces, duplicate body parts, text watermark, long text"
         )
 
-        # Encourage a clean photo-realistic cinematic look
         formatted_prompt = (
             f"{prompt}, cinematic lighting, ultra detailed, professional digital art, "
             "photo realistic, no text, no logos, no overlays"
@@ -138,7 +134,7 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
         )
 
         print(f"    🌐 Pollinations thumbnail: {prompt[:60]}... (seed={seed})")
-        response = requests.get(url, timeout=120)
+        response = requests.get(url, timeout=90)
 
         if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
             filepath = os.path.join(TMP, filename)
@@ -153,14 +149,10 @@ def generate_image_pollinations(prompt, filename, width=1080, height=1920):
         print(f"    ⚠️ Pollinations thumbnail failed: {e}")
         raise
 
-# ✅ NEW: Integrated the comprehensive fallback from generate_thumbnail.py
 def generate_picsum_fallback(bg_path, topic=None, title=None, width=1080, height=1920):
-    """
-    Smart keyword-based fallback (no API keys) from Unsplash, Pexels, and Picsum.
-    """
+    """Smart keyword-based fallback (no API keys) from Unsplash, Pexels, and Picsum."""
     import re, random, requests
 
-    # --- 🔍 Step 1: Determine keyword from topic/title ---
     topic_map = {
         "ai": "ai",
         "artificial intelligence": "ai",
@@ -181,13 +173,11 @@ def generate_picsum_fallback(bg_path, topic=None, title=None, width=1080, height
     }
 
     text_source = (topic or title or "").lower()
-    print(f"🔍 DEBUG: text_source='{text_source}', topic='{topic}'")
     resolved_key = next((mapped for word, mapped in topic_map.items() if word in text_source), "abstract")
-    print(f"🔍 DEBUG: resolved_key='{resolved_key}'")
 
     print(f"🔎 Searching fallback image for topic '{topic}' (resolved key: '{resolved_key}')...")
 
-    # --- 🔹 Step 2: Try Unsplash (free, no API key) ---
+    # Try Unsplash
     try:
         seed = random.randint(1, 9999)
         url = f"https://source.unsplash.com/{width}x{height}/?{requests.utils.quote(resolved_key)}&sig={seed}"
@@ -203,15 +193,10 @@ def generate_picsum_fallback(bg_path, topic=None, title=None, width=1080, height
     except Exception as e:
         print(f"    ⚠️ Unsplash error: {e}")
 
-    # --- 🔹 Step 3: Try Pexels CDN curated fallback (using 720x1280 to maintain aspect ratio) ---
-    # --- 🔹 Step 3: Try Pexels Search, then Popular Fallback (No API) ---
-
-# First attempt: Search approach
-    
+    # Try Pexels
     try:
         print("    🔄 Falling back to Pexels popular photos...")
             
-            # Large pool of popular Pexels photo IDs across categories
         popular_pexels_ids = {
             "ai": [2045531, 6153896, 8386440, 8386442, 8386445, 9569811, 10453212, 11053713, 1181244, 12043246, 12661306, 12985914],
             "technology": [2045531, 6153896, 8386440, 1181244, 4974912, 3861959, 3184325, 1671643, 11053713, 12043246, 12661306, 12985914],
@@ -229,12 +214,10 @@ def generate_picsum_fallback(bg_path, topic=None, title=None, width=1080, height
         if resolved_key not in popular_pexels_ids:
             resolved_key = "abstract"
             
-            # Shuffle and try multiple random IDs
         photo_ids = popular_pexels_ids[resolved_key].copy()
         random.shuffle(photo_ids)
             
-        for attempt, photo_id in enumerate(photo_ids[:4]):  # Try 4 different IDs
-            # Add random parameter to avoid caching
+        for attempt, photo_id in enumerate(photo_ids[:4]):
             seed = random.randint(1000, 9999)
             url = f"https://images.pexels.com/photos/{photo_id}/pexels-photo-{photo_id}.jpeg?auto=compress&cs=tinysrgb&w=720&h=1280&random={seed}"
                 
@@ -246,7 +229,6 @@ def generate_picsum_fallback(bg_path, topic=None, title=None, width=1080, height
                     f.write(response.content)
                 print(f"    ✅ Pexels popular image saved (id: {photo_id})")
 
-                    # Resize to exact dimensions
                 img = Image.open(bg_path).convert("RGB")
                 img = img.resize((width, height), Image.LANCZOS)
                 img.save(bg_path, quality=95)
@@ -261,7 +243,7 @@ def generate_picsum_fallback(bg_path, topic=None, title=None, width=1080, height
     except Exception as e:
         print(f"    ⚠️ Pexels popular photos fallback failed: {e}")
 
-    # --- 🔹 Step 4: Picsum Random fallback ---
+    # Try Picsum
     try:
         seed = random.randint(1, 1000)
         url = f"https://picsum.photos/{width}/{height}?random={seed}"
@@ -279,7 +261,7 @@ def generate_picsum_fallback(bg_path, topic=None, title=None, width=1080, height
         print(f"    ⚠️ Picsum fallback failed: {e}")
         return None
 
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, min=4, max=25))
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=20))
 def generate_image_reliable(prompt, filename, width=1080, height=1920, topic=None, title=None):
     """Try multiple image generation providers and fallbacks in order"""
     filepath = os.path.join(TMP, filename)
@@ -288,7 +270,6 @@ def generate_image_reliable(prompt, filename, width=1080, height=1920, topic=Non
     providers = [
         ("Pollinations", generate_image_pollinations),
         ("Hugging Face", generate_image_huggingface)
-        
     ]
     
     for provider_name, provider_func in providers:
@@ -309,8 +290,20 @@ def generate_image_reliable(prompt, filename, width=1080, height=1920, topic=Non
         return result
     
     # 3. Last resort: Solid color fallback
-    print("⚠️ All providers failed, using solid color fallback")
-    img = Image.new("RGB", (width, height), (random.randint(0, 100), random.randint(0, 100), random.randint(0, 100)))
+    print("⚠️ All providers failed, using gradient fallback")
+    img = Image.new("RGB", (width, height), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    
+    colors = [(30, 144, 255), (255, 99, 71), (50, 205, 50), (255, 215, 0), (255, 20, 147)]
+    color = colors[random.randint(0, len(colors) - 1)]
+    
+    for y in range(height):
+        intensity = int(255 * (1 - y / height))
+        r = min(255, max(0, color[0] + (intensity - 127) // 2))
+        g = min(255, max(0, color[1] + (intensity - 127) // 2))
+        b = min(255, max(0, color[2] + (intensity - 127) // 2))
+        draw.line([(0, y), (width, y)], fill=(r, g, b))
+    
     img.save(filepath)
     return filepath
 
@@ -360,9 +353,34 @@ try:
     
 except Exception as e:
     print(f"⚠️ Image generation failed entirely: {e}")
-    # Fallback to an array of Nones or default image paths if the try block fails
     scene_images = [None] * (len(bullets) + 2)
 
+# ✅ FIX 2: VALIDATE AND REPLACE NONE/INVALID IMAGES
+print(f"🔍 Validating {len(scene_images)} scene images...")
+for i in range(len(scene_images)):
+    img = scene_images[i] if i < len(scene_images) else None
+    
+    if not img or not os.path.exists(img) or os.path.getsize(img) < 1000:
+        print(f"⚠️ Scene {i} invalid, creating gradient fallback...")
+        fallback_path = os.path.join(TMP, f"scene_fallback_{i}.jpg")
+        
+        fallback_img = Image.new("RGB", (w, h), (0, 0, 0))
+        draw = ImageDraw.Draw(fallback_img)
+        
+        colors = [(30, 144, 255), (255, 99, 71), (50, 205, 50), (255, 215, 0), (255, 20, 147)]
+        color = colors[i % len(colors)]
+        
+        for y in range(h):
+            intensity = int(255 * (1 - y / h))
+            r = min(255, max(0, color[0] + (intensity - 127) // 2))
+            g = min(255, max(0, color[1] + (intensity - 127) // 2))
+            b = min(255, max(0, color[2] + (intensity - 127) // 2))
+            draw.line([(0, y), (w, y)], fill=(r, g, b))
+        
+        fallback_img.save(fallback_path)
+        scene_images[i] = fallback_path
+
+print(f"✅ All scene images validated")
 
 if not os.path.exists(audio_path):
     print(f"❌ Audio file not found: {audio_path}")
@@ -394,71 +412,90 @@ if all(os.path.exists(p) for p in [hook_path, cta_path] + bullet_paths):
 else:
     print("⚙️ Using estimated word-based durations (fallback)")
 
-def estimate_speech_duration(text, audio_path):
-    """Estimate how long the given text should take"""
-    words = len(text.split())
-    if words == 0:
-        return 0.0
+    def estimate_speech_duration(text, audio_path):
+        """Estimate how long the given text should take"""
+        words = len(text.split())
+        if words == 0:
+            return 0.0
 
-    fallback_wpm = 140  # words per minute average
+        fallback_wpm = 140
 
-    if os.path.exists(audio_path):
-        try:
-            audio = AudioSegment.from_file(audio_path)
-            total_audio_duration = len(audio) / 1000.0
+        if os.path.exists(audio_path):
+            try:
+                audio = AudioSegment.from_file(audio_path)
+                total_audio_duration = len(audio) / 1000.0
 
-            all_text = " ".join([hook] + bullets + [cta])
-            total_words = len(all_text.split()) or 1
+                all_text = " ".join([hook] + bullets + [cta])
+                total_words = len(all_text.split()) or 1
 
-            seconds_per_word = total_audio_duration / total_words
-            return seconds_per_word * words  # ✅ stays inside try block
-        except Exception as e:
-            print(f"⚠️ Could not analyze TTS file for pacing: {e}")
+                seconds_per_word = total_audio_duration / total_words
+                return seconds_per_word * words
+            except Exception as e:
+                print(f"⚠️ Could not analyze TTS file for pacing: {e}")
+                return (words / fallback_wpm) * 60.0
+        else:
             return (words / fallback_wpm) * 60.0
+
+    hook_estimated = estimate_speech_duration(hook, audio_path)
+    bullets_estimated = [estimate_speech_duration(b, audio_path) for b in bullets]
+    cta_estimated = estimate_speech_duration(cta, audio_path)
+
+    total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
+
+    if total_estimated == 0:
+        section_count = max(1, len(bullets) + (1 if hook else 0) + (1 if cta else 0))
+        equal_split = duration / section_count 
+        
+        hook_dur = equal_split if hook else 0
+        bullet_durs = [equal_split] * len(bullets)
+        cta_dur = equal_split if cta else 0
+
     else:
-        return (words / fallback_wpm) * 60.0
+        time_scale = duration / total_estimated 
 
-
-
-hook_estimated = estimate_speech_duration(hook, audio_path)
-bullets_estimated = [estimate_speech_duration(b, audio_path) for b in bullets]
-cta_estimated = estimate_speech_duration(cta, audio_path)
-
-total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
-
-    # Safety check for zero-length text/audio
-if total_estimated == 0:
-    section_count = max(1, len(bullets) + (1 if hook else 0) + (1 if cta else 0))
-    equal_split = duration / section_count 
+        hook_dur = hook_estimated * time_scale
+        bullet_durs = [b_est * time_scale for b_est in bullets_estimated]
+        cta_dur = cta_estimated * time_scale
         
-    hook_dur = equal_split if hook else 0
-    bullet_durs = [equal_split] * len(bullets)
-    cta_dur = equal_split if cta else 0
-
-else:
-        # ✅ FIXED: Ensure scenes match EXACT audio duration
-        # Remove margin - we want to use the full audio duration
-    time_scale = duration / total_estimated 
-
-        # Apply the time scale to every estimated duration
-    hook_dur = hook_estimated * time_scale
-    bullet_durs = [b_est * time_scale for b_est in bullets_estimated]
-    cta_dur = cta_estimated * time_scale
+        # ✅ FIX 3: ACCOUNT FOR CROSS-FADE OVERLAPS
+        num_sections = (1 if hook else 0) + len(bullets) + (1 if cta else 0)
+        num_transitions = max(0, num_sections - 1)
         
-        # ✅ CRITICAL FIX: Adjust last section to account for rounding errors
-    total_scenes = hook_dur + sum(bullet_durs) + cta_dur
-    duration_diff = duration - total_scenes
+        if num_transitions > 0:
+            # Each cross-fade creates 0.3s overlap between scenes
+            total_overlap = 0.3 * num_transitions
+            
+            # Reduce all scene durations proportionally
+            total_base = hook_dur + sum(bullet_durs) + cta_dur
+            
+            if hook and total_base > 0:
+                hook_dur = max(1.0, hook_dur - (total_overlap * hook_dur / total_base))
+            
+            for i in range(len(bullet_durs)):
+                if total_base > 0:
+                    bullet_durs[i] = max(1.0, bullet_durs[i] - (total_overlap * bullet_durs[i] / total_base))
+            
+            if cta and total_base > 0:
+                cta_dur = max(1.0, cta_dur - (total_overlap * cta_dur / total_base))
+            
+            print(f"⚙️ Adjusted for {num_transitions} cross-fades (-{total_overlap:.2f}s total)")
         
-    if abs(duration_diff) > 0.01:  # If difference > 10ms
-        # Add the difference to the CTA (last section)
-        cta_dur += duration_diff
-        print(f"⚙️ Adjusted CTA duration by {duration_diff:.2f}s to match audio exactly")
+        # Final rounding correction
+        total_scenes = hook_dur + sum(bullet_durs) + cta_dur
+        duration_diff = duration - total_scenes
+            
+        if abs(duration_diff) > 0.01:
+            cta_dur += duration_diff
+            print(f"⚙️ Final rounding adjustment: {duration_diff:.2f}s")
 
 print(f"⏱️  Scene timings (audio-synced):")
+if hook:
+    print(f"   Hook: {hook_dur:.1f}s")
 for i, dur in enumerate(bullet_durs):
     print(f"   Bullet {i+1}: {dur:.1f}s")
-print(f"   CTA: {cta_dur:.1f}s")
-print(f"   Total: {hook_dur + sum(bullet_durs) + cta_dur:.2f}s (Audio: {duration:.2f}s)")
+if cta:
+    print(f"   CTA: {cta_dur:.1f}s")
+print(f"   Total: {(hook_dur if hook else 0) + sum(bullet_durs) + (cta_dur if cta else 0):.2f}s (Audio: {duration:.2f}s)")
 
 clips = []
 current_time = 0
@@ -473,7 +510,7 @@ def smart_text_wrap(text, font_size, max_width):
         max_chars_per_line = int(max_width / avg_char_width)
         
         words = text.split()
-        if len(words) <= 2:  # Short phrases like "next obsession"
+        if len(words) <= 2:
             return text + '\n'
         lines = []
         current_line = []
@@ -526,13 +563,11 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
     
     wrapped_text = smart_text_wrap(text, font_size, max_width)
     
-    # Simple font size adjustment without complex clip creation
     try:
         pil_font = ImageFont.truetype(FONT, font_size)
         dummy_img = Image.new('RGB', (1, 1))
         draw = ImageDraw.Draw(dummy_img)
         
-        # Check if text fits within constraints
         lines = wrapped_text.split('\n')
         total_height = 0
         max_line_width = 0
@@ -544,7 +579,6 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
             total_height += line_height
             max_line_width = max(max_line_width, line_width)
         
-        # Adjust font size if needed
         max_height = h * 0.25
         iterations = 0
         
@@ -568,7 +602,6 @@ def create_text_with_effects(text, font_size=64, max_width=TEXT_MAX_WIDTH):
             
     except Exception as e:
         print(f"      ⚠️ Font sizing warning: {e}")
-        # Fallback: simple character-based sizing
         if len(wrapped_text) > 100:
             font_size = max(32, font_size - 8)
     
@@ -596,7 +629,6 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         text_method = 'label' if len(text.split()) <= 3 else 'caption'
         stroke_width = 2 if len(text.split()) <= 3 else 4
         
-        # ✅ FIXED: Use basic TextClip with proper descender spacing
         text_clip = TextClip(
             text=wrapped_text,
             font=FONT,
@@ -609,29 +641,23 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
             size=(TEXT_MAX_WIDTH, None),
         )
         
-        # Calculate safe position with proper descender space
         text_height = text_clip.h
         text_width = text_clip.w
         
-        # Add extra padding for descenders (20-30px depending on font size)
         descender_padding = max(35, int(font_size * 0.6))
         
         bottom_safe_zone = SAFE_ZONE_MARGIN + 180 
-        # Calculate vertical positioning with proper safety margins
+        
         if position_y == 'center':
             pos_y = (h - text_height) // 2
         elif position_y == 'top':
-            # Top position: safe from notification area
             pos_y = SAFE_ZONE_MARGIN + 80
         elif position_y == 'bottom':
-            # Bottom position: safe from UI elements + descender space
             pos_y = h - text_height - bottom_safe_zone - descender_padding
         else:
-            # For numeric positions, ensure they're safe
             pos_y = min(max(SAFE_ZONE_MARGIN + 80, position_y), 
                        h - text_height - bottom_safe_zone - descender_padding)
         
-        # Final safety check with proper margins
         bottom_limit = h - bottom_safe_zone - descender_padding
         top_limit = SAFE_ZONE_MARGIN + 80
         
@@ -648,17 +674,13 @@ def create_scene(image_path, text, duration, start_time, position_y='center', co
         
         print(f"      Text: '{wrapped_text[:40]}...'")
         print(f"         Font: {font_size}px, Size: {text_width}x{text_height}px")
-
         print(f"         Position: Y={pos_y}px (top edge)")
-
         
         scene_clips.append(text_clip)
     
     return scene_clips
 
-# In your main execution section, change these calls:
-
-
+# Hook Scene
 if hook:
     print(f"🎬 Creating hook scene (synced with audio)...")
     hook_clips = create_scene(
@@ -666,15 +688,21 @@ if hook:
         hook,
         hook_dur,
         current_time,
-        position_y='top',  # Changed from 400 to 'top'
+        position_y='top',
         color_fallback=(30, 144, 255)
     )
     clips.extend(hook_clips)
     current_time += hook_dur
 
-# For bullets - use 'center' 
+# ✅ FIX 1: HANDLE EMPTY BULLETS - ALWAYS ADVANCE TIMELINE
 for i, bullet in enumerate(bullets):
-    if not bullet:
+    bullet_duration = bullet_durs[i]
+    
+    if not bullet or not bullet.strip():
+        print(f"⚠️ Bullet {i+1} is empty, creating silent placeholder")
+        placeholder = ColorClip(size=(w, h), color=(50, 50, 50), duration=bullet_duration).with_start(current_time)
+        clips.append(placeholder)
+        current_time += bullet_duration
         continue
     
     img_index = min(i + 1, len(scene_images) - 1)
@@ -685,15 +713,16 @@ for i, bullet in enumerate(bullets):
     bullet_clips = create_scene(
         scene_images[img_index] if scene_images and img_index < len(scene_images) else None,
         bullet,
-        bullet_durs[i],
+        bullet_duration,
         current_time,
-        position_y='center',  # Changed from 900 to 'center'
+        position_y='center',
         color_fallback=colors[i % len(colors)]
     )
 
-    clips.extend(bullet_clips)      # ✅ <-- missing line
-    current_time += bullet_durs[i]  # ✅ <-- advance timeline
-# For CTA - use 'bottom'
+    clips.extend(bullet_clips)
+    current_time += bullet_duration
+
+# CTA Scene
 if cta:
     print(f"📢 Creating CTA scene (synced with audio)...")
     cta_clips = create_scene(
@@ -701,15 +730,28 @@ if cta:
         cta,
         cta_dur,
         current_time,
-        position_y='bottom',  # Changed from 1200 to 'bottom'
+        position_y='bottom',
         color_fallback=(255, 20, 147)
     )
     clips.extend(cta_clips)
-    print(f"   CTA: {current_time:.1f}s - {current_time + cta_dur:.1f}s (synced)")
+    current_time += cta_dur
+    print(f"   CTA: {current_time - cta_dur:.1f}s - {current_time:.1f}s (synced)")
 else:
     print("⚠️ No CTA text found")
 
-print(f"🎬 Composing video with {len(clips)} clips...")
+# ✅ FIX 4: VERIFY SYNC BEFORE COMPOSING
+final_timeline = current_time
+print(f"\n📊 SYNC VERIFICATION:")
+print(f"   Timeline duration: {final_timeline:.2f}s")
+print(f"   Audio duration: {duration:.2f}s")
+print(f"   Difference: {abs(final_timeline - duration)*1000:.1f}ms")
+
+if abs(final_timeline - duration) > 0.5:
+    print(f"⚠️ WARNING: Significant sync drift detected!")
+else:
+    print(f"✅ Sync verified - within acceptable tolerance")
+
+print(f"\n🎬 Composing video with {len(clips)} clips...")
 video = CompositeVideoClip(clips, size=(w, h))
 
 print(f"🔊 Attaching audio...")
@@ -748,6 +790,9 @@ try:
     print(f"      ✓ High visibility text (outline + shadow)")
     print(f"      ✓ Adaptive font sizing")
     print(f"      ✓ Dynamic position adjustment")
+    print(f"      ✓ Cross-fade overlap correction")
+    print(f"      ✓ Empty content handling")
+    print(f"      ✓ Image validation and fallbacks")
     
     if not os.path.exists(OUT) or os.path.getsize(OUT) < 100000:
         raise Exception("Output video is missing or too small")
@@ -767,4 +812,4 @@ finally:
         except:
             pass
 
-print("✅ Video pipeline complete with all enhancements!")
+print("✅ Video pipeline complete with all critical fixes applied!")

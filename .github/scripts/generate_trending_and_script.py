@@ -83,10 +83,11 @@ def load_trending():
     return None
 
 def is_similar_topic(new_title, previous_titles, similarity_threshold=0.6):
-    """Check if topic is too similar to previous ones"""
+    """Check if topic is too similar to previous ones with decay factor"""
     new_words = set(new_title.lower().split())
     
-    for prev_title in previous_titles[-20:]:  # Check last 20 titles
+    # Weight recent topics more heavily (exponential decay)
+    for idx, prev_title in enumerate(reversed(previous_titles)):
         prev_words = set(prev_title.lower().split())
         
         # Calculate Jaccard similarity
@@ -94,9 +95,17 @@ def is_similar_topic(new_title, previous_titles, similarity_threshold=0.6):
         union = len(new_words | prev_words)
         
         if union > 0:
-            similarity = intersection / union
-            if similarity > similarity_threshold:
-                print(f"⚠️ Topic too similar to: {prev_title}")
+            base_similarity = intersection / union
+            
+            # Apply decay: recent topics need lower similarity, old topics need higher
+            # idx=0 (most recent): decay=1.0, idx=50: decay≈0.5, idx=100: decay≈0.3
+            decay_factor = 1.0 / (1.0 + idx * 0.02)
+            adjusted_threshold = similarity_threshold * decay_factor
+            
+            if base_similarity > adjusted_threshold:
+                days_ago = idx // 1  # Assuming 1 video per day
+                print(f"⚠️ Topic too similar ({base_similarity:.2f} > {adjusted_threshold:.2f}) to: {prev_title}")
+                print(f"   (from {days_ago} days ago)")
                 return True
     
     return False
@@ -112,7 +121,7 @@ trending = load_trending()
 
 # Get previous topics (title + topic for better filtering)
 previous_topics = [f"{t.get('topic', 'unknown')}: {t.get('title', '')}" for t in history['topics'][-15:]]
-previous_titles = [t.get('title', '') for t in history['topics'][-20:]]
+previous_titles = [t.get('title', '') for t in history['topics']]
 
 trending_info = ""
 if trending and trending.get('topics'):

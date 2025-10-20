@@ -155,14 +155,12 @@ print(f"   Preview: {spoken[:100]}...")
 def generate_sectional_tts():
     """Generates individual TTS files for precise timing and combines them."""
     section_paths = []
+    sections = [("hook", hook)] + [(f"bullet_{i}", b) for i, b in enumerate(bullets)] + [("cta", cta)]
     
     try:
         print("🔊 Initializing Coqui TTS for sectional generation...")
-        # Initialize Coqui TTS model once for all sections
         tts = TTS(model_name="tts_models/en/jenny/jenny", progress_bar=False)
 
-        sections = [("hook", hook)] + [(f"bullet_{i}", b) for i, b in enumerate(bullets)] + [("cta", cta)]
-        
         for name, text in sections:
             if not text.strip():
                 continue
@@ -171,35 +169,63 @@ def generate_sectional_tts():
             out_path = os.path.join(TMP, f"{name}.mp3")
             print(f"🎧 Generating section: {name} (Text: {clean[:40]}...)")
             
-            # Coqui TTS section generation
             tts.tts_to_file(text=clean, file_path=out_path)
             
             if os.path.exists(out_path) and os.path.getsize(out_path) > 1024:
                 section_paths.append(out_path)
             else:
-                # If section generation fails (e.g., specific punctuation issue), raise for retry
                 raise Exception(f"Coqui section generation failed for {name}")
 
     except Exception as e:
-        # If Coqui fails entirely, fall back to gTTS for the whole script
-        print(f"⚠️ Sectional Coqui TTS failed entirely: {e}")
-        print("🔄 Falling back to gTTS for full audio generation...")
+        print(f"⚠️ Sectional Coqui TTS failed: {e}")
+        print("🔄 Falling back to gTTS with section splitting...")
         
-        # If any section generation fails, we fall back to a single gTTS file.
+        # ✅ FIX: Generate full audio, then split it into sections
         fallback_path = generate_tts_fallback(spoken, FULL_AUDIO_PATH)
         
-        if os.path.getsize(fallback_path) < 1000:
-             raise Exception("Fallback audio too small.")
-             
-        # Create dummy empty files for sections to prevent later FileNotFoundError in video script
-        for name, _ in sections:
-            # We don't need to create empty files if the video script is smart, but doing it safely
-            dummy_path = os.path.join(TMP, f"{name}.mp3")
-            if not os.path.exists(dummy_path):
-                open(dummy_path, 'w').close()
+        if not os.path.exists(fallback_path) or os.path.getsize(fallback_path) < 1000:
+            raise Exception("Fallback audio generation failed")
+        
+        # Split the full audio into sections based on word count proportions
+        print("🔪 Splitting full audio into sections for timing...")
+        full_audio = AudioSegment.from_file(fallback_path)
+        total_duration_ms = len(full_audio)
+        
+        # Calculate proportions based on word count
+        section_texts = [(name, text) for name, text in sections if text.strip()]
+        total_words = sum(len(text.split()) for _, text in section_texts)
+        
+        current_pos = 0
+        section_paths = []
+        
+        for name, text in section_texts:
+            words = len(text.split())
+            proportion = words / total_words if total_words > 0 else 1.0 / len(section_texts)
+            section_duration_ms = int(total_duration_ms * proportion)
             
-        print("⚠️ Sectional audio lost, video timing will use estimates from full audio.")
-        return [fallback_path] # Return list containing only the full audio path
+            # Extract section
+            section_audio = full_audio[current_pos:current_pos + section_duration_ms]
+            section_path = os.path.join(TMP, f"{name}.mp3")
+            section_audio.export(section_path, format="mp3")
+            
+            section_paths.append(section_path)
+            current_pos += section_duration_ms
+            
+            print(f"   ✅ {name}: {section_duration_ms/1000:.2f}s")
+        
+        print("✅ Sections created from fallback audio")
+        return section_paths
+
+    # Combine sections (original logic continues)
+    combined_audio = AudioSegment.silent(duration=0)
+    for path in section_paths:
+        part = AudioSegment.from_file(path)
+        combined_audio += part + AudioSegment.silent(duration=150)
+        
+    combined_audio.export(FULL_AUDIO_PATH, format="mp3")
+    print(f"✅ Combined TTS saved to {FULL_AUDIO_PATH}")
+    
+    return section_paths
 
 
     # Combine them (with short pauses) to make the main voice.mp3
