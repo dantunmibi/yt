@@ -145,7 +145,7 @@ CRITICAL REQUIREMENTS:
 ✅ 3 concise, punchy bullet points (each 15-20 words max)
 ✅ Be SPECIFIC - name actual tools, apps, techniques, not vague "this tool" or "this method"
 ✅ CTA must be casual and engaging - NOT salesy or course-pitchy
-✅ Add 5-10 relevant hashtags for maximum discoverability
+✅ Add 5-10 relevant and trending hashtags for maximum discoverability
 ✅ Focus on: AI, Tech, Psychology, Money, Health, Productivity, Science, Innovation, Learning, Motivation, Futurism
 
 PROVEN VIRAL FORMULAS:

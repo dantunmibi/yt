@@ -65,6 +65,15 @@ jobs:
           mkdir -p tmp
           chmod -R 777 tmp
 
+      # Restore playlist configuration
+      - name: Restore playlist config
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/playlist_config.json
+          key: playlist-config-${{ github.run_number }}
+          restore-keys: |
+            playlist-config-
+
       # ✅ FIXED: Use static cache key for content history
       - name: Restore content history
         uses: actions/cache/restore@v4
@@ -116,6 +125,13 @@ jobs:
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         run: python .github/scripts/upload_youtube.py
 
+      - name: Organize into playlists
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: python .github/scripts/manage_playlists.py
+
       - name: Verify FFmpeg filters
         run: ffmpeg -filters | grep xfade || echo "⚠️ xfade not found — fallback to simple concat mode"
 
@@ -127,6 +143,14 @@ jobs:
           path: tmp/content_history.json
           key: content-history-${{ github.run_number }}
 
+      # Save playlist configuration
+      - name: Save playlist config
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: tmp/playlist_config.json
+          key: playlist-config-${{ github.run_number }}
+
       - name: Upload artifact (latest short)
         uses: actions/upload-artifact@v4
         if: always()
@@ -137,6 +161,7 @@ jobs:
             tmp/thumbnail.png
             tmp/script.json
             tmp/content_history.json
+            tmp/playlist_config.json
             tmp/voice.mp3
           retention-days: 30
 
