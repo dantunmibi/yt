@@ -15,7 +15,18 @@ FULL_AUDIO_PATH = os.path.join(TMP, "voice.mp3")
 print("✅ Using Local Coqui TTS (offline)")
 
 # --- Utility Functions ---
-def clean_text_for_coqui(text):
+import re
+
+def clean_text_for_tts(text):
+    """
+    Enhanced text preprocessing for natural TTS pronunciation
+    Handles acronyms, technical terms, and special characters
+    """
+    
+    # Step 1: Preserve important punctuation for natural pauses
+    text = text.replace('...', ' pause ')
+    
+    # Step 2: Handle special characters
     text = text.replace('%', ' percent')
     text = text.replace('&', ' and ')
     text = text.replace('+', ' plus ')
@@ -23,70 +34,113 @@ def clean_text_for_coqui(text):
     text = text.replace('$', ' dollars ')
     text = text.replace('€', ' euros ')
     text = text.replace('£', ' pounds ')
-    text = text.replace('AI', ' HEY-EYE ')
-
-    # Replace known acronyms with phonemes
-    replacements = {
-        "GPT": "{JH IY P IY T IY}",
-        "API": "{EY P IY AY}",
-        "CPU": "{S IY P Y UW}",
-        "GPU": "{JH IY P Y UW}",
-        "RAM": "{AA R AE M}",
-        "ROM": "{AA R AA M}",
-        "SSD": "{EH S EH S D IY}",
-        "USB": "{Y UW EH S B IY}",
-        "HTTP": "{EYCH T IY T IY P IY}",
-        "HTTPS": "{EYCH T IY T IY P IY EH S}",
-        "URL": "{Y UW EH R EH L}",
-        "HTML": "{EYCH T IY EH M EH L}",
-        "CSS": "{S IY EH S EH S}",
-        "JSON": "{JH EY S AH N}",
-        "SQL": "{EH S K Y UW EH L}",
-        "NASA": "{N AE S AH}",
-        "NATO": "{N EY T OW}",
-        "FBI": "{EH F B IY AY}",
-        "CIA": "{S IY AY EY}",
-        "USA": "{Y UW EH S EY}",
-        "UK": "{Y UW K EY}",
-        "UN": "{Y UW EH N}",
-        "EU": "{IY Y UW}",
-        "NBA": "{EH N B IY EY}",
-        "NFL": "{EH N EH F EH L}",
-        "UFC": "{Y UW EH F S IY}",
-        "GB": "{JH IY B IY}",
-        "TB": "{T IY B IY}",
-        "MB": "{EH M B IY}",
-        "KB": "{K IY B IY}",
-        "CM": "{S IY EH M}",
-        "MM": "{EH M EH M}",
-        "KG": "{K EY JH IY}",
-        "KM": "{K EY EH M}",
-        "MS": "{EH M EH S}",
-        "FPS": "{EH F P IY EH S}",
-        "OK": "{OW K EY}",
-        "CEO": "{S IY IY OW}",
-        "DIY": "{D IY AY W AY}",
-        "VR": "{V IY AA R}",
-        "AR": "{EY AA R}",
-        "MR": "{EH M AA R}",
+    text = text.replace('#', ' hashtag ')
+    
+    # Step 3: Handle common acronyms with NATURAL spellings
+    # These work better with most TTS engines than phonemes
+    acronym_replacements = {
+        # AI/ML terms (most important for your use case)
+        r'\bAI\b': 'A I',  # Spell it out clearly
+        r'\bML\b': 'M L',
+        r'\bGPT\b': 'G P T',
+        r'\bLLM\b': 'L L M',
+        r'\bNLP\b': 'N L P',
+        
+        # ChatGPT and variants
+        r'\bChatGPT\b': 'Chat G P T',
+        r'\bchatgpt\b': 'chat G P T',
+        r'\bCHATGPT\b': 'Chat G P T',
+        
+        # Tech companies
+        r'\bAPI\b': 'A P I',
+        r'\bUI\b': 'U I',
+        r'\bUX\b': 'U X',
+        r'\bCEO\b': 'C E O',
+        r'\bCTO\b': 'C T O',
+        
+        # Computer hardware
+        r'\bCPU\b': 'C P U',
+        r'\bGPU\b': 'G P U',
+        r'\bRAM\b': 'ram',  # This is often pronounced as a word
+        r'\bSSD\b': 'S S D',
+        r'\bUSB\b': 'U S B',
+        
+        # Web/Internet
+        r'\bHTTP\b': 'H T T P',
+        r'\bHTTPS\b': 'H T T P S',
+        r'\bURL\b': 'U R L',
+        r'\bHTML\b': 'H T M L',
+        r'\bCSS\b': 'C S S',
+        r'\bJSON\b': 'J son',  # Pronounced as "jay-son"
+        r'\bSQL\b': 'S Q L',
+        r'\bXML\b': 'X M L',
+        
+        # Organizations
+        r'\bNASA\b': 'nasa',  # Pronounced as word
+        r'\bFBI\b': 'F B I',
+        r'\bCIA\b': 'C I A',
+        r'\bUSA\b': 'U S A',
+        r'\bUK\b': 'U K',
+        r'\bUN\b': 'U N',
+        r'\bEU\b': 'E U',
+        
+        # Sports/Entertainment
+        r'\bNBA\b': 'N B A',
+        r'\bNFL\b': 'N F L',
+        r'\bUFC\b': 'U F C',
+        
+        # Units
+        r'\bGB\b': 'gigabytes',
+        r'\bMB\b': 'megabytes',
+        r'\bKB\b': 'kilobytes',
+        r'\bTB\b': 'terabytes',
+        r'\bFPS\b': 'F P S',
+        
+        # Tech/Gaming
+        r'\bVR\b': 'V R',
+        r'\bAR\b': 'A R',
+        r'\bMR\b': 'M R',
+        r'\bDIY\b': 'D I Y',
+        r'\bOK\b': 'okay',
+        r'\bOKay\b': 'okay',
+        
+        # Social Media
+        r'\bDM\b': 'D M',
+        r'\bPM\b': 'P M',
+        r'\bFAQ\b': 'F A Q',
+        r'\bFYI\b': 'F Y I',
+        r'\bTBH\b': 'T B H',
+        r'\bIMO\b': 'I M O',
+        r'\bAFAIK\b': 'A F A I K',
     }
-    for k, v in replacements.items():
-        text = re.sub(rf'\b{k}\b', v, text)
-
-    # Cleanup
-    text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'\s\.\s', '. ', text)
-
+    
+    # Apply all replacements
+    for pattern, replacement in acronym_replacements.items():
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+    
+    # Step 4: Handle numbers with context
+    # "4K video" should be "four K video"
+    text = re.sub(r'\b(\d+)K\b', r'\1 K', text)
+    text = re.sub(r'\b(\d+)x\b', r'\1 times', text)
+    
+    # Step 5: Remove emojis
     emoji_pattern = re.compile("["
-        "\U0001F600-\U0001F64F"
-        "\U0001F300-\U0001F5FF"
-        "\U0001F680-\U0001F6FF"
-        "\U0001F1E0-\U0001F1FF"
+        "\U0001F600-\U0001F64F"  # emoticons
+        "\U0001F300-\U0001F5FF"  # symbols & pictographs
+        "\U0001F680-\U0001F6FF"  # transport & map symbols
+        "\U0001F1E0-\U0001F1FF"  # flags
         "\U00002702-\U000027B0"
         "\U000024C2-\U0001F251"
         "]+", flags=re.UNICODE)
-    text = emoji_pattern.sub(r'', text)
-
+    text = emoji_pattern.sub('', text)
+    
+    # Step 6: Clean up extra whitespace
+    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'\s([.,!?])', r'\1', text)  # Remove space before punctuation
+    
+    # Step 7: Ensure sentences end properly for natural pauses
+    text = re.sub(r'([.!?])\s*$', r'\1 ', text)
+    
     return text.strip()
 
 def generate_tts_fallback(text, out_path):
