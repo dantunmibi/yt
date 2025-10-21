@@ -99,16 +99,20 @@ def fetch_and_map_existing_playlists(youtube, niche, config):
     # Map to your categories using fuzzy matching
     for category, rules in PLAYLIST_RULES[niche].items():
         key = f"{niche}_{category}"
-        if key not in config:  # only map if not already in config
-            match = None
-            for title, pid in existing_playlists.items():
-                ratio = difflib.SequenceMatcher(None, rules["title"].lower(), title).ratio()
-                if ratio > 0.6:
-                    match = pid
-                    break
-            if match:
-                config[key] = match
+        match = None
+        for title, pid in existing_playlists.items():
+            ratio = difflib.SequenceMatcher(None, rules["title"].lower(), title).ratio()
+            if ratio > 0.6:
+                match = pid
+                break
+        if match:
+            if key in config and config[key] != match:
+                print(f"♻️ Updated stale playlist ID for '{rules['title']}' -> {match}")
+            else:
                 print(f"✅ Mapped existing playlist '{rules['title']}' -> {match}")
+            config[key] = match
+
+            print(f"✅ Mapped existing playlist '{rules['title']}' -> {match}")
     return config
 
 
