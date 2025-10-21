@@ -78,6 +78,40 @@ PLAYLIST_RULES = {
 
 # ---- Core Functions ----
 
+# Fetch your existing channel playlists and map them to categories if titles match
+def fetch_and_map_existing_playlists(youtube, niche, config):
+    print("🔄 Fetching existing playlists from channel...")
+    existing_playlists = {}
+    nextPageToken = None
+    while True:
+        response = youtube.playlists().list(
+            part="snippet",
+            mine=True,
+            maxResults=50,
+            pageToken=nextPageToken
+        ).execute()
+        for item in response.get("items", []):
+            existing_playlists[item["snippet"]["title"].lower()] = item["id"]
+        nextPageToken = response.get("nextPageToken")
+        if not nextPageToken:
+            break
+
+    # Map to your categories using fuzzy matching
+    for category, rules in PLAYLIST_RULES[niche].items():
+        key = f"{niche}_{category}"
+        if key not in config:  # only map if not already in config
+            match = None
+            for title, pid in existing_playlists.items():
+                ratio = difflib.SequenceMatcher(None, rules["title"].lower(), title).ratio()
+                if ratio > 0.6:
+                    match = pid
+                    break
+            if match:
+                config[key] = match
+                print(f"✅ Mapped existing playlist '{rules['title']}' -> {match}")
+    return config
+
+
 def load_upload_history():
     """Load video upload history"""
     if os.path.exists(UPLOAD_LOG):
@@ -324,6 +358,10 @@ if __name__ == "__main__":
     
     # Authenticate
     youtube = get_youtube_client()
+
+    # Map existing playlists from your channel
+    config = fetch_and_map_existing_playlists(youtube, niche, config)
+    save_playlist_config(config)
     
     # Organize videos
     stats = organize_playlists(youtube, history, config, niche)
