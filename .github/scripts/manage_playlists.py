@@ -19,11 +19,11 @@ def get_youtube_client():
     try:
         creds = Credentials(
             None,
-        refresh_token="1//03SlzMO_5ZRZxCgYIARAAGAMSNwF-L9IrYBR3AXdy0NmT_kAM3Rc443AK4ZG4nVgcpN4p1OHSfP_Ds2kQQfrlsdeWaN9pAqdf-U0",
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id="665507293295-gglqptmju4k6c91ico0dakfn7avnt4gp.apps.googleusercontent.com",
-        client_secret="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",
-        scopes=["https://www.googleapis.com/auth/youtube"]
+            refresh_token=os.getenv("GOOGLE_REFRESH_TOKEN"),
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=os.getenv("GOOGLE_CLIENT_ID"),
+            client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+            scopes=["https://www.googleapis.com/auth/youtube"]
         )
         youtube = build("youtube", "v3", credentials=creds, cache_discovery=False)
         print("✅ YouTube API authenticated")
@@ -105,20 +105,22 @@ def save_playlist_config(config):
     print(f"💾 Saved playlist config: {len(config)} playlists")
 
 def get_or_create_playlist(youtube, niche, category, config):
-    """Get existing playlist or create new one safely"""
+    """
+    Get existing playlist ID from config or create a new playlist if it doesn't exist.
+    """
     playlist_key = f"{niche}_{category}"
-    
+
     if playlist_key in config:
-        playlist_id = config[playlist_key]
-        print(f"✅ Using existing playlist: {playlist_key} (ID: {playlist_id})")
-        return playlist_id
-    
+        print(f"✅ Using existing playlist: {playlist_key} (ID: {config[playlist_key]})")
+        return config[playlist_key]
+
+    # Create new playlist
     try:
         playlist_info = PLAYLIST_RULES[niche][category]
         title = playlist_info.get("title", "Untitled Playlist")
-        description = playlist_info.get("description", "No description provided")
+        description = playlist_info.get("description", "")
         tags = playlist_info.get("tags", [])
-        
+
         request = youtube.playlists().insert(
             part="snippet,status",
             body={
@@ -132,57 +134,13 @@ def get_or_create_playlist(youtube, niche, category, config):
         )
         response = request.execute()
         playlist_id = response["id"]
-        
+
         config[playlist_key] = playlist_id
         save_playlist_config(config)
-        
         print(f"🎉 Created new playlist: {title} (ID: {playlist_id})")
         return playlist_id
-        
-    except KeyError as e:
-        print(f"❌ Missing key in playlist info: {e}")
-        return None
-    except Exception as e:
-        print(f"❌ Failed to create playlist: {e}")
-        return None
 
-    """Get existing playlist or create new one"""
-    playlist_key = f"{niche}_{category}"
-    
-    # Check if playlist already exists in config
-    if playlist_key in config:
-        playlist_id = config[playlist_key]
-        print(f"✅ Using existing playlist: {PLAYLIST_RULES[niche][category]['title']} (ID: {playlist_id})")
-        return playlist_id
-    
-    # Create new playlist
-    try:
-        playlist_info = PLAYLIST_RULES[niche][category]
-        
-        request = youtube.playlists().insert(
-            part="snippet,status",
-            body={
-                "snippet": {
-                    "title": playlist_info["title"],
-                    "description": playlist_info["description"],
-                    "tags": playlist_info.get("tags", [])
-                },
-                "status": {
-                    "privacyStatus": "public"
-                }
-            }
-        )
-        
-        response = request.execute()
-        playlist_id = response["id"]
-        
-        config[playlist_key] = playlist_id
-        save_playlist_config(config)
-        
-        print(f"🎉 Created new playlist: {playlist_info['title']} (ID: {playlist_id})")
-        return playlist_id
-        
-    except HttpError as e:
+    except Exception as e:
         print(f"❌ Failed to create playlist: {e}")
         return None
 
@@ -221,31 +179,46 @@ def categorize_video(video_metadata, niche):
     return None
 
 def add_video_to_playlist(youtube, video_id, playlist_id):
-    """Add video to playlist"""
+    """
+    Add video to playlist only if it's not already there.
+    """
+    # Get existing videos in playlist
+    existing_videos = set()
+    nextPageToken = None
+    while True:
+        request = youtube.playlistItems().list(
+            part="snippet",
+            playlistId=playlist_id,
+            maxResults=50,
+            pageToken=nextPageToken
+        )
+        response = request.execute()
+        for item in response.get("items", []):
+            existing_videos.add(item["snippet"]["resourceId"]["videoId"])
+        nextPageToken = response.get("nextPageToken")
+        if not nextPageToken:
+            break
+
+    if video_id in existing_videos:
+        print("      ℹ️ Video already in playlist, skipping")
+        return False
+
+    # Add video
     try:
-        request = youtube.playlistItems().insert(
+        youtube.playlistItems().insert(
             part="snippet",
             body={
                 "snippet": {
                     "playlistId": playlist_id,
-                    "resourceId": {
-                        "kind": "youtube#video",
-                        "videoId": video_id
-                    }
+                    "resourceId": {"kind": "youtube#video", "videoId": video_id}
                 }
             }
-        )
-        
-        request.execute()
-        print(f"      ✅ Added to playlist")
+        ).execute()
+        print("      ✅ Added to playlist")
         return True
-        
-    except HttpError as e:
-        error_message = str(e)
-        if "videoAlreadyInPlaylist" in error_message:
-            print(f"      ℹ️ Already in playlist")
-        else:
-            print(f"      ❌ Failed to add: {e}")
+
+    except Exception as e:
+        print(f"      ❌ Failed to add video: {e}")
         return False
 
 def organize_playlists(youtube, history, config, niche):
