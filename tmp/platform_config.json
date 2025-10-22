@@ -16,7 +16,7 @@
   },
   "tiktok": {
     "enabled": false,
-    "priority": 2,
+    "priority": 4,
     "privacy": "public",
     "credentials": {
       "required": ["TIKTOK_ACCESS_TOKEN"]
@@ -46,7 +46,7 @@
   },
   "facebook": {
     "enabled": true,
-    "priority": 4,
+    "priority": 2,
     "privacy": "PUBLIC",
     "credentials": {
       "required": ["FACEBOOK_PAGE_ID", "FACEBOOK_ACCESS_TOKEN"]
