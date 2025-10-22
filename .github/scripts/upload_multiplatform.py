@@ -41,7 +41,7 @@ class PlatformUploader:
         """Default configuration for all platforms"""
         return {
             "youtube": {
-                "enabled": True,
+                "enabled": False,
                 "priority": 1,
                 "auto_playlist": True,
                 "privacy": "public"
