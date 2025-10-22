@@ -3,7 +3,7 @@ import os
 import json
 from datetime import datetime
 from typing import Dict, List, Optional
-import importlib.util
+import sys
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 VIDEO = os.path.join(TMP, "short.mp4")
@@ -11,13 +11,8 @@ THUMB = os.path.join(TMP, "thumbnail.png")
 UPLOAD_LOG = os.path.join(TMP, "upload_history.json")
 PLATFORM_CONFIG = os.path.join(TMP, "platform_config.json")
 
-# Platform-specific upload modules
-PLATFORM_MODULES = {
-    "youtube": ".github/scripts/upload_youtube.py",
-    "tiktok": ".github/scripts/upload_tiktok.py",
-    "instagram": ".github/scripts/upload_instagram.py",
-    "facebook": ".github/scripts/upload_facebook.py"
-}
+# Import individual platform uploaders
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 class PlatformUploader:
     """Base class for platform uploaders"""
@@ -51,23 +46,23 @@ class PlatformUploader:
                 "auto_playlist": True,
                 "privacy": "public"
             },
-            "tiktok": {
-                "enabled": False,
+            "facebook": {
+                "enabled": True,
                 "priority": 2,
-                "privacy": "public",
-                "allow_comments": True,
-                "allow_duet": True,
-                "allow_stitch": True
+                "privacy": "PUBLIC"
             },
             "instagram": {
                 "enabled": False,
                 "priority": 3,
                 "is_reel": True
             },
-            "facebook": {
+            "tiktok": {
                 "enabled": False,
                 "priority": 4,
-                "privacy": "PUBLIC"
+                "privacy": "public",
+                "allow_comments": True,
+                "allow_duet": True,
+                "allow_stitch": True
             }
         }
     
@@ -104,13 +99,15 @@ class YouTubeUploader(PlatformUploader):
             return None
         
         try:
-            # Import and run existing YouTube upload
-            spec = importlib.util.spec_from_file_location("upload_youtube", PLATFORM_MODULES["youtube"])
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            print("\n" + "="*60)
+            print("📺 YOUTUBE UPLOAD")
+            print("="*60)
             
-            # The existing script already uploads, we just need to capture the result
-            # Read from upload_history.json to get the video_id
+            # Import and execute YouTube upload module
+            import upload_youtube
+            
+            # The module executes automatically and saves to upload_history.json
+            # Read the result from the log
             if os.path.exists(UPLOAD_LOG):
                 with open(UPLOAD_LOG, 'r') as f:
                     history = json.load(f)
@@ -123,6 +120,14 @@ class YouTubeUploader(PlatformUploader):
                             "url": latest.get("shorts_url"),
                             "uploaded_at": datetime.now().isoformat()
                         }
+            
+            return {
+                "platform": "youtube",
+                "success": False,
+                "error": "Upload completed but couldn't read result",
+                "uploaded_at": datetime.now().isoformat()
+            }
+            
         except Exception as e:
             print(f"❌ YouTube upload failed: {e}")
             return {
@@ -131,70 +136,6 @@ class YouTubeUploader(PlatformUploader):
                 "error": str(e),
                 "uploaded_at": datetime.now().isoformat()
             }
-
-
-class TikTokUploader(PlatformUploader):
-    """TikTok upload handler"""
-    
-    def __init__(self):
-        super().__init__("tiktok")
-    
-    def _load_credentials(self) -> dict:
-        return {
-            "session_id": os.getenv("TIKTOK_SESSION_ID"),
-            "access_token": os.getenv("TIKTOK_ACCESS_TOKEN")
-        }
-    
-    def upload(self, video_path: str, metadata: dict) -> Optional[dict]:
-        if not self.enabled:
-            print(f"⏭️ TikTok upload disabled")
-            return None
-        
-        if not all(self.credentials.values()):
-            print(f"⚠️ TikTok credentials missing")
-            return None
-        
-        print(f"📱 Uploading to TikTok...")
-        # TikTok upload implementation would go here
-        # For now, return placeholder
-        return {
-            "platform": "tiktok",
-            "success": False,
-            "error": "Not implemented yet",
-            "uploaded_at": datetime.now().isoformat()
-        }
-
-
-class InstagramUploader(PlatformUploader):
-    """Instagram Reels upload handler"""
-    
-    def __init__(self):
-        super().__init__("instagram")
-    
-    def _load_credentials(self) -> dict:
-        return {
-            "username": os.getenv("INSTAGRAM_USERNAME"),
-            "password": os.getenv("INSTAGRAM_PASSWORD"),
-            "access_token": os.getenv("INSTAGRAM_ACCESS_TOKEN")
-        }
-    
-    def upload(self, video_path: str, metadata: dict) -> Optional[dict]:
-        if not self.enabled:
-            print(f"⏭️ Instagram upload disabled")
-            return None
-        
-        if not all(self.credentials.values()):
-            print(f"⚠️ Instagram credentials missing")
-            return None
-        
-        print(f"📸 Uploading to Instagram Reels...")
-        # Instagram upload implementation would go here
-        return {
-            "platform": "instagram",
-            "success": False,
-            "error": "Not implemented yet",
-            "uploaded_at": datetime.now().isoformat()
-        }
 
 
 class FacebookUploader(PlatformUploader):
@@ -215,17 +156,129 @@ class FacebookUploader(PlatformUploader):
             return None
         
         if not all(self.credentials.values()):
-            print(f"⚠️ Facebook credentials missing")
+            print(f"⚠️ Facebook credentials missing (FACEBOOK_PAGE_ID or FACEBOOK_ACCESS_TOKEN)")
             return None
         
-        print(f"👥 Uploading to Facebook Reels...")
-        # Facebook upload implementation would go here
+        try:
+            # Import the Facebook uploader module
+            from upload_facebook import FacebookUploader as FBUploader
+            
+            uploader = FBUploader()
+            result = uploader.upload(video_path, metadata)
+            
+            return result
+            
+        except ImportError as e:
+            print(f"❌ Failed to import Facebook uploader: {e}")
+            return {
+                "platform": "facebook",
+                "success": False,
+                "error": f"Import error: {e}",
+                "uploaded_at": datetime.now().isoformat()
+            }
+        except Exception as e:
+            print(f"❌ Facebook upload error: {e}")
+            return {
+                "platform": "facebook",
+                "success": False,
+                "error": str(e),
+                "uploaded_at": datetime.now().isoformat()
+            }
+
+
+class InstagramUploader(PlatformUploader):
+    """Instagram Reels upload handler"""
+    
+    def __init__(self):
+        super().__init__("instagram")
+    
+    def _load_credentials(self) -> dict:
         return {
-            "platform": "facebook",
-            "success": False,
-            "error": "Not implemented yet",
-            "uploaded_at": datetime.now().isoformat()
+            "access_token": os.getenv("INSTAGRAM_ACCESS_TOKEN"),
+            "account_id": os.getenv("INSTAGRAM_ACCOUNT_ID"),
+            "temp_video_url": os.getenv("TEMP_VIDEO_URL")
         }
+    
+    def upload(self, video_path: str, metadata: dict) -> Optional[dict]:
+        if not self.enabled:
+            print(f"⏭️ Instagram upload disabled")
+            return None
+        
+        if not all(self.credentials.values()):
+            print(f"⚠️ Instagram credentials missing")
+            print(f"   Required: INSTAGRAM_ACCESS_TOKEN, INSTAGRAM_ACCOUNT_ID, TEMP_VIDEO_URL")
+            return None
+        
+        try:
+            from upload_instagram import InstagramUploader as IGUploader
+            
+            uploader = IGUploader()
+            result = uploader.upload(video_path, metadata)
+            
+            return result
+            
+        except ImportError as e:
+            print(f"❌ Failed to import Instagram uploader: {e}")
+            return {
+                "platform": "instagram",
+                "success": False,
+                "error": f"Import error: {e}",
+                "uploaded_at": datetime.now().isoformat()
+            }
+        except Exception as e:
+            print(f"❌ Instagram upload error: {e}")
+            return {
+                "platform": "instagram",
+                "success": False,
+                "error": str(e),
+                "uploaded_at": datetime.now().isoformat()
+            }
+
+
+class TikTokUploader(PlatformUploader):
+    """TikTok upload handler"""
+    
+    def __init__(self):
+        super().__init__("tiktok")
+    
+    def _load_credentials(self) -> dict:
+        return {
+            "access_token": os.getenv("TIKTOK_ACCESS_TOKEN")
+        }
+    
+    def upload(self, video_path: str, metadata: dict) -> Optional[dict]:
+        if not self.enabled:
+            print(f"⏭️ TikTok upload disabled")
+            return None
+        
+        if not all(self.credentials.values()):
+            print(f"⚠️ TikTok credentials missing (TIKTOK_ACCESS_TOKEN)")
+            return None
+        
+        try:
+            from upload_tiktok import TikTokUploader as TTUploader
+            
+            uploader = TTUploader()
+            result = uploader.upload(video_path, metadata)
+            
+            return result
+            
+        except ImportError as e:
+            print(f"❌ Failed to import TikTok uploader: {e}")
+            return {
+                "platform": "tiktok",
+                "success": False,
+                "error": f"Import error: {e}",
+                "uploaded_at": datetime.now().isoformat()
+            }
+        except Exception as e:
+            print(f"❌ TikTok upload error: {e}")
+            return {
+                "platform": "tiktok",
+                "success": False,
+                "error": str(e),
+                "uploaded_at": datetime.now().isoformat()
+            }
 
 
 class MultiPlatformManager:
@@ -234,9 +287,9 @@ class MultiPlatformManager:
     def __init__(self):
         self.uploaders = {
             "youtube": YouTubeUploader(),
-            "tiktok": TikTokUploader(),
+            "facebook": FacebookUploader(),
             "instagram": InstagramUploader(),
-            "facebook": FacebookUploader()
+            "tiktok": TikTokUploader()
         }
         self.results = []
     
@@ -268,16 +321,18 @@ class MultiPlatformManager:
             print("⚠️ No platforms enabled!")
             return []
         
-        print(f"📋 Enabled platforms: {', '.join(enabled_platforms)}")
+        print(f"📋 Enabled platforms ({len(enabled_platforms)}): {', '.join(enabled_platforms)}")
+        print(f"📹 Video: {os.path.basename(video_path)} ({os.path.getsize(video_path)/(1024*1024):.2f} MB)")
+        print(f"📝 Title: {metadata.get('title', 'N/A')[:60]}...")
         
-        for platform in enabled_platforms:
+        for i, platform in enumerate(enabled_platforms, 1):
             uploader = self.uploaders.get(platform)
             
             if not uploader:
                 continue
             
             print(f"\n{'='*60}")
-            print(f"📤 Uploading to {platform.upper()}")
+            print(f"📤 [{i}/{len(enabled_platforms)}] Uploading to {platform.upper()}")
             print(f"{'='*60}")
             
             try:
@@ -287,14 +342,22 @@ class MultiPlatformManager:
                     self.results.append(result)
                     
                     if result.get("success"):
-                        print(f"✅ {platform.upper()} upload successful!")
+                        print(f"\n✅ {platform.upper()} upload successful!")
                         if result.get("url"):
-                            print(f"   URL: {result['url']}")
+                            print(f"   🔗 URL: {result['url']}")
+                        if result.get("video_id"):
+                            print(f"   🆔 Video ID: {result['video_id']}")
                     else:
-                        print(f"❌ {platform.upper()} upload failed: {result.get('error')}")
+                        print(f"\n❌ {platform.upper()} upload failed!")
+                        print(f"   Error: {result.get('error', 'Unknown error')}")
+                else:
+                    print(f"\n⚠️ {platform.upper()} returned no result (likely skipped)")
                         
             except Exception as e:
-                print(f"❌ {platform.upper()} upload error: {e}")
+                print(f"\n❌ {platform.upper()} upload exception: {e}")
+                import traceback
+                traceback.print_exc()
+                
                 self.results.append({
                     "platform": platform,
                     "success": False,
@@ -332,52 +395,87 @@ class MultiPlatformManager:
     def print_summary(self):
         """Print upload summary"""
         print("\n" + "="*60)
-        print("📊 UPLOAD SUMMARY")
+        print("📊 MULTI-PLATFORM UPLOAD SUMMARY")
         print("="*60)
         
         successful = [r for r in self.results if r.get("success")]
         failed = [r for r in self.results if not r.get("success")]
+        skipped = len(self.uploaders) - len(self.results)
         
-        print(f"Total platforms: {len(self.results)}")
-        print(f"✅ Successful: {len(successful)}")
-        print(f"❌ Failed: {len(failed)}")
+        print(f"\n📈 Statistics:")
+        print(f"   Total platforms attempted: {len(self.results)}")
+        print(f"   ✅ Successful: {len(successful)}")
+        print(f"   ❌ Failed: {len(failed)}")
+        print(f"   ⏭️  Skipped/Disabled: {skipped}")
         
         if successful:
-            print(f"\n✅ Successful uploads:")
+            print(f"\n✅ Successful Uploads:")
             for result in successful:
                 platform = result.get("platform", "unknown").upper()
                 url = result.get("url", "N/A")
-                print(f"   • {platform}: {url}")
+                video_id = result.get("video_id", "N/A")
+                print(f"\n   🎯 {platform}")
+                print(f"      URL: {url}")
+                print(f"      Video ID: {video_id}")
         
         if failed:
-            print(f"\n❌ Failed uploads:")
+            print(f"\n❌ Failed Uploads:")
             for result in failed:
                 platform = result.get("platform", "unknown").upper()
                 error = result.get("error", "Unknown error")
-                print(f"   • {platform}: {error}")
+                print(f"\n   ⚠️  {platform}")
+                print(f"      Error: {error[:200]}")
         
-        print("="*60)
+        print("\n" + "="*60)
+        
+        # Exit with error if all uploads failed
+        if len(successful) == 0 and len(self.results) > 0:
+            print("❌ All uploads failed!")
+            return False
+        
+        return True
 
 
 def main():
     """Main execution"""
-    # Load metadata
     try:
-        with open(os.path.join(TMP, "script.json"), "r", encoding="utf-8") as f:
+        # Load metadata
+        script_path = os.path.join(TMP, "script.json")
+        if not os.path.exists(script_path):
+            print(f"❌ Script file not found: {script_path}")
+            raise FileNotFoundError(f"script.json not found at {script_path}")
+        
+        with open(script_path, "r", encoding="utf-8") as f:
             metadata = json.load(f)
-    except FileNotFoundError:
-        print("❌ script.json not found")
-        raise
-    
-    # Validate video exists
-    if not os.path.exists(VIDEO):
-        raise FileNotFoundError(f"Video not found: {VIDEO}")
-    
-    # Create manager and upload
-    manager = MultiPlatformManager()
-    manager.upload_to_all(VIDEO, metadata)
-    manager.save_results()
-    manager.print_summary()
+        
+        print(f"📄 Loaded metadata:")
+        print(f"   Title: {metadata.get('title', 'N/A')}")
+        print(f"   Topic: {metadata.get('topic', 'N/A')}")
+        print(f"   Hashtags: {len(metadata.get('hashtags', []))} tags")
+        
+        # Validate video exists
+        if not os.path.exists(VIDEO):
+            raise FileNotFoundError(f"Video not found: {VIDEO}")
+        
+        # Create manager and upload
+        manager = MultiPlatformManager()
+        manager.upload_to_all(VIDEO, metadata)
+        manager.save_results()
+        
+        # Print summary and exit with appropriate code
+        success = manager.print_summary()
+        
+        if not success:
+            sys.exit(1)
+        
+    except FileNotFoundError as e:
+        print(f"\n❌ File Error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ Fatal Error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
