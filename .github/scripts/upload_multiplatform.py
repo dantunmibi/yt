@@ -103,8 +103,23 @@ class YouTubeUploader(PlatformUploader):
             print("📺 YOUTUBE UPLOAD")
             print("="*60)
             
+            # Store original video path for other platforms
+            original_video = video_path
+            
             # Import and execute YouTube upload module
             import upload_youtube
+            
+            # CRITICAL: Restore the original video path if YouTube renamed it
+            # This ensures other platforms can find the video
+            import glob
+            renamed_videos = glob.glob(os.path.join(TMP, "*_AI_*.mp4"))
+            if renamed_videos and not os.path.exists(original_video):
+                # YouTube renamed it, copy it back
+                import shutil
+                renamed_video = renamed_videos[0]
+                if os.path.exists(renamed_video):
+                    shutil.copy2(renamed_video, original_video)
+                    print(f"📋 Restored original video path for other platforms")
             
             # The module executes automatically and saves to upload_history.json
             # Read the result from the log
@@ -335,8 +350,19 @@ class MultiPlatformManager:
             print(f"📤 [{i}/{len(enabled_platforms)}] Uploading to {platform.upper()}")
             print(f"{'='*60}")
             
+            # Find the actual video file (YouTube may have renamed it)
+            current_video_path = video_path
+            if not os.path.exists(current_video_path):
+                # Search for renamed video in tmp folder
+                import glob
+                possible_videos = glob.glob(os.path.join(TMP, "*.mp4"))
+                if possible_videos:
+                    # Use the most recently modified video
+                    current_video_path = max(possible_videos, key=os.path.getmtime)
+                    print(f"⚠️ Original video not found, using: {os.path.basename(current_video_path)}")
+            
             try:
-                result = uploader.upload(video_path, metadata)
+                result = uploader.upload(current_video_path, metadata)
                 
                 if result:
                     self.results.append(result)
