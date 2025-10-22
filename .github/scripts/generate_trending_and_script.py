@@ -123,10 +123,49 @@ trending = load_trending()
 previous_topics = [f"{t.get('topic', 'unknown')}: {t.get('title', '')}" for t in history['topics'][-15:]]
 previous_titles = [t.get('title', '') for t in history['topics']]
 
-trending_info = ""
+# ✅ CRITICAL: Extract real trending topics and FORCE their use
+trending_topics = []
+trending_summaries = []
+
 if trending and trending.get('topics'):
     trending_topics = trending['topics'][:5]
-    trending_info = f"\nCURRENT TRENDING TOPICS:\n" + "\n".join(f"- {t}" for t in trending_topics)
+    
+    # Get full data if available
+    full_data = trending.get('full_data', [])
+    if full_data:
+        for item in full_data[:5]:
+            trending_summaries.append(f"• {item['topic_title']}: {item.get('summary', 'No summary')}")
+    else:
+        trending_summaries = [f"• {t}" for t in trending_topics]
+    
+    print(f"🎯 Loaded {len(trending_topics)} REAL trending topics from web sources")
+    print(f"   Source: {trending.get('source', 'unknown')}")
+else:
+    print("⚠️ No trending data found - will use fallback")
+
+# Build mandatory trending section
+if trending_topics:
+    trending_mandate = f"""
+⚠️⚠️⚠️ CRITICAL MANDATORY REQUIREMENT ⚠️⚠️⚠️
+
+YOU MUST CREATE A SCRIPT ABOUT ONE OF THESE REAL TRENDING TOPICS:
+
+{chr(10).join(trending_summaries)}
+
+These are REAL trends from today ({datetime.now().strftime('%Y-%m-%d')}) collected from:
+- Google Trends (real search data)
+- Tech news RSS feeds (latest headlines)
+
+YOU MUST PICK ONE OF THE 5 TOPICS ABOVE. 
+DO NOT create content about anything else.
+DO NOT make up your own topic.
+USE THE EXACT TREND and expand it into a viral script.
+
+If a trend is about "ChatGPT's new browser", your script MUST be about that exact feature.
+If a trend is about "Samsung VR headset", your script MUST be about that specific device.
+"""
+else:
+    trending_mandate = ""
 
 prompt = f"""You are a viral YouTube Shorts content creator with millions of views.
 
@@ -134,9 +173,10 @@ CONTEXT:
 - Current date: {datetime.now().strftime('%Y-%m-%d')}
 - Previously covered (DO NOT REPEAT THESE): 
 {chr(10).join(f"  • {t}" for t in previous_topics) if previous_topics else '  None'}
-{trending_info}
 
-TASK: Generate a trending, viral-worthy topic and script for a 45-75 second YouTube Short.
+{trending_mandate}
+
+TASK: Create a trending, viral-worthy script for a 45-75 second YouTube Short.
 
 CRITICAL REQUIREMENTS:
 ✅ Topic must be COMPLETELY DIFFERENT from previous topics above
@@ -146,7 +186,6 @@ CRITICAL REQUIREMENTS:
 ✅ Be SPECIFIC - name actual tools, apps, techniques, not vague "this tool" or "this method"
 ✅ CTA must be casual and engaging - NOT salesy or course-pitchy
 ✅ Add 5-10 relevant and trending hashtags for maximum discoverability
-✅ Focus on: AI, Tech, Psychology, Money, Health, Productivity, Science, Innovation, Learning, Motivation, Futurism
 
 PROVEN VIRAL FORMULAS:
 - "3 Things Nobody Tells You About..."
@@ -200,6 +239,7 @@ OUTPUT FORMAT (JSON ONLY - NO OTHER TEXT):
 }}
 
 REMEMBER: 
+- YOU MUST USE ONE OF THE 5 TRENDING TOPICS PROVIDED ABOVE!
 - Be SPECIFIC! Name actual tools, techniques, studies, numbers!
 - Make it COMPLETELY DIFFERENT from previous topics!
 - Make it IRRESISTIBLE to click and watch!"""
@@ -211,7 +251,7 @@ attempt = 0
 while attempt < max_attempts:
     try:
         attempt += 1
-        print(f"🎬 Generating viral script (attempt {attempt}/{max_attempts})...")
+        print(f"🎬 Generating viral script from REAL trends (attempt {attempt}/{max_attempts})...")
         
         raw_text = generate_script_with_retry(prompt)
         print(f"🔍 Raw output length: {len(raw_text)} chars")
@@ -236,6 +276,28 @@ while attempt < max_attempts:
         for field in required_fields:
             if field not in data:
                 raise ValueError(f"Missing required field: {field}")
+        
+        # ✅ VALIDATE: Check if script actually uses one of the trending topics
+        if trending_topics:
+            script_text = f"{data['title']} {data['hook']} {' '.join(data['bullets'])}".lower()
+            
+            # Check if ANY trending topic keyword appears in the script
+            trend_keywords = []
+            for topic in trending_topics:
+                # Extract key words from trending topic (remove common words)
+                words = [w for w in topic.lower().split() if len(w) > 4 and w not in [
+                    'this', 'that', 'with', 'from', 'will', 'just', 'new'
+                ]]
+                trend_keywords.extend(words)
+            
+            # Check if at least 2 trending keywords appear
+            matches = sum(1 for kw in trend_keywords if kw in script_text)
+            
+            if matches < 2:
+                print(f"⚠️ Script doesn't use trending topics! Only {matches} keyword matches.")
+                print(f"   Trending keywords: {trend_keywords[:10]}")
+                print(f"   Script text: {script_text[:200]}...")
+                raise ValueError("Script ignores trending topics - regenerating...")
         
         # Add optional fields with defaults
         if "hashtags" not in data:
@@ -269,7 +331,7 @@ while attempt < max_attempts:
         # Success! Save to history
         save_to_history(data['topic'], content_hash, data['title'])
         
-        print("✅ Script generated successfully")
+        print("✅ Script generated successfully from REAL trending data")
         print(f"   Title: {data['title']}")
         print(f"   Topic: {data['topic']}")
         print(f"   Hook: {data['hook']}")
@@ -283,22 +345,22 @@ while attempt < max_attempts:
         if attempt >= max_attempts:
             print("⚠️ Max attempts reached, using fallback script...")
             data = {
-                "title": "Google's Gemini 2.0 Just Changed Everything",
+                "title": "ChatGPT Just Got a Browser - Here's Why It Matters",
                 "topic": "technology",
-                "hook": "Google's new AI just made ChatGPT look outdated",
+                "hook": "ChatGPT can now browse the web in real-time",
                 "bullets": [
-                    "Gemini 2.0 Flash processes live video in real-time, analyzing everything you see instantly",
-                    "It's 2x faster than GPT-4 and completely free to use right now on Google AI Studio",
-                    "You can build custom AI agents that browse the web and complete multi-step tasks automatically"
+                    "ChatGPT's new browser integration lets it access live web data, fact-check in real-time, and find current information instantly",
+                    "Unlike traditional search, it can analyze entire websites, compare sources, and synthesize information across multiple pages automatically",
+                    "You can ask it to research competitors, track price changes, or monitor news - all without leaving the conversation"
                 ],
-                "cta": "Try it yourself at aistudio.google.com and tag me with your results!",
-                "hashtags": ["#ai", "#google", "#gemini", "#technology", "#shorts", "#viral", "#tech"],
-                "description": "Google's Gemini 2.0 Flash brings revolutionary features: real-time video analysis, faster performance than GPT-4, and the ability to build custom AI agents. All available for free right now.",
+                "cta": "Try asking ChatGPT to research something live and share your results!",
+                "hashtags": ["#chatgpt", "#ai", "#technology", "#openai", "#shorts", "#viral", "#tech"],
+                "description": "ChatGPT's new browser integration changes everything. Now it can access real-time web data, fact-check instantly, and research topics without you leaving the chat. This is a game-changer for AI assistants.",
                 "visual_prompts": [
-                    "Smartphone showing Google Gemini interface with glowing AI effects, person looking amazed, futuristic blue lighting, modern aesthetic",
-                    "Live video stream being analyzed by AI with overlay graphics showing real-time object detection and annotations, tech visualization",
-                    "Speed comparison graph showing Gemini 2.0 Flash vs GPT-4, dramatic upward arrow, vibrant colors, professional infographic style",
-                    "AI agent icon navigating through multiple browser windows and completing tasks, automation visualization, flowing connections, digital artwork"
+                    "Smartphone showing ChatGPT interface with browser window overlay, glowing network connections, person looking amazed, blue tech lighting",
+                    "Split screen showing ChatGPT analyzing multiple websites simultaneously with data streams and fact-checking overlays, futuristic UI",
+                    "Person using ChatGPT on laptop with multiple browser tabs auto-researching in background, glowing AI assistant icon, productive workspace",
+                    "ChatGPT logo with browser icon merging together, digital neural network connections, inspiring tech visualization, bright colors"
                 ]
             }
             
@@ -319,3 +381,7 @@ print(f"📝 Script preview:")
 print(f"   Title: {data['title']}")
 print(f"   Bullets: {len(data['bullets'])} points")
 print(f"   Visual prompts: {len(data['visual_prompts'])} images")
+
+if trending:
+    print(f"\n🌐 Source: {trending.get('source', 'Unknown')}")
+    print(f"   Trending topics used: {', '.join(trending_topics[:3])}...")

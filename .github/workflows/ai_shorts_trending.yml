@@ -33,6 +33,16 @@ jobs:
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         run: python .github/scripts/validate_secrets.py
 
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/ai_shorts_trending.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
       - name: Install system deps
         run: |
           sudo apt-get update

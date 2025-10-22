@@ -11,7 +11,7 @@ import traceback
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 
 class FacebookUploader:
-    """Facebook Reels upload using Graph API v18.0"""
+    """Facebook Reels upload using Graph API v24.0"""
     
     def __init__(self):
         self.access_token = os.getenv("FACEBOOK_ACCESS_TOKEN")
@@ -19,87 +19,79 @@ class FacebookUploader:
         self.api_version = "v24.0"
         self.api_base = f"https://graph.facebook.com/{self.api_version}"
         
-        # Validate credentials
         if not self.access_token:
             print("⚠️ FACEBOOK_ACCESS_TOKEN not found in environment")
         if not self.page_id:
             print("⚠️ FACEBOOK_PAGE_ID not found in environment")
     
-    def _get_params(self) -> dict:
-        """Get base API parameters"""
+    def _get_params(self):
         return {"access_token": self.access_token}
     
     def _validate_credentials(self) -> bool:
-        """Validate Facebook credentials before upload"""
+        """Validate that the Page access token works"""
         try:
-            url = f"{self.api_base}/me"
-            params = self._get_params()
-            params["fields"] = "id,name"
-            
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            print(f"✅ Facebook credentials valid for: {data.get('name', 'Unknown')}")
+            url = f"{self.api_base}/{self.page_id}"
+            params = {**self._get_params(), "fields": "id,name"}
+            r = requests.get(url, params=params, timeout=10)
+            r.raise_for_status()
+            data = r.json()
+            print(f"✅ Token valid for Page: {data.get('name')} ({data.get('id')})")
             return True
-            
         except Exception as e:
-            print(f"❌ Facebook credential validation failed: {e}")
+            print(f"❌ Token validation failed: {e}")
             return False
     
     def _init_upload(self, video_size: int) -> dict:
-        """Initialize video upload session (Phase 1: START) - NO RETRY"""
-        
+        """Initialize video upload session (Phase 1: START)"""
         url = f"{self.api_base}/{self.page_id}/video_reels"
-        
         params = {
             **self._get_params(),
-            "upload_phase": "start",
-            "file_size": video_size
+            "upload_phase": "start"
         }
-        
+
         print(f"📤 Initializing Facebook upload session...")
         print(f"   API URL: {url}")
         print(f"   Video size: {video_size / (1024*1024):.2f} MB")
         print(f"   Page ID: {self.page_id}")
-        
+
         try:
             response = requests.post(url, params=params, timeout=30)
-            
             print(f"   Response status: {response.status_code}")
             print(f"   Response headers: {dict(response.headers)}")
-            
+
             if response.status_code != 200:
                 error_msg = self._parse_error(response)
                 print(f"   ❌ Error response: {error_msg}")
                 print(f"   Full response: {response.text}")
                 raise Exception(f"Init upload failed: {error_msg}")
-            
+
             data = response.json()
             print(f"   Raw response data: {json.dumps(data, indent=2)}")
-            
+
             video_id = data.get("video_id")
+            upload_url = data.get("upload_url")  # presigned rupload URL
             upload_session_id = data.get("upload_session_id", video_id)
             start_offset = data.get("start_offset", 0)
             end_offset = data.get("end_offset", video_size)
-            
-            # Make sure we have required fields
-            if not video_id:
-                raise Exception(f"Invalid init response - missing video_id: {data}")
-            
+
+            if not video_id or not upload_url:
+                raise Exception(f"Invalid init response - missing fields: {data}")
+
             print(f"✅ Upload session initialized")
             print(f"   Video ID: {video_id}")
+            print(f"   Upload URL: {upload_url}")
             print(f"   Upload Session ID: {upload_session_id}")
             print(f"   Start offset: {start_offset}")
             print(f"   End offset: {end_offset}")
-            
+
             return {
                 "video_id": video_id,
+                "upload_url": upload_url,
                 "upload_session_id": upload_session_id,
                 "start_offset": start_offset,
                 "end_offset": end_offset
             }
-            
+
         except requests.exceptions.RequestException as e:
             print(f"   ❌ Request exception: {e}")
             traceback.print_exc()
@@ -108,267 +100,117 @@ class FacebookUploader:
             print(f"   ❌ Unexpected error: {e}")
             traceback.print_exc()
             raise
-    
+
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=60))
-    def _upload_video(self, video_path: str, video_id: str, upload_session_id: str, start_offset: int = 0) -> bool:
-        """Upload video file (Phase 2: TRANSFER)"""
-        
+    def _upload_video(self, video_path: str, video_id: str, upload_session_id: str, start_offset: int = 0, upload_url: Optional[str] = None) -> bool:
+        """Upload video file to rupload URL (Phase 2: TRANSFER)"""
         file_size = os.path.getsize(video_path)
-        
+
         print(f"📤 Uploading video file...")
         print(f"   Path: {video_path}")
         print(f"   Size: {file_size / (1024*1024):.2f} MB")
         print(f"   Start offset: {start_offset}")
-        
-        url = f"{self.api_base}/{self.page_id}/video_reels"
-        
-        with open(video_path, 'rb') as video_file:
-            files = {
-                'video_file_chunk': (
-                    os.path.basename(video_path),
-                    video_file,
-                    'video/mp4'
-                )
-            }
+        if not upload_url:
+            raise Exception("No upload_url provided for transfer phase")
+
+        # Use PUT to the presigned rupload URL. Add Authorization header per docs.
+        headers = {
+            "Authorization": f"OAuth {self.access_token}",
+            "Content-Type": "application/octet-stream",
+            "Offset": str(start_offset),
+            "File-Size": str(file_size)
+        }
+
+        try:
+            with open(video_path, 'rb') as video_file:
+                # PUT the entire file (small files ok). For very large files you can implement chunked/resume with offsets.
+                resp = requests.put(upload_url, data=video_file, headers=headers, timeout=300)
             
-            params = {
-                **self._get_params(),
-                'upload_phase': 'transfer',
-                'video_id': video_id,
-                'start_offset': start_offset,
-                'upload_session_id': upload_session_id
-            }
-            
-            response = requests.post(
-                url,
-                files=files,
-                data=params,
-                timeout=300  # 5 minutes for large files
-            )
-            
-            if response.status_code not in [200, 201]:
-                error_msg = self._parse_error(response)
+            # rupload returns ok as 200/201; treat anything else as failure
+            if resp.status_code not in [200, 201]:
+                error_msg = self._parse_error(resp)
                 print(f"   ❌ Upload failed: {error_msg}")
-                print(f"   Full response: {response.text}")
+                print(f"   Full response: {resp.text}")
                 raise Exception(f"Video upload failed: {error_msg}")
-            
-            print(f"✅ Video uploaded successfully")
+
+            print(f"✅ Video uploaded successfully to rupload host")
             return True
+
+        except requests.exceptions.RequestException as e:
+            print(f"   ❌ Request exception during upload: {e}")
+            traceback.print_exc()
+            raise
+        except Exception as e:
+            print(f"   ❌ Unexpected upload error: {e}")
+            traceback.print_exc()
+            raise
+
     
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
-    def _finish_upload(self, video_id: str, metadata: dict) -> dict:
-        """Finalize upload and publish (Phase 3: FINISH)"""
-        
+    def _finish_upload(self, video_id: str, metadata: dict):
+        """Finish and publish (Phase 3)"""
         url = f"{self.api_base}/{self.page_id}/video_reels"
-        
-        # Prepare description with hashtags
-        description = metadata.get("description", "")
-        hashtags = metadata.get("hashtags", [])
-        
-        # Combine description and hashtags (Facebook limit: 1000 chars for Reels)
-        full_description = description
-        if hashtags:
-            hashtag_str = " ".join(hashtags[:30])  # Max 30 hashtags
-            full_description = f"{description}\n\n{hashtag_str}"
-        
-        # Truncate if too long
-        full_description = full_description[:1000]
-        
+        desc = metadata.get("description", "")
+        tags = metadata.get("hashtags", [])
+        if tags:
+            desc = f"{desc}\n\n{' '.join(tags[:30])}"
+        desc = desc[:1000]
         params = {
             **self._get_params(),
             "upload_phase": "finish",
             "video_id": video_id,
-            "video_state": "PUBLISHED",  # or "DRAFT" for unpublished
-            "description": full_description,
-            "title": metadata.get("title", "")[:100]  # Facebook title limit
+            "video_state": "PUBLISHED",
+            "description": desc,
+            "title": metadata.get("title", "")[:100]
         }
-        
-        print(f"📢 Publishing to Facebook Reels...")
-        print(f"   Title: {params['title']}")
-        print(f"   Description length: {len(full_description)} chars")
-        
-        response = requests.post(url, params=params, timeout=30)
-        
-        if response.status_code not in [200, 201]:
-            error_msg = self._parse_error(response)
-            print(f"   ❌ Publish failed: {error_msg}")
-            print(f"   Full response: {response.text}")
-            raise Exception(f"Publish failed: {error_msg}")
-        
-        data = response.json()
-        print(f"✅ Published successfully!")
-        
-        return data
-    
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
-    def _get_video_url(self, video_id: str, max_attempts: int = 10) -> str:
-        """Get video permalink (may take time to process)"""
-        
-        print(f"🔗 Fetching video URL...")
-        
-        for attempt in range(max_attempts):
-            url = f"{self.api_base}/{video_id}"
-            params = {
-                **self._get_params(),
-                "fields": "permalink_url,status"
-            }
-            
-            try:
-                response = requests.get(url, params=params, timeout=15)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    permalink = data.get("permalink_url")
-                    status = data.get("status", {})
-                    
-                    if permalink:
-                        print(f"✅ Video URL retrieved: {permalink}")
-                        return permalink
-                    else:
-                        print(f"⏳ Attempt {attempt + 1}/{max_attempts}: Video still processing...")
-                        time.sleep(5)
-                else:
-                    print(f"⚠️ Attempt {attempt + 1}/{max_attempts}: Status {response.status_code}")
-                    time.sleep(5)
-                    
-            except Exception as e:
-                print(f"⚠️ Attempt {attempt + 1}/{max_attempts}: {e}")
-                time.sleep(5)
-        
-        # Return fallback URL if permalink unavailable
-        fallback_url = f"https://www.facebook.com/{self.page_id}/videos/{video_id}"
-        print(f"⚠️ Using fallback URL: {fallback_url}")
-        return fallback_url
-    
-    def _parse_error(self, response: requests.Response) -> str:
-        """Parse Facebook API error response"""
-        try:
-            error_data = response.json()
-            error = error_data.get("error", {})
-            
-            error_type = error.get("type", "Unknown")
-            error_message = error.get("message", str(response.text))
-            error_code = error.get("code", response.status_code)
-            error_subcode = error.get("error_subcode", "")
-            
-            error_str = f"[{error_code}]"
-            if error_subcode:
-                error_str += f"[{error_subcode}]"
-            error_str += f" {error_type}: {error_message}"
-            
-            return error_str
-        except:
-            return f"Status {response.status_code}: {response.text[:500]}"
+        print(f"📢 Publishing Reel…")
+        r = requests.post(url, params=params, timeout=60)
+        if r.status_code not in [200, 201]:
+            raise Exception(f"Publish failed: {r.text}")
+        print(f"✅ Reel published.")
+        return r.json()
     
     def upload(self, video_path: str, metadata: dict) -> dict:
-        """Main upload method - coordinates all phases"""
-        
+        """Full upload sequence"""
         print("\n" + "="*60)
-        print("👥 FACEBOOK REELS UPLOAD")
+        print("🎬 FACEBOOK REELS UPLOAD")
         print("="*60)
-        
-        # Validate credentials
-        if not self.access_token or not self.page_id:
-            return {
-                "success": False,
-                "error": "Missing Facebook credentials (FACEBOOK_ACCESS_TOKEN or FACEBOOK_PAGE_ID)",
-                "platform": "facebook"
-            }
-        
-        # Validate video file
+
         if not os.path.exists(video_path):
-            return {
-                "success": False,
-                "error": f"Video file not found: {video_path}",
-                "platform": "facebook"
-            }
-        
-        video_size = os.path.getsize(video_path)
-        if video_size < 1000:  # Less than 1KB
-            return {
-                "success": False,
-                "error": "Video file is too small or corrupted",
-                "platform": "facebook"
-            }
-        
-        # Validate credentials
+            return {"success": False, "error": f"File not found: {video_path}"}
         if not self._validate_credentials():
-            return {
-                "success": False,
-                "error": "Facebook credential validation failed",
-                "platform": "facebook"
-            }
-        
+            return {"success": False, "error": "Invalid token or page"}
+
         try:
-            # Phase 1: Initialize upload (NO RETRY - debug first attempt)
-            print("\n" + "-"*60)
-            print("PHASE 1: Initialize Upload")
-            print("-"*60)
-            init_response = self._init_upload(video_size)
-            video_id = init_response["video_id"]
-            upload_session_id = init_response["upload_session_id"]
-            start_offset = init_response.get("start_offset", 0)
-            
-            # Phase 2: Upload video
-            print("\n" + "-"*60)
-            print("PHASE 2: Transfer Video")
-            print("-"*60)
-            self._upload_video(video_path, video_id, upload_session_id, start_offset)
-            
-            # Phase 3: Finish and publish
-            print("\n" + "-"*60)
-            print("PHASE 3: Finish & Publish")
-            print("-"*60)
-            self._finish_upload(video_id, metadata)
-            
-            # Get permalink (with retry logic)
-            print("\n" + "-"*60)
-            print("PHASE 4: Get Video URL")
-            print("-"*60)
-            permalink = self._get_video_url(video_id)
-            
-            print("\n" + "="*60)
-            print("✅ FACEBOOK UPLOAD COMPLETE!")
-            print("="*60)
-            print(f"Video ID: {video_id}")
-            print(f"URL: {permalink}")
-            print("="*60 + "\n")
-            
-            return {
-                "success": True,
-                "video_id": video_id,
-                "url": permalink,
-                "platform": "facebook",
-                "uploaded_at": datetime.now().isoformat(),
-                "metadata": {
-                    "title": metadata.get("title", "")[:100],
-                    "description_length": len(metadata.get("description", "")),
-                    "hashtags_count": len(metadata.get("hashtags", []))
-                }
-            }
-            
-        except requests.exceptions.HTTPError as e:
-            error_msg = self._parse_error(e.response) if e.response else str(e)
-            print(f"\n❌ HTTP Error: {error_msg}\n")
-            traceback.print_exc()
-            
-            return {
-                "success": False,
-                "error": f"HTTP error: {error_msg}",
-                "platform": "facebook",
-                "traceback": traceback.format_exc()
-            }
-            
+            # 1️⃣ Phase 1: START (initialize upload session)
+            video_size = os.path.getsize(video_path)
+            init_data = self._init_upload(video_size)
+            upload_url = init_data["upload_url"]
+            video_id = init_data["video_id"]
+            upload_session_id = init_data.get("upload_session_id", video_id)
+            start_offset = init_data.get("start_offset", 0)
+
+            # 2️⃣ Phase 2: TRANSFER (upload binary file)
+            self._upload_video(
+                video_path=video_path,
+                video_id=video_id,
+                upload_session_id=upload_session_id,
+                start_offset=start_offset,
+                upload_url=upload_url
+            )
+
+            # 3️⃣ Phase 3: FINISH (publish the reel)
+            result = self._finish_upload(video_id, metadata)
+            video_link = f"https://www.facebook.com/{self.page_id}/videos/{video_id}"
+            print(f"✅ Done! {video_link}")
+
+            return {"success": True, "video_id": video_id, "url": video_link}
+
         except Exception as e:
-            print(f"\n❌ Upload Error: {e}\n")
+            print(f"❌ Upload failed: {e}")
             traceback.print_exc()
-            
-            return {
-                "success": False,
-                "error": str(e),
-                "platform": "facebook",
-                "traceback": traceback.format_exc()
-            }
+            return {"success": False, "error": str(e)}
+
 
 
 def main():
