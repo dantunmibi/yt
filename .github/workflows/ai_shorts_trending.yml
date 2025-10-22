@@ -1,4 +1,4 @@
-name: AI Multi-Platform Shorts Pipeline
+name: AI Multi-Platform Shorts Pipeline (Smart Scheduled)
 
 on:
   workflow_dispatch:
@@ -12,8 +12,32 @@ on:
         required: false
         type: boolean
         default: false
+      ignore_schedule:
+        description: 'Ignore optimal timing and post immediately'
+        required: false
+        type: boolean
+        default: false
+  
+  # Optimal posting times (WAT/UTC+1 timezone)
+  # These cron times are in UTC, so subtract 1 hour from WAT
   schedule:
-    - cron: '0 14 * * *' # Daily at 14:00 UTC
+    # Monday 2 PM WAT = 1 PM UTC (High priority - Productivity)
+    - cron: '0 13 * * 1'
+    
+    # Tuesday 1 PM WAT = 12 PM UTC (HIGHEST - AI Tools) ⭐⭐⭐
+    - cron: '0 12 * * 2'
+    
+    # Wednesday 1 PM WAT = 12 PM UTC (High - Brain Hacks)
+    - cron: '0 12 * * 3'
+    
+    # Wednesday 4 PM WAT = 3 PM UTC (Medium - Productivity)
+    - cron: '0 15 * * 3'
+    
+    # Thursday 7 PM WAT = 6 PM UTC (High - Surprise content)
+    - cron: '0 18 * * 4'
+    
+    # Friday 5 PM WAT = 4 PM UTC (Medium - Entertainment)
+    - cron: '0 16 * * 5'
 
 jobs:
   build_and_upload:
@@ -33,7 +57,95 @@ jobs:
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         run: python .github/scripts/validate_secrets.py
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python packages (for scheduler check)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytz
+
+      - name: Check optimal posting time
+        id: schedule_check
+        run: |
+          python -c "
+          import os
+          from datetime import datetime
+          import pytz
+          
+          # Lagos timezone
+          tz = pytz.timezone('Africa/Lagos')
+          current = datetime.now(tz)
+          hour = current.hour
+          weekday = current.weekday()
+          
+          # Define optimal windows (with 30 min tolerance)
+          optimal_times = {
+              0: [14],  # Monday 2 PM
+              1: [13, 14],  # Tuesday 1-2 PM (BEST)
+              2: [13, 16],  # Wednesday 1 PM, 4 PM
+              3: [19, 20],  # Thursday 7-8 PM
+              4: [17, 19],  # Friday 5 PM, 7 PM
+          }
+          
+          should_post = False
+          priority = 'medium'
+          
+          ignore_schedule = '${{ github.event.inputs.ignore_schedule }}' == 'true'
+          
+          if ignore_schedule:
+              print('⚠️ Schedule check BYPASSED by user input')
+              should_post = True
+              priority = 'manual'
+          elif weekday in optimal_times:
+              if hour in optimal_times[weekday]:
+                  should_post = True
+                  priority = 'highest' if (weekday == 1 and hour == 13) else 'high'
+                  print(f'✅ Within optimal window: {current.strftime(\"%A %I:%M %p WAT\")}')
+              else:
+                  print(f'⏳ Not optimal time. Current: {current.strftime(\"%A %I:%M %p WAT\")}')
+          else:
+              print(f'⏸️ Weekend - lower priority time')
+              should_post = weekday >= 5  # Allow weekend posts
+              priority = 'low'
+          
+          # Write to GITHUB_OUTPUT
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'should_post={str(should_post).lower()}\n')
+              f.write(f'priority={priority}\n')
+              f.write(f'current_time={current.strftime(\"%Y-%m-%d %H:%M WAT\")}\n')
+          "
+
+      - name: Display scheduling decision
+        run: |
+          echo "📅 Current Time: ${{ steps.schedule_check.outputs.current_time }}"
+          echo "🎯 Should Post: ${{ steps.schedule_check.outputs.should_post }}"
+          echo "⭐ Priority: ${{ steps.schedule_check.outputs.priority }}"
+
+      - name: Skip if not optimal time
+        if: steps.schedule_check.outputs.should_post != 'true'
+        run: |
+          echo "⏸️ Skipping run - not within optimal posting window"
+          echo "💡 Next optimal times:"
+          echo "   • Monday: 2:00 PM WAT"
+          echo "   • Tuesday: 1:00 PM WAT (BEST) ⭐⭐⭐"
+          echo "   • Wednesday: 1:00 PM or 4:00 PM WAT"
+          echo "   • Thursday: 7:00 PM WAT"
+          echo "   • Friday: 5:00 PM WAT"
+          exit 0
+          
       - name: Cache apt packages
+        if: steps.schedule_check.outputs.should_post == 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -44,6 +156,7 @@ jobs:
             ${{ runner.os }}-apt-
 
       - name: Install system deps
+        if: steps.schedule_check.outputs.should_post == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -59,31 +172,21 @@ jobs:
           fc-list | grep -i dejavu | head -3
           fc-list | grep -i liberation | head -3
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Cache pip packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
       - name: Cache Coqui models
+        if: steps.schedule_check.outputs.should_post == 'true'
         uses: actions/cache@v4
         with:
           path: ~/.local/share/tts
           key: coqui-models-${{ runner.os }}
 
       - name: Make tmp folder
+        if: steps.schedule_check.outputs.should_post == 'true'
         run: |
           mkdir -p tmp
           chmod -R 777 tmp
 
       - name: Restore platform config
+        if: steps.schedule_check.outputs.should_post == 'true'
         uses: actions/cache/restore@v4
         with:
           path: tmp/platform_config.json
@@ -92,6 +195,7 @@ jobs:
             platform-config-
 
       - name: Restore playlist config
+        if: steps.schedule_check.outputs.should_post == 'true'
         uses: actions/cache/restore@v4
         with:
           path: tmp/playlist_config.json
@@ -100,6 +204,7 @@ jobs:
             playlist-config-
 
       - name: Restore content history
+        if: steps.schedule_check.outputs.should_post == 'true'
         uses: actions/cache/restore@v4
         with:
           path: tmp/content_history.json
@@ -108,40 +213,48 @@ jobs:
             content-history-
 
       - name: Install Python packages
+        if: steps.schedule_check.outputs.should_post == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Fetch trending topics
+        if: steps.schedule_check.outputs.should_post == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python .github/scripts/fetch_trending.py
 
       - name: Generate trending topic & script
+        if: steps.schedule_check.outputs.should_post == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python .github/scripts/generate_trending_and_script.py
 
       - name: Generate TTS (Local Coqui)
+        if: steps.schedule_check.outputs.should_post == 'true'
         run: python .github/scripts/generate_tts.py
 
       - name: Create video
+        if: steps.schedule_check.outputs.should_post == 'true'
         env:
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
         run: python .github/scripts/create_video.py
 
       - name: Generate thumbnail
+        if: steps.schedule_check.outputs.should_post == 'true'
         env:
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
         run: python .github/scripts/generate_thumbnail.py
 
       - name: Clean up temporary files
+        if: steps.schedule_check.outputs.should_post == 'true'
         run: |
           find tmp -name "scene_*.jpg" -type f -delete || true
           rm -f tmp/short_ready.mp4 || true
 
       # ===== MULTI-PLATFORM UPLOAD =====
       - name: Upload to multiple platforms
+        if: steps.schedule_check.outputs.should_post == 'true'
         env:
           # YouTube (always available)
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
@@ -162,40 +275,37 @@ jobs:
 
       # ===== YOUTUBE-SPECIFIC POST-PROCESSING =====
       - name: Organize YouTube playlists
-        if: success()
+        if: success() && steps.schedule_check.outputs.should_post == 'true'
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         run: python .github/scripts/manage_playlists.py
-       
-      - name: Verify FFmpeg filters
-        run: ffmpeg -filters | grep xfade || echo "⚠️ xfade not found — fallback to simple concat mode"
 
       - name: Save platform config
         uses: actions/cache/save@v4
-        if: always()
+        if: always() && steps.schedule_check.outputs.should_post == 'true'
         with:
           path: tmp/platform_config.json
           key: platform-config-${{ github.run_number }}
 
       - name: Save playlist config
         uses: actions/cache/save@v4
-        if: always()
+        if: always() && steps.schedule_check.outputs.should_post == 'true'
         with:
           path: tmp/playlist_config.json
           key: playlist-config-${{ github.run_number }}
 
       - name: Save content history
         uses: actions/cache/save@v4
-        if: always()
+        if: always() && steps.schedule_check.outputs.should_post == 'true'
         with:
           path: tmp/content_history.json
           key: content-history-${{ github.run_number }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.schedule_check.outputs.should_post == 'true'
         with:
           name: latest-short-${{ github.run_number }}
           path: |
@@ -206,6 +316,7 @@ jobs:
             tmp/playlist_config.json
             tmp/platform_config.json
             tmp/multiplatform_log.json
+            tmp/posting_schedule.json
             tmp/voice.mp3
           retention-days: 30
 
@@ -216,3 +327,19 @@ jobs:
           name: error-logs-${{ github.run_number }}
           path: tmp/*.log
           retention-days: 7
+
+      - name: Post-run summary
+        if: always()
+        run: |
+          echo "## 📊 Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** ${{ steps.schedule_check.outputs.current_time }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Posted:** ${{ steps.schedule_check.outputs.should_post }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Priority:** ${{ steps.schedule_check.outputs.priority }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📅 Next Optimal Times (WAT)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Monday:** 2:00 PM (Productivity)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tuesday:** 1:00 PM ⭐⭐⭐ (AI Tools - BEST)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Wednesday:** 1:00 PM or 4:00 PM (Brain Hacks)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Thursday:** 7:00 PM (Surprise Content)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Friday:** 5:00 PM (Entertainment)" >> $GITHUB_STEP_SUMMARY
