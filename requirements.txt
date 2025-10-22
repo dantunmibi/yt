@@ -12,3 +12,7 @@ gtts
 TTS
 pydub
 mutagen
+
+facebook-sdk
+cloudinary
+requests-toolbelt

@@ -1,0 +1,87 @@
+{
+  "youtube": {
+    "enabled": true,
+    "priority": 1,
+    "auto_playlist": true,
+    "privacy": "public",
+    "credentials": {
+      "required": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN"]
+    },
+    "settings": {
+      "category_id": "28",
+      "made_for_kids": false,
+      "enable_comments": true,
+      "enable_ratings": true
+    }
+  },
+  "tiktok": {
+    "enabled": false,
+    "priority": 2,
+    "privacy": "public",
+    "credentials": {
+      "required": ["TIKTOK_ACCESS_TOKEN"]
+    },
+    "settings": {
+      "allow_comments": true,
+      "allow_duet": true,
+      "allow_stitch": true,
+      "video_cover_timestamp_ms": 1000
+    }
+  },
+  "instagram": {
+    "enabled": false,
+    "priority": 3,
+    "credentials": {
+      "required": ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_ACCOUNT_ID", "TEMP_VIDEO_URL"]
+    },
+    "settings": {
+      "is_reel": true,
+      "share_to_feed": true,
+      "max_caption_length": 2200,
+      "max_hashtags": 30
+    },
+    "notes": {
+      "video_hosting": "Instagram requires publicly accessible video URL. You must upload to S3, Cloudinary, or similar first."
+    }
+  },
+  "facebook": {
+    "enabled": true,
+    "priority": 4,
+    "privacy": "PUBLIC",
+    "credentials": {
+      "required": ["FACEBOOK_PAGE_ID", "FACEBOOK_ACCESS_TOKEN"]
+    },
+    "settings": {
+      "published": true,
+      "scheduled_publish_time": null
+    }
+  },
+  "upload_strategy": {
+    "parallel": false,
+    "stop_on_failure": false,
+    "retry_failed": true,
+    "max_retries": 3
+  },
+  "video_optimization": {
+    "youtube": {
+      "max_duration": 60,
+      "aspect_ratio": "9:16",
+      "resolution": "1080x1920"
+    },
+    "tiktok": {
+      "max_duration": 60,
+      "aspect_ratio": "9:16",
+      "resolution": "1080x1920"
+    },
+    "instagram": {
+      "max_duration": 90,
+      "aspect_ratio": "9:16",
+      "resolution": "1080x1920"
+    },
+    "facebook": {
+      "max_duration": 60,
+      "aspect_ratio": "9:16",
+      "resolution": "1080x1920"
+    }
+  }
+}

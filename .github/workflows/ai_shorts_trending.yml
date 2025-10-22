@@ -1,7 +1,17 @@
-name: AI Trending Shorts Pipeline v2
+name: AI Multi-Platform Shorts Pipeline
 
 on:
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Platforms to upload to (comma-separated: youtube,tiktok,instagram,facebook)'
+        required: false
+        default: 'youtube'
+      force_all:
+        description: 'Force upload to all enabled platforms'
+        required: false
+        type: boolean
+        default: false
   schedule:
     - cron: '0 14 * * *' # Daily at 14:00 UTC
 
@@ -44,7 +54,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      # ✅ Cache Python dependencies
       - name: Cache pip packages
         uses: actions/cache@v4
         with:
@@ -53,19 +62,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      # ✅ Cache Coqui TTS models
       - name: Cache Coqui models
         uses: actions/cache@v4
         with:
           path: ~/.local/share/tts
           key: coqui-models-${{ runner.os }}
 
-      - name: Make tmp folder (and ensure writeable)
+      - name: Make tmp folder
         run: |
           mkdir -p tmp
           chmod -R 777 tmp
 
-      # Restore playlist configuration
+      - name: Restore platform config
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/platform_config.json
+          key: platform-config-${{ github.run_number }}
+          restore-keys: |
+            platform-config-
+
       - name: Restore playlist config
         uses: actions/cache/restore@v4
         with:
@@ -74,7 +89,6 @@ jobs:
           restore-keys: |
             playlist-config-
 
-      # ✅ FIXED: Use static cache key for content history
       - name: Restore content history
         uses: actions/cache/restore@v4
         with:
@@ -111,39 +125,48 @@ jobs:
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
         run: python .github/scripts/generate_thumbnail.py
 
-      # 🧹 Clean up temporary files
       - name: Clean up temporary files
         run: |
           find tmp -name "scene_*.jpg" -type f -delete || true
           rm -f tmp/short_ready.mp4 || true
-          echo "🧹 Cleaned up temporary files to save disk space."
 
-      - name: Upload to YouTube
+      # ===== MULTI-PLATFORM UPLOAD =====
+      - name: Upload to multiple platforms
         env:
+          # YouTube (always available)
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-        run: python .github/scripts/upload_youtube.py
+          # TikTok (optional)
+          TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+          # Instagram (optional)
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          TEMP_VIDEO_URL: ${{ secrets.TEMP_VIDEO_URL }}
+          # Facebook (optional)
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+        run: python .github/scripts/upload_multiplatform.py
 
-      - name: Organize into playlists
+      # ===== YOUTUBE-SPECIFIC POST-PROCESSING =====
+      - name: Organize YouTube playlists
+        if: success()
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         run: python .github/scripts/manage_playlists.py
-
+       
       - name: Verify FFmpeg filters
         run: ffmpeg -filters | grep xfade || echo "⚠️ xfade not found — fallback to simple concat mode"
 
-      # ✅ FIXED: Save with static key so next run can restore it
-      - name: Save content history
+      - name: Save platform config
         uses: actions/cache/save@v4
         if: always()
         with:
-          path: tmp/content_history.json
-          key: content-history-${{ github.run_number }}
+          path: tmp/platform_config.json
+          key: platform-config-${{ github.run_number }}
 
-      # Save playlist configuration
       - name: Save playlist config
         uses: actions/cache/save@v4
         if: always()
@@ -151,7 +174,14 @@ jobs:
           path: tmp/playlist_config.json
           key: playlist-config-${{ github.run_number }}
 
-      - name: Upload artifact (latest short)
+      - name: Save content history
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: tmp/content_history.json
+          key: content-history-${{ github.run_number }}
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -162,6 +192,8 @@ jobs:
             tmp/script.json
             tmp/content_history.json
             tmp/playlist_config.json
+            tmp/platform_config.json
+            tmp/multiplatform_log.json
             tmp/voice.mp3
           retention-days: 30
 
