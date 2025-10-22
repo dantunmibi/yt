@@ -4,6 +4,8 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional
 import sys
+import time
+import traceback
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 VIDEO = os.path.join(TMP, "short.mp4")
@@ -339,7 +341,7 @@ class MultiPlatformManager:
         print(f"📋 Enabled platforms ({len(enabled_platforms)}): {', '.join(enabled_platforms)}")
         print(f"📹 Video: {os.path.basename(video_path)} ({os.path.getsize(video_path)/(1024*1024):.2f} MB)")
         print(f"📝 Title: {metadata.get('title', 'N/A')[:60]}...")
-        
+
         for i, platform in enumerate(enabled_platforms, 1):
             uploader = self.uploaders.get(platform)
             
@@ -353,22 +355,40 @@ class MultiPlatformManager:
             # Find the actual video file (YouTube may have renamed it)
             current_video_path = video_path
             if not os.path.exists(current_video_path):
-                # Search for renamed video in tmp folder
                 import glob
                 possible_videos = glob.glob(os.path.join(TMP, "*.mp4"))
                 if possible_videos:
-                    # Use the most recently modified video
                     current_video_path = max(possible_videos, key=os.path.getmtime)
                     print(f"⚠️ Original video not found, using: {os.path.basename(current_video_path)}")
-            # Ensure absolute path for platform uploaders
             current_video_path = os.path.abspath(current_video_path)
 
             try:
-                result = uploader.upload(current_video_path, metadata)
-                
+                # Retry logic for Facebook
+                attempts = 3 if platform == "facebook" else 1
+                for attempt in range(1, attempts + 1):
+                    try:
+                        result = uploader.upload(current_video_path, metadata)
+                        if result:
+                            self.results.append(result)
+                        break  # Success, exit retry loop
+                    except Exception as e:
+                        print(f"⚠️ Attempt {attempt} failed for {platform.upper()}: {e}")
+                        traceback.print_exc()
+                        if attempt < attempts:
+                            print("⏳ Retrying in 5 seconds...")
+                            time.sleep(5)
+                        else:
+                            # All retries failed, log as failed
+                            self.results.append({
+                                "platform": platform,
+                                "success": False,
+                                "error": str(e),
+                                "traceback": traceback.format_exc(),
+                                "uploaded_at": datetime.now().isoformat()
+                            })
+
+                # Print summary for this platform
                 if result:
-                    self.results.append(result)
-                    
                     if result.get("success"):
                         print(f"\n✅ {platform.upper()} upload successful!")
                         if result.get("url"):
@@ -380,18 +400,18 @@ class MultiPlatformManager:
                         print(f"   Error: {result.get('error', 'Unknown error')}")
                 else:
                     print(f"\n⚠️ {platform.upper()} returned no result (likely skipped)")
-                        
+
             except Exception as e:
                 print(f"\n❌ {platform.upper()} upload exception: {e}")
-                import traceback
                 traceback.print_exc()
-                
                 self.results.append({
                     "platform": platform,
                     "success": False,
                     "error": str(e),
+                    "traceback": traceback.format_exc(),
                     "uploaded_at": datetime.now().isoformat()
                 })
+
         
         return self.results
     
