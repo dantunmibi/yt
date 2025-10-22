@@ -38,36 +38,42 @@ os.makedirs(TMP, exist_ok=True)
 
 def get_google_trends() -> List[str]:
     """Get real trending searches from Google Trends (FREE - no API key needed)"""
-    try:
-        from pytrends.request import TrendReq
+    for attempt in range(3):  # Try 3 times
+        try:
+            from pytrends.request import TrendReq
+            
+            print(f"🔍 Fetching Google Trends (US) - Attempt {attempt + 1}/3...")
+            pytrends = TrendReq(hl='en-US', tz=360, timeout=(10, 25), retries=2, backoff_factor=0.5)
+            
+            # Try daily trends first
+            trending = pytrends.trending_searches(pn='united_states')
+            all_trends = trending[0].head(20).tolist()
         
-        print("🔍 Fetching Google Trends (US)...")
-        pytrends = TrendReq(hl='en-US', tz=360, timeout=(10, 25))
-        
-        # Get daily trending searches
-        trending = pytrends.trending_searches(pn='united_states')
-        all_trends = trending[0].head(20).tolist()
-        
-        # Filter for tech/AI/science related
-        tech_keywords = [
-            'ai', 'tech', 'robot', 'google', 'chatgpt', 'openai', 'microsoft',
-            'apple', 'samsung', 'meta', 'vr', 'ar', 'space', 'nasa', 'science',
-            'brain', 'psychology', 'innovation', 'app', 'software', 'crypto',
-            'bitcoin', 'tesla', 'elon', 'gadget', 'phone', 'computer', 'gaming'
-        ]
-        
-        relevant_trends = []
-        for trend in all_trends:
-            trend_lower = trend.lower()
-            if any(keyword in trend_lower for keyword in tech_keywords):
-                relevant_trends.append(trend)
-        
-        print(f"✅ Found {len(relevant_trends)} tech-related trends from Google")
-        return relevant_trends[:10]
-        
-    except Exception as e:
-        print(f"⚠️ Google Trends failed: {e}")
-        return []
+            # Filter for tech/AI/science related
+            tech_keywords = [
+                'ai', 'tech', 'robot', 'google', 'chatgpt', 'openai', 'microsoft',
+                'apple', 'samsung', 'meta', 'vr', 'ar', 'space', 'nasa', 'science',
+                'brain', 'psychology', 'innovation', 'app', 'software', 'crypto',
+                'bitcoin', 'tesla', 'elon', 'gadget', 'phone', 'computer', 'gaming'
+            ]
+            
+            relevant_trends = []
+            for trend in all_trends:
+                trend_lower = trend.lower()
+                if any(keyword in trend_lower for keyword in tech_keywords):
+                    relevant_trends.append(trend)
+            
+            print(f"✅ Found {len(relevant_trends)} tech-related trends from Google")
+            return relevant_trends[:10]
+            
+        except Exception as e:
+            print(f"⚠️ Google Trends attempt {attempt + 1} failed: {e}")
+            if attempt < 2:
+                time.sleep(5)  # Wait 5 seconds before retry
+            continue
+    
+    print("⚠️ All Google Trends attempts failed, relying on RSS feeds")
+    return []
 
 
 def get_tech_news_rss() -> List[str]:
