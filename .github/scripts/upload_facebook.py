@@ -67,19 +67,26 @@ class FacebookUploader:
             error_msg = self._parse_error(response)
             raise Exception(f"Init upload failed: {error_msg}")
         
+# After initializing upload
         data = response.json()
-        
-        # Validate response
-        if "video_id" not in data or "upload_url" not in data:
+
+        # Make sure upload_session_id is returned
+        if "video_id" not in data or "upload_url" not in data or "upload_session_id" not in data:
             raise Exception(f"Invalid init response: {data}")
-        
+
         print(f"✅ Upload session initialized")
         print(f"   Video ID: {data['video_id']}")
-        
+        print(f"   Upload Session ID: {data['upload_session_id']}")
+
         return data
+
+        upload_session_id = init_response.get("upload_session_id")  # new
+        self._upload_video(upload_url, video_path, video_id, upload_session_id)
+
+
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=60))
-    def _upload_video(self, upload_url: str, video_path: str, video_id: str) -> bool:
+    def _upload_video(self, upload_url: str, video_path: str, video_id: str, upload_session_id: str) -> bool:
         """Upload video file (Phase 2: TRANSFER)"""
         
         file_size = os.path.getsize(video_path)
@@ -102,7 +109,7 @@ class FacebookUploader:
                 'upload_phase': 'transfer',
                 'video_id': video_id,
                 'start_offset': 0,
-                'upload_session_id': video_id
+                'upload_session_id': upload_session_id
             }
             
             # Use the upload_url for transfer
