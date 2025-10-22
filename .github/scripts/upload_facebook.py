@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Optional, Dict
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
+import traceback
 
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 
@@ -46,9 +47,8 @@ class FacebookUploader:
             print(f"❌ Facebook credential validation failed: {e}")
             return False
     
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
     def _init_upload(self, video_size: int) -> dict:
-        """Initialize video upload session (Phase 1: START)"""
+        """Initialize video upload session (Phase 1: START) - NO RETRY"""
         
         url = f"{self.api_base}/{self.page_id}/video_reels"
         
@@ -59,36 +59,55 @@ class FacebookUploader:
         }
         
         print(f"📤 Initializing Facebook upload session...")
+        print(f"   API URL: {url}")
         print(f"   Video size: {video_size / (1024*1024):.2f} MB")
+        print(f"   Page ID: {self.page_id}")
         
-        response = requests.post(url, params=params, timeout=30)
-        
-        if response.status_code != 200:
-            error_msg = self._parse_error(response)
-            raise Exception(f"Init upload failed: {error_msg}")
-        
-        data = response.json()
-        video_id = data.get("video_id")
-        upload_session_id = data.get("upload_session_id", video_id)
-        start_offset = data.get("start_offset", 0)
-        end_offset = data.get("end_offset", video_size)
-        
-        # Make sure we have required fields
-        if not video_id:
-            raise Exception(f"Invalid init response - missing video_id: {data}")
-        
-        print(f"✅ Upload session initialized")
-        print(f"   Video ID: {video_id}")
-        print(f"   Upload Session ID: {upload_session_id}")
-        print(f"   Start offset: {start_offset}")
-        print(f"   End offset: {end_offset}")
-        
-        return {
-            "video_id": video_id,
-            "upload_session_id": upload_session_id,
-            "start_offset": start_offset,
-            "end_offset": end_offset
-        }
+        try:
+            response = requests.post(url, params=params, timeout=30)
+            
+            print(f"   Response status: {response.status_code}")
+            print(f"   Response headers: {dict(response.headers)}")
+            
+            if response.status_code != 200:
+                error_msg = self._parse_error(response)
+                print(f"   ❌ Error response: {error_msg}")
+                print(f"   Full response: {response.text}")
+                raise Exception(f"Init upload failed: {error_msg}")
+            
+            data = response.json()
+            print(f"   Raw response data: {json.dumps(data, indent=2)}")
+            
+            video_id = data.get("video_id")
+            upload_session_id = data.get("upload_session_id", video_id)
+            start_offset = data.get("start_offset", 0)
+            end_offset = data.get("end_offset", video_size)
+            
+            # Make sure we have required fields
+            if not video_id:
+                raise Exception(f"Invalid init response - missing video_id: {data}")
+            
+            print(f"✅ Upload session initialized")
+            print(f"   Video ID: {video_id}")
+            print(f"   Upload Session ID: {upload_session_id}")
+            print(f"   Start offset: {start_offset}")
+            print(f"   End offset: {end_offset}")
+            
+            return {
+                "video_id": video_id,
+                "upload_session_id": upload_session_id,
+                "start_offset": start_offset,
+                "end_offset": end_offset
+            }
+            
+        except requests.exceptions.RequestException as e:
+            print(f"   ❌ Request exception: {e}")
+            traceback.print_exc()
+            raise
+        except Exception as e:
+            print(f"   ❌ Unexpected error: {e}")
+            traceback.print_exc()
+            raise
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=60))
     def _upload_video(self, video_path: str, video_id: str, upload_session_id: str, start_offset: int = 0) -> bool:
@@ -129,6 +148,8 @@ class FacebookUploader:
             
             if response.status_code not in [200, 201]:
                 error_msg = self._parse_error(response)
+                print(f"   ❌ Upload failed: {error_msg}")
+                print(f"   Full response: {response.text}")
                 raise Exception(f"Video upload failed: {error_msg}")
             
             print(f"✅ Video uploaded successfully")
@@ -170,6 +191,8 @@ class FacebookUploader:
         
         if response.status_code not in [200, 201]:
             error_msg = self._parse_error(response)
+            print(f"   ❌ Publish failed: {error_msg}")
+            print(f"   Full response: {response.text}")
             raise Exception(f"Publish failed: {error_msg}")
         
         data = response.json()
@@ -226,10 +249,16 @@ class FacebookUploader:
             error_type = error.get("type", "Unknown")
             error_message = error.get("message", str(response.text))
             error_code = error.get("code", response.status_code)
+            error_subcode = error.get("error_subcode", "")
             
-            return f"[{error_code}] {error_type}: {error_message}"
+            error_str = f"[{error_code}]"
+            if error_subcode:
+                error_str += f"[{error_subcode}]"
+            error_str += f" {error_type}: {error_message}"
+            
+            return error_str
         except:
-            return f"Status {response.status_code}: {response.text[:200]}"
+            return f"Status {response.status_code}: {response.text[:500]}"
     
     def upload(self, video_path: str, metadata: dict) -> dict:
         """Main upload method - coordinates all phases"""
@@ -271,19 +300,31 @@ class FacebookUploader:
             }
         
         try:
-            # Phase 1: Initialize upload
+            # Phase 1: Initialize upload (NO RETRY - debug first attempt)
+            print("\n" + "-"*60)
+            print("PHASE 1: Initialize Upload")
+            print("-"*60)
             init_response = self._init_upload(video_size)
             video_id = init_response["video_id"]
             upload_session_id = init_response["upload_session_id"]
             start_offset = init_response.get("start_offset", 0)
             
             # Phase 2: Upload video
+            print("\n" + "-"*60)
+            print("PHASE 2: Transfer Video")
+            print("-"*60)
             self._upload_video(video_path, video_id, upload_session_id, start_offset)
             
             # Phase 3: Finish and publish
+            print("\n" + "-"*60)
+            print("PHASE 3: Finish & Publish")
+            print("-"*60)
             self._finish_upload(video_id, metadata)
             
             # Get permalink (with retry logic)
+            print("\n" + "-"*60)
+            print("PHASE 4: Get Video URL")
+            print("-"*60)
             permalink = self._get_video_url(video_id)
             
             print("\n" + "="*60)
@@ -309,20 +350,24 @@ class FacebookUploader:
         except requests.exceptions.HTTPError as e:
             error_msg = self._parse_error(e.response) if e.response else str(e)
             print(f"\n❌ HTTP Error: {error_msg}\n")
+            traceback.print_exc()
             
             return {
                 "success": False,
                 "error": f"HTTP error: {error_msg}",
-                "platform": "facebook"
+                "platform": "facebook",
+                "traceback": traceback.format_exc()
             }
             
         except Exception as e:
             print(f"\n❌ Upload Error: {e}\n")
+            traceback.print_exc()
             
             return {
                 "success": False,
                 "error": str(e),
-                "platform": "facebook"
+                "platform": "facebook",
+                "traceback": traceback.format_exc()
             }
 
 
@@ -356,6 +401,8 @@ def main():
         else:
             print(f"\n❌ FAILED!")
             print(f"   Error: {result['error']}")
+            if "traceback" in result:
+                print(f"\n📋 Traceback:\n{result['traceback']}")
         
         # Save result to log
         log_file = os.path.join(TMP, "facebook_upload_log.json")
