@@ -16,7 +16,7 @@ class FacebookUploader:
     def __init__(self):
         self.access_token = os.getenv("FACEBOOK_ACCESS_TOKEN")
         self.page_id = os.getenv("FACEBOOK_PAGE_ID")
-        self.api_version = "v18.0"
+        self.api_version = "v24.0"
         self.api_base = f"https://graph.facebook.com/{self.api_version}"
         
         # Validate credentials
