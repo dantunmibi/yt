@@ -32,11 +32,11 @@ class FacebookUploader:
     def _validate_credentials(self) -> bool:
         """Validate Facebook credentials before upload"""
         try:
-            url = f"{self.api_base}/me"
+            url = f"{self.api_base}/{self.page_id}"
             params = self._get_params()
             params["fields"] = "id,name"
-            
             response = requests.get(url, params=params, timeout=10)
+
             response.raise_for_status()
             
             data = response.json()
