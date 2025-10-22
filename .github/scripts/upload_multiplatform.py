@@ -360,7 +360,9 @@ class MultiPlatformManager:
                     # Use the most recently modified video
                     current_video_path = max(possible_videos, key=os.path.getmtime)
                     print(f"⚠️ Original video not found, using: {os.path.basename(current_video_path)}")
-            
+            # Ensure absolute path for platform uploaders
+            current_video_path = os.path.abspath(current_video_path)
+
             try:
                 result = uploader.upload(current_video_path, metadata)
                 
