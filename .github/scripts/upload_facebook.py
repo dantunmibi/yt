@@ -40,6 +40,26 @@ class FacebookUploader:
         except Exception as e:
             print(f"❌ Token validation failed: {e}")
             return False
+
+    def _parse_error(self, response: requests.Response) -> str:
+        """Parse Facebook API error response"""
+        try:
+            error_data = response.json()
+            error = error_data.get("error", {})
+            
+            error_type = error.get("type", "Unknown")
+            error_message = error.get("message", str(response.text))
+            error_code = error.get("code", response.status_code)
+            error_subcode = error.get("error_subcode", "")
+            
+            error_str = f"[{error_code}]"
+            if error_subcode:
+                error_str += f"[{error_subcode}]"
+            error_str += f" {error_type}: {error_message}"
+            
+            return error_str
+        except:
+            return f"Status {response.status_code}: {response.text[:500]}"
     
     def _init_upload(self, video_size: int) -> dict:
         """Initialize video upload session (Phase 1: START)"""
