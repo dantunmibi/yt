@@ -1,6 +1,6 @@
 {
   "youtube": {
-    "enabled": false,
+    "enabled": true,
     "priority": 1,
     "auto_playlist": true,
     "privacy": "public",

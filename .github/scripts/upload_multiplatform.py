@@ -7,6 +7,9 @@ import sys
 import time
 import traceback
 
+input_platforms = os.getenv("PLATFORMS", "")
+force_all = os.getenv("FORCE_ALL", "false").lower() == "true"
+
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 VIDEO = os.path.join(TMP, "short.mp4")
 THUMB = os.path.join(TMP, "thumbnail.png")
@@ -311,7 +314,7 @@ class MultiPlatformManager:
         self.results = []
     
     def get_enabled_platforms(self) -> List[str]:
-        """Get list of enabled platforms sorted by priority"""
+        """Get list of enabled platforms sorted by priority, filtered by input if provided"""
         config = self.uploaders["youtube"]._load_platform_config()
         
         enabled = []
@@ -321,7 +324,18 @@ class MultiPlatformManager:
                 enabled.append((priority, platform))
         
         enabled.sort()
-        return [p for _, p in enabled]
+        enabled_platforms = [p for _, p in enabled]
+
+        # Filter by workflow input if provided and force_all is False
+        input_platforms = os.getenv("PLATFORMS", "")
+        force_all = os.getenv("FORCE_ALL", "false").lower() == "true"
+
+        if input_platforms and not force_all:
+            requested = [p.strip().lower() for p in input_platforms.split(",")]
+            enabled_platforms = [p for p in enabled_platforms if p in requested]
+
+        return enabled_platforms
+
     
     def upload_to_all(self, video_path: str, metadata: dict) -> List[dict]:
         """Upload to all enabled platforms"""
