@@ -49,6 +49,10 @@ class FacebookUploader:
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
     def _init_upload(self, video_size: int) -> dict:
         """Initialize video upload session (Phase 1: START)"""
+
+        start_offset = init_response.get("start_offset", 0)
+        self._upload_video(upload_url, video_path, video_id, upload_session_id, start_offset)
+
         
         url = f"{self.api_base}/{self.page_id}/video_reels"
         
@@ -69,6 +73,18 @@ class FacebookUploader:
         
 # After initializing upload
         data = response.json()
+        video_id = data.get("video_id")
+        upload_session_id = data.get("upload_session_id") or video_id
+        start_offset = data.get("start_offset", 0)
+        end_offset = data.get("end_offset", file_size)
+
+        return {
+            "video_id": video_id,
+            "upload_session_id": upload_session_id,
+            "start_offset": start_offset,
+            "end_offset": end_offset
+        }
+
 
         # Make sure upload_session_id is returned
         if "video_id" not in data or "upload_url" not in data or "upload_session_id" not in data:
@@ -108,9 +124,10 @@ class FacebookUploader:
                 **self._get_params(),
                 'upload_phase': 'transfer',
                 'video_id': video_id,
-                'start_offset': 0,
+                'start_offset': start_offset,
                 'upload_session_id': upload_session_id
             }
+
             
             # Use the upload_url for transfer
             response = requests.post(
@@ -266,22 +283,14 @@ class FacebookUploader:
         try:
             # Phase 1: Initialize upload
             init_response = self._init_upload(video_size)
-            
-            video_id = init_response.get("video_id")
-            upload_url = init_response.get("upload_url")
-            
-            if not video_id or not upload_url:
-                return {
-                    "success": False,
-                    "error": "Failed to initialize upload session",
-                    "platform": "facebook"
-                }
-            
-            # Phase 2: Upload video
-            self._upload_video(upload_url, video_path, video_id)
-            
-            # Phase 3: Finish and publish
-            finish_response = self._finish_upload(video_id, metadata)
+            video_id = init_response["video_id"]
+            upload_session_id = init_response["upload_session_id"]
+            start_offset = init_response.get("start_offset", 0)
+            upload_url = f"{self.api_base}/{self.page_id}/video_reels"  # or use returned upload_url if API returns
+
+            self._upload_video(upload_url, video_path, video_id, upload_session_id, start_offset)
+            self._finish_upload(video_id, metadata)
+
             
             # Get permalink (with retry logic)
             permalink = self._get_video_url(video_id)
