@@ -413,40 +413,12 @@ else:
     print("⚙️ Using estimated word-based durations (fallback)")
 
     def estimate_speech_duration(text, audio_path):
-        """
-        Estimate how long the given text should take, accounting for punctuation pauses.
-        
-        Punctuation pause durations (approximate):
-        - Period (.), Exclamation (!), Question (?): ~0.4s pause
-        - Comma (,), Semicolon (;): ~0.2s pause
-        - Colon (:), Dash (—, –): ~0.25s pause
-        - Ellipsis (...): ~0.5s pause
-        """
-        import re
-        
+        """Estimate how long the given text should take"""
         words = len(text.split())
         if words == 0:
             return 0.0
 
         fallback_wpm = 140
-        
-        # Count punctuation marks and assign pause weights
-        punctuation_pauses = 0.0
-        
-        # Major pauses (sentence endings)
-        punctuation_pauses += len(re.findall(r'[.!?]', text)) * 0.4
-        
-        # Medium pauses (commas, semicolons)
-        punctuation_pauses += len(re.findall(r'[,;]', text)) * 0.2
-        
-        # Moderate pauses (colons, dashes)
-        punctuation_pauses += len(re.findall(r'[:—–]', text)) * 0.25
-        
-        # Long pauses (ellipsis)
-        punctuation_pauses += len(re.findall(r'\.\.\.', text)) * 0.5
-        
-        # Additional pause for paragraph breaks or multiple spaces (indicates intentional pause)
-        punctuation_pauses += len(re.findall(r'\n\n+', text)) * 0.6
 
         if os.path.exists(audio_path):
             try:
@@ -455,47 +427,18 @@ else:
 
                 all_text = " ".join([hook] + bullets + [cta])
                 total_words = len(all_text.split()) or 1
-                
-                # Calculate all punctuation pauses in the full text
-                all_punctuation_pauses = 0.0
-                all_punctuation_pauses += len(re.findall(r'[.!?]', all_text)) * 0.4
-                all_punctuation_pauses += len(re.findall(r'[,;]', all_text)) * 0.2
-                all_punctuation_pauses += len(re.findall(r'[:—–]', all_text)) * 0.25
-                all_punctuation_pauses += len(re.findall(r'\.\.\.', all_text)) * 0.5
-                all_punctuation_pauses += len(re.findall(r'\n\n+', all_text)) * 0.6
-                
-                # Subtract total punctuation time from audio to get pure speech time
-                pure_speech_time = max(0.1, total_audio_duration - all_punctuation_pauses)
-                
-                seconds_per_word = pure_speech_time / total_words
-                
-                # Return: (words * time per word) + punctuation pauses for this section
-                return (seconds_per_word * words) + punctuation_pauses
-                
+
+                seconds_per_word = total_audio_duration / total_words
+                return seconds_per_word * words
             except Exception as e:
                 print(f"⚠️ Could not analyze TTS file for pacing: {e}")
-                # Fallback: base time + punctuation
-                base_time = (words / fallback_wpm) * 60.0
-                return base_time + punctuation_pauses
+                return (words / fallback_wpm) * 60.0
         else:
-            # Fallback: base time + punctuation
-            base_time = (words / fallback_wpm) * 60.0
-            return base_time + punctuation_pauses
+            return (words / fallback_wpm) * 60.0
 
     hook_estimated = estimate_speech_duration(hook, audio_path)
     bullets_estimated = [estimate_speech_duration(b, audio_path) for b in bullets]
     cta_estimated = estimate_speech_duration(cta, audio_path)
-
-    print(f"📊 Estimated durations (with punctuation):")
-    if hook:
-        hook_punct = len([c for c in hook if c in '.!?,;:—–']) 
-        print(f"   Hook: {hook_estimated:.2f}s ({len(hook.split())} words, {hook_punct} punctuation marks)")
-    for i, b in enumerate(bullets):
-        b_punct = len([c for c in b if c in '.!?,;:—–'])
-        print(f"   Bullet {i+1}: {bullets_estimated[i]:.2f}s ({len(b.split())} words, {b_punct} punctuation marks)")
-    if cta:
-        cta_punct = len([c for c in cta if c in '.!?,;:—–'])
-        print(f"   CTA: {cta_estimated:.2f}s ({len(cta.split())} words, {cta_punct} punctuation marks)")
 
     total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
 

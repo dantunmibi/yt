@@ -17,16 +17,49 @@ print("✅ Using Local Coqui TTS (offline)")
 # --- Utility Functions ---
 import re
 
+import re
+
 def clean_text_for_tts(text):
     """
     Enhanced text preprocessing for natural TTS pronunciation
-    Handles acronyms, technical terms, and special characters
+    FIXED: No longer creates pauses for periods mid-sentence
     """
     
-    # Step 1: Preserve important punctuation for natural pauses
+    # Step 1: Protect common abbreviations/brand names that have periods
+    # This prevents "Instagram Stories." from becoming "Instagram [pause] Stories"
+    protected_patterns = {
+        r'\bDr\.': 'Doctor',
+        r'\bMr\.': 'Mister',
+        r'\bMrs\.': 'Misses',
+        r'\bMs\.': 'Miss',
+        r'\bProf\.': 'Professor',
+        r'\betc\.': 'etcetera',
+        r'\be\.g\.': 'for example',
+        r'\bi\.e\.': 'that is',
+        r'\bvs\.': 'versus',
+        r'\bInc\.': 'Incorporated',
+        r'\bCo\.': 'Company',
+        r'\bLtd\.': 'Limited',
+    }
+    
+    for pattern, replacement in protected_patterns.items():
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+    
+    # Step 2: Replace ellipsis BEFORE processing other punctuation
     text = text.replace('...', ' pause ')
     
-    # Step 2: Handle special characters
+    # Step 3: CRITICAL FIX - Only treat period as pause if followed by space + capital letter
+    # This preserves "Instagram Stories." at end without creating mid-sentence pause
+    # Replace sentence-ending periods with a marker
+    text = re.sub(r'\.(\s+[A-Z])', r' SENTENCE_END\1', text)
+    
+    # Step 4: Remove remaining periods (these are mid-sentence or end-of-text)
+    text = text.replace('.', '')
+    
+    # Step 5: Restore sentence-ending markers as periods (these will create natural pauses)
+    text = text.replace('SENTENCE_END', '.')
+    
+    # Step 6: Handle special characters
     text = text.replace('%', ' percent')
     text = text.replace('&', ' and ')
     text = text.replace('+', ' plus ')
@@ -36,11 +69,10 @@ def clean_text_for_tts(text):
     text = text.replace('£', ' pounds ')
     text = text.replace('#', ' hashtag ')
     
-    # Step 3: Handle common acronyms with NATURAL spellings
-    # These work better with most TTS engines than phonemes
+    # Step 7: Handle common acronyms with NATURAL spellings
     acronym_replacements = {
-        # AI/ML terms (most important for your use case)
-        r'\bAI\b': 'A I',  # Spell it out clearly
+        # AI/ML terms
+        r'\bAI\b': 'A I',
         r'\bML\b': 'M L',
         r'\bGPT\b': 'G P T',
         r'\bLLM\b': 'L L M',
@@ -51,7 +83,7 @@ def clean_text_for_tts(text):
         r'\bchatgpt\b': 'chat G P T',
         r'\bCHATGPT\b': 'Chat G P T',
         
-        # Tech companies
+        # Tech companies/terms
         r'\bAPI\b': 'A P I',
         r'\bUI\b': 'U I',
         r'\bUX\b': 'U X',
@@ -61,7 +93,7 @@ def clean_text_for_tts(text):
         # Computer hardware
         r'\bCPU\b': 'C P U',
         r'\bGPU\b': 'G P U',
-        r'\bRAM\b': 'ram',  # This is often pronounced as a word
+        r'\bRAM\b': 'ram',
         r'\bSSD\b': 'S S D',
         r'\bUSB\b': 'U S B',
         
@@ -71,12 +103,12 @@ def clean_text_for_tts(text):
         r'\bURL\b': 'U R L',
         r'\bHTML\b': 'H T M L',
         r'\bCSS\b': 'C S S',
-        r'\bJSON\b': 'J son',  # Pronounced as "jay-son"
+        r'\bJSON\b': 'J son',
         r'\bSQL\b': 'S Q L',
         r'\bXML\b': 'X M L',
         
         # Organizations
-        r'\bNASA\b': 'nasa',  # Pronounced as word
+        r'\bNASA\b': 'nasa',
         r'\bFBI\b': 'F B I',
         r'\bCIA\b': 'C I A',
         r'\bUSA\b': 'U S A',
@@ -118,12 +150,11 @@ def clean_text_for_tts(text):
     for pattern, replacement in acronym_replacements.items():
         text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
     
-    # Step 4: Handle numbers with context
-    # "4K video" should be "four K video"
+    # Step 8: Handle numbers with context
     text = re.sub(r'\b(\d+)K\b', r'\1 K', text)
     text = re.sub(r'\b(\d+)x\b', r'\1 times', text)
     
-    # Step 5: Remove emojis
+    # Step 9: Remove emojis
     emoji_pattern = re.compile("["
         "\U0001F600-\U0001F64F"  # emoticons
         "\U0001F300-\U0001F5FF"  # symbols & pictographs
@@ -134,14 +165,45 @@ def clean_text_for_tts(text):
         "]+", flags=re.UNICODE)
     text = emoji_pattern.sub('', text)
     
-    # Step 6: Clean up extra whitespace
+    # Step 10: Clean up extra whitespace
     text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'\s([.,!?])', r'\1', text)  # Remove space before punctuation
+    text = re.sub(r'\s([,!?])', r'\1', text)  # Remove space before punctuation
     
-    # Step 7: Ensure sentences end properly for natural pauses
-    text = re.sub(r'([.!?])\s*$', r'\1 ', text)
+    # Step 11: Ensure sentences end properly for natural pauses
+    # Only add period at end if it doesn't already have sentence-ending punctuation
+    if text and not text.rstrip()[-1:] in '.!?':
+        text = text.rstrip() + '.'
     
     return text.strip()
+
+
+# TEST CASES
+if __name__ == "__main__":
+    test_cases = [
+        "My name is Instagram Stories.",
+        "Check out ChatGPT. It's amazing.",
+        "This is A.I. technology at its best.",
+        "The app uses U.S. servers.",
+        "Dr. Smith invented this method.",
+        "Try this... it works!",
+        "The API calls cost $5 per 1000 requests.",
+        "Instagram Reels vs. TikTok.",
+    ]
+    
+    print("=" * 60)
+    print("TTS TEXT CLEANING TEST")
+    print("=" * 60)
+    
+    for i, test in enumerate(test_cases, 1):
+        cleaned = clean_text_for_tts(test)
+        print(f"\n{i}. ORIGINAL: {test}")
+        print(f"   CLEANED:  {cleaned}")
+        
+        # Check for unwanted patterns
+        if ' .' in cleaned:
+            print("   ⚠️ WARNING: Space before period detected!")
+        if cleaned.count('.') > 1:
+            print(f"   ℹ️ Contains {cleaned.count('.')} sentence endings")
 
 def generate_tts_fallback(text, out_path):
     """Fallback TTS using gTTS"""
