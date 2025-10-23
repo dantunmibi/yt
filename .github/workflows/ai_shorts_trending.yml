@@ -275,6 +275,8 @@ jobs:
 
       # Add this step after "Upload to multiple platforms"
       
+      # Add this step after "Upload to multiple platforms"
+      
       - name: Prepare Make.com payload
         if: success() && steps.schedule_check.outputs.should_post == 'true'
         id: makecom_prep
@@ -302,29 +304,23 @@ jobs:
           echo "✅ Make.com payload prepared"
           cat tmp/makecom_payload.json
 
-      - name: Upload video to temporary hosting
+      - name: Upload video to Cloudinary for Make.com
         if: success() && steps.schedule_check.outputs.should_post == 'true'
         id: upload_temp
         run: |
-          # Option 1: GitHub Release (Free, public)
-          echo "📤 Uploading to GitHub Release for Make.com access..."
+          echo "📤 Uploading video to Cloudinary for Make.com access..."
+          python .github/scripts/upload_to_cloudinary.py
           
-          # Create a release for this video
-          RELEASE_TAG="video-${{ github.run_number }}"
-          
-          gh release create "$RELEASE_TAG" \
-            tmp/short.mp4 \
-            --title "Video ${{ github.run_number }}" \
-            --notes "Auto-generated video for Make.com processing" \
-            --repo ${{ github.repository }}
-          
-          # Get the download URL
-          VIDEO_URL=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[0].url')
+          # Read the URL from the output file
+          VIDEO_URL=$(cat tmp/video_url.txt)
           
           echo "video_url=$VIDEO_URL" >> $GITHUB_OUTPUT
           echo "✅ Video URL: $VIDEO_URL"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
       - name: Send to Make.com webhook
         if: success() && steps.schedule_check.outputs.should_post == 'true'
