@@ -273,6 +273,77 @@ jobs:
           FORCE_ALL: ${{ github.event.inputs.force_all }}
         run: python .github/scripts/upload_multiplatform.py
 
+      # Add this step after "Upload to multiple platforms"
+      
+      - name: Prepare Make.com payload
+        if: success() && steps.schedule_check.outputs.should_post == 'true'
+        id: makecom_prep
+        run: |
+          # Read the script metadata
+          TITLE=$(jq -r '.title' tmp/script.json)
+          DESCRIPTION=$(jq -r '.description' tmp/script.json)
+          HASHTAGS=$(jq -r '.hashtags | join(" ")' tmp/script.json)
+          
+          # Get video info
+          VIDEO_SIZE=$(stat -f%z tmp/short.mp4 2>/dev/null || stat -c%s tmp/short.mp4)
+          
+          # Create payload
+          cat > tmp/makecom_payload.json <<EOF
+          {
+            "title": "$TITLE",
+            "description": "$DESCRIPTION",
+            "hashtags": "$HASHTAGS",
+            "video_size_mb": $(echo "scale=2; $VIDEO_SIZE/1024/1024" | bc),
+            "workflow_run": "${{ github.run_number }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          
+          echo "✅ Make.com payload prepared"
+          cat tmp/makecom_payload.json
+
+      - name: Upload video to temporary hosting
+        if: success() && steps.schedule_check.outputs.should_post == 'true'
+        id: upload_temp
+        run: |
+          # Option 1: GitHub Release (Free, public)
+          echo "📤 Uploading to GitHub Release for Make.com access..."
+          
+          # Create a release for this video
+          RELEASE_TAG="video-${{ github.run_number }}"
+          
+          gh release create "$RELEASE_TAG" \
+            tmp/short.mp4 \
+            --title "Video ${{ github.run_number }}" \
+            --notes "Auto-generated video for Make.com processing" \
+            --repo ${{ github.repository }}
+          
+          # Get the download URL
+          VIDEO_URL=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[0].url')
+          
+          echo "video_url=$VIDEO_URL" >> $GITHUB_OUTPUT
+          echo "✅ Video URL: $VIDEO_URL"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send to Make.com webhook
+        if: success() && steps.schedule_check.outputs.should_post == 'true'
+        run: |
+          # Read metadata
+          PAYLOAD=$(cat tmp/makecom_payload.json)
+          VIDEO_URL="${{ steps.upload_temp.outputs.video_url }}"
+          
+          # Send to Make.com
+          curl -X POST "${{ secrets.MAKECOM_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"video_url\": \"$VIDEO_URL\",
+              \"metadata\": $PAYLOAD,
+              \"artifact_url\": \"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+            }"
+          
+          echo "✅ Webhook sent to Make.com"
+
       # ===== YOUTUBE-SPECIFIC POST-PROCESSING =====
       - name: Organize YouTube playlists
         if: success() && steps.schedule_check.outputs.should_post == 'true'
