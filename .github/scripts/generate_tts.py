@@ -14,11 +14,6 @@ FULL_AUDIO_PATH = os.path.join(TMP, "voice.mp3")
 
 print("✅ Using Local Coqui TTS (offline)")
 
-# --- Utility Functions ---
-import re
-
-import re
-
 def clean_text_for_tts(text):
     """
     Enhanced text preprocessing for natural TTS pronunciation
