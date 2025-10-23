@@ -11,7 +11,7 @@ import traceback
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 
 class FacebookUploader:
-    """Facebook Reels upload using Graph API v24.0 (2025 Updated)"""
+    """Facebook Reels upload using Graph API v24.0 - SIMPLIFIED NON-RESUMABLE"""
     
     def __init__(self):
         self.access_token = os.getenv("FACEBOOK_ACCESS_TOKEN")
@@ -19,7 +19,6 @@ class FacebookUploader:
         self.api_version = "v24.0"
         self.api_base = f"https://graph.facebook.com/{self.api_version}"
         
-        # Validate credentials
         if not self.access_token:
             print("⚠️ FACEBOOK_ACCESS_TOKEN not found in environment")
         if not self.page_id:
@@ -36,7 +35,6 @@ class FacebookUploader:
             params = self._get_params()
             params["fields"] = "id,name"
             response = requests.get(url, params=params, timeout=10)
-
             response.raise_for_status()
             
             data = response.json()
@@ -67,67 +65,16 @@ class FacebookUploader:
         except:
             return f"Status {response.status_code}: {response.text[:500]}"
     
-    def _init_upload(self, video_size: int) -> dict:
-        """Initialize video upload session - SIMPLIFIED (no resumable upload)"""
-        
-        url = f"{self.api_base}/{self.page_id}/videos"
-        
-        params = {
-            **self._get_params(),
-            "upload_phase": "start",
-            "file_size": video_size
-        }
-        
-        print(f"📤 Initializing Facebook upload session...")
-        print(f"   API URL: {url}")
-        print(f"   Video size: {video_size / (1024*1024):.2f} MB")
-        print(f"   Page ID: {self.page_id}")
-        
-        try:
-            response = requests.post(url, params=params, timeout=30)
-            
-            print(f"   Response status: {response.status_code}")
-            
-            if response.status_code != 200:
-                error_msg = self._parse_error(response)
-                print(f"   ❌ Error response: {error_msg}")
-                print(f"   Full response: {response.text}")
-                raise Exception(f"Init upload failed: {error_msg}")
-            
-            data = response.json()
-            print(f"   Raw response: {json.dumps(data, indent=2)}")
-            
-            video_id = data.get("video_id")
-            upload_session_id = data.get("upload_session_id", video_id)
-            
-            if not video_id:
-                raise Exception(f"Invalid init response - missing video_id: {data}")
-            
-            print(f"✅ Upload session initialized")
-            print(f"   Video ID: {video_id}")
-            print(f"   Upload Session ID: {upload_session_id}")
-            
-            return {
-                "video_id": video_id,
-                "upload_session_id": upload_session_id
-            }
-            
-        except requests.exceptions.RequestException as e:
-            print(f"   ❌ Request exception: {e}")
-            traceback.print_exc()
-            raise
-        except Exception as e:
-            print(f"   ❌ Unexpected error: {e}")
-            traceback.print_exc()
-            raise
-    
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=60))
-    def _upload_video_direct(self, video_path: str, video_id: str, upload_session_id: str, metadata: dict) -> bool:
-        """Upload video file directly (FIXED METHOD - uses /videos endpoint)"""
+    def _upload_video_simple(self, video_path: str, metadata: dict) -> str:
+        """
+        Upload video using simple single-request method (non-resumable)
+        This is more reliable for videos under 1GB
+        """
         
         file_size = os.path.getsize(video_path)
         
-        print(f"📤 Uploading video file directly...")
+        print(f"📤 Uploading video file (simple method)...")
         print(f"   Path: {video_path}")
         print(f"   Size: {file_size / (1024*1024):.2f} MB")
         
@@ -152,10 +99,9 @@ class FacebookUploader:
             
             data = {
                 **self._get_params(),
-                'upload_phase': 'transfer',
-                'upload_session_id': upload_session_id,
                 'description': full_description,
-                'title': metadata.get("title", "")[:100]
+                'title': metadata.get("title", "")[:100],
+                'published': 'true'
             }
             
             print(f"   Uploading to: {url}")
@@ -166,7 +112,7 @@ class FacebookUploader:
                 url,
                 files=files,
                 data=data,
-                timeout=300  # 5 minutes for upload
+                timeout=600  # 10 minutes for upload
             )
             
             print(f"   Response status: {response.status_code}")
@@ -177,36 +123,16 @@ class FacebookUploader:
                 print(f"   Full response: {response.text}")
                 raise Exception(f"Video upload failed: {error_msg}")
             
-            print(f"✅ Video uploaded successfully")
-            return True
-    
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
-    def _finish_upload(self, video_id: str, upload_session_id: str) -> dict:
-        """Finalize upload and publish (Phase 3: FINISH)"""
-        
-        url = f"{self.api_base}/{self.page_id}/videos"
-        
-        params = {
-            **self._get_params(),
-            "upload_phase": "finish",
-            "upload_session_id": upload_session_id
-        }
-        
-        print(f"📢 Publishing video...")
-        
-        response = requests.post(url, params=params, timeout=30)
-        
-        if response.status_code not in [200, 201]:
-            error_msg = self._parse_error(response)
-            print(f"   ❌ Publish failed: {error_msg}")
-            print(f"   Full response: {response.text}")
-            raise Exception(f"Publish failed: {error_msg}")
-        
-        data = response.json()
-        print(f"✅ Published successfully!")
-        print(f"   Response: {json.dumps(data, indent=2)}")
-        
-        return data
+            result = response.json()
+            video_id = result.get("id")
+            
+            if not video_id:
+                raise Exception(f"No video ID in response: {result}")
+            
+            print(f"✅ Video uploaded successfully!")
+            print(f"   Video ID: {video_id}")
+            
+            return video_id
     
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, min=5, max=30))
     def _get_video_url(self, video_id: str) -> str:
@@ -225,10 +151,16 @@ class FacebookUploader:
         if response.status_code == 200:
             data = response.json()
             permalink = data.get("permalink_url")
+            status_data = data.get("status", {})
+            video_status = status_data.get("video_status", "unknown")
+            
+            print(f"   Video status: {video_status}")
             
             if permalink:
                 print(f"✅ Video URL retrieved: {permalink}")
                 return permalink
+            else:
+                print(f"⚠️ No permalink yet, status: {video_status}")
         
         # Fallback URL
         fallback_url = f"https://www.facebook.com/{self.page_id}/videos/{video_id}"
@@ -236,7 +168,7 @@ class FacebookUploader:
         return fallback_url
     
     def upload(self, video_path: str, metadata: dict) -> dict:
-        """Main upload method - SIMPLIFIED for 2025 API"""
+        """Main upload method - SIMPLIFIED (non-resumable)"""
         
         print("\n" + "="*60)
         print("👥 FACEBOOK REELS UPLOAD")
@@ -266,6 +198,14 @@ class FacebookUploader:
                 "platform": "facebook"
             }
         
+        # Check file size limit (1GB for non-resumable)
+        if video_size > 1024 * 1024 * 1024:
+            return {
+                "success": False,
+                "error": f"Video too large ({video_size/(1024*1024*1024):.2f}GB). Max 1GB for simple upload.",
+                "platform": "facebook"
+            }
+        
         # Validate credentials
         if not self._validate_credentials():
             return {
@@ -275,32 +215,19 @@ class FacebookUploader:
             }
         
         try:
-            # Phase 1: Initialize upload
+            # Upload video directly (single request)
             print("\n" + "-"*60)
-            print("PHASE 1: Initialize Upload")
+            print("UPLOAD: Single-request method")
             print("-"*60)
-            init_response = self._init_upload(video_size)
-            video_id = init_response["video_id"]
-            upload_session_id = init_response["upload_session_id"]
-            
-            # Phase 2: Upload video directly (FIXED - no separate upload URL)
-            print("\n" + "-"*60)
-            print("PHASE 2: Upload Video")
-            print("-"*60)
-            self._upload_video_direct(video_path, video_id, upload_session_id, metadata)
-            
-            # Phase 3: Finish and publish
-            print("\n" + "-"*60)
-            print("PHASE 3: Finish & Publish")
-            print("-"*60)
-            self._finish_upload(video_id, upload_session_id)
+            video_id = self._upload_video_simple(video_path, metadata)
             
             # Wait a bit for processing
-            time.sleep(3)
+            print("\n⏳ Waiting for video processing...")
+            time.sleep(5)
             
             # Get permalink
             print("\n" + "-"*60)
-            print("PHASE 4: Get Video URL")
+            print("RETRIEVE: Get Video URL")
             print("-"*60)
             permalink = self._get_video_url(video_id)
             
