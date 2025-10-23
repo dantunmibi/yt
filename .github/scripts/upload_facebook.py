@@ -324,6 +324,9 @@ class FacebookUploader:
             print(f"   Video status: {video_status}")
             
             if permalink:
+                # Ensure full URL
+                if permalink.startswith("/"):
+                    permalink = "https://www.facebook.com" + permalink
                 print(f"✅ Video URL retrieved: {permalink}")
                 return permalink
             else:
