@@ -482,22 +482,22 @@ else:
             base_time = (words / fallback_wpm) * 60.0
             return base_time + punctuation_pauses
 
-        hook_estimated = estimate_speech_duration(hook, audio_path)
-        bullets_estimated = [estimate_speech_duration(b, audio_path) for b in bullets]
-        cta_estimated = estimate_speech_duration(cta, audio_path)
+    hook_estimated = estimate_speech_duration(hook, audio_path)
+    bullets_estimated = [estimate_speech_duration(b, audio_path) for b in bullets]
+    cta_estimated = estimate_speech_duration(cta, audio_path)
 
-        print(f"📊 Estimated durations (with punctuation):")
-        if hook:
-            hook_punct = len([c for c in hook if c in '.!?,;:—–']) 
-            print(f"   Hook: {hook_estimated:.2f}s ({len(hook.split())} words, {hook_punct} punctuation marks)")
-        for i, b in enumerate(bullets):
-            b_punct = len([c for c in b if c in '.!?,;:—–'])
-            print(f"   Bullet {i+1}: {bullets_estimated[i]:.2f}s ({len(b.split())} words, {b_punct} punctuation marks)")
-        if cta:
-            cta_punct = len([c for c in cta if c in '.!?,;:—–'])
-            print(f"   CTA: {cta_estimated:.2f}s ({len(cta.split())} words, {cta_punct} punctuation marks)")
+    print(f"📊 Estimated durations (with punctuation):")
+    if hook:
+        hook_punct = len([c for c in hook if c in '.!?,;:—–']) 
+        print(f"   Hook: {hook_estimated:.2f}s ({len(hook.split())} words, {hook_punct} punctuation marks)")
+    for i, b in enumerate(bullets):
+        b_punct = len([c for c in b if c in '.!?,;:—–'])
+        print(f"   Bullet {i+1}: {bullets_estimated[i]:.2f}s ({len(b.split())} words, {b_punct} punctuation marks)")
+    if cta:
+        cta_punct = len([c for c in cta if c in '.!?,;:—–'])
+        print(f"   CTA: {cta_estimated:.2f}s ({len(cta.split())} words, {cta_punct} punctuation marks)")
 
-        total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
+    total_estimated = hook_estimated + sum(bullets_estimated) + cta_estimated
 
     if total_estimated == 0:
         section_count = max(1, len(bullets) + (1 if hook else 0) + (1 if cta else 0))
