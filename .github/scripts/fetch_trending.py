@@ -43,11 +43,14 @@ def get_google_trends() -> List[str]:
             from pytrends.request import TrendReq
             
             print(f"🔍 Fetching Google Trends (US) - Attempt {attempt + 1}/3...")
-            pytrends = TrendReq(hl='en-US', tz=360, timeout=(10, 25), retries=2, backoff_factor=0.5)
+    # Simplified initialization - let pytrends handle its own defaults
+            try:
+                pytrends = TrendReq(hl='en-US', tz=360)
+            except Exception as init_error:
+                print(f"   ⚠️ PyTrends initialization failed: {init_error}")
+                return []
             
-            # Try daily trends first
-            trending = pytrends.trending_searches(pn='united_states')
-            all_trends = trending[0].head(20).tolist()
+            relevant_trends = []
         
             # Filter for tech/AI/science related
             tech_keywords = [
@@ -57,23 +60,35 @@ def get_google_trends() -> List[str]:
                 'bitcoin', 'tesla', 'elon', 'gadget', 'phone', 'computer', 'gaming'
             ]
             
-            relevant_trends = []
             for trend in all_trends:
-                trend_lower = trend.lower()
-                if any(keyword in trend_lower for keyword in tech_keywords):
-                    relevant_trends.append(trend)
+                try:
+                    print(f"   🔍 Searching trends for: {topic}")
+                    pytrends.build_payload([topic], timeframe='now 7-d', geo='')
+                    related = pytrends.related_queries()
+                    
+                    if topic in related and 'top' in related[topic]:
+                        top_queries = related[topic]['top']
+                        if top_queries is not None and not top_queries.empty:
+                            for query in top_queries['query'].head(5):
+                                if len(query) > 10:  # Filter very short queries
+                                    relevant_trends.append(query)
+                                    print(f"      ✓ {query}")
+                    
+                    time.sleep(2)  # Rate limiting between requests
+                    
+                except Exception as e:
+                    print(f"   ⚠️ Failed for '{topic}': {str(e)[:50]}...")
+                    continue
             
-            print(f"✅ Found {len(relevant_trends)} tech-related trends from Google")
-            return relevant_trends[:10]
+            print(f"✅ Found {len(relevant_trends)} gardening-related trends from Google")
+            return relevant_trends[:15]
             
+        except ImportError:
+            print("⚠️ pytrends not installed - run: pip install pytrends")
+            return []
         except Exception as e:
-            print(f"⚠️ Google Trends attempt {attempt + 1} failed: {e}")
-            if attempt < 2:
-                time.sleep(5)  # Wait 5 seconds before retry
-            continue
-    
-    print("⚠️ All Google Trends attempts failed, relying on RSS feeds")
-    return []
+            print(f"⚠️ Google Trends failed: {e}")
+            return []
 
 
 def get_tech_news_rss() -> List[str]:
