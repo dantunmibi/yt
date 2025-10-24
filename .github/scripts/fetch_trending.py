@@ -8,10 +8,9 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 
-# Configure using the same pattern as your working script
+# Configure Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# Use the same model selection logic as your working script
 try:
     models = genai.list_models()
     model_name = None
@@ -38,21 +37,23 @@ os.makedirs(TMP, exist_ok=True)
 
 def get_google_trends() -> List[str]:
     """Get real trending searches from Google Trends (FREE - no API key needed)"""
-    for attempt in range(3):  # Try 3 times
+    for attempt in range(3):
         try:
             from pytrends.request import TrendReq
             
             print(f"🔍 Fetching Google Trends (US) - Attempt {attempt + 1}/3...")
-    # Simplified initialization - let pytrends handle its own defaults
+            
             try:
                 pytrends = TrendReq(hl='en-US', tz=360)
             except Exception as init_error:
                 print(f"   ⚠️ PyTrends initialization failed: {init_error}")
+                if attempt < 2:
+                    time.sleep(5)
+                    continue
                 return []
             
             relevant_trends = []
-        
-            # Filter for tech/AI/science related
+            
             tech_keywords = [
                 'ai', 'tech', 'robot', 'google', 'chatgpt', 'openai', 'microsoft',
                 'apple', 'samsung', 'meta', 'vr', 'ar', 'space', 'nasa', 'science',
@@ -60,73 +61,134 @@ def get_google_trends() -> List[str]:
                 'bitcoin', 'tesla', 'elon', 'gadget', 'phone', 'computer', 'gaming'
             ]
             
-            for trend in all_trends:
-                try:
-                    print(f"   🔍 Searching trends for: {topic}")
-                    pytrends.build_payload([topic], timeframe='now 7-d', geo='')
-                    related = pytrends.related_queries()
-                    
-                    if topic in related and 'top' in related[topic]:
-                        top_queries = related[topic]['top']
-                        if top_queries is not None and not top_queries.empty:
-                            for query in top_queries['query'].head(5):
-                                if len(query) > 10:  # Filter very short queries
-                                    relevant_trends.append(query)
-                                    print(f"      ✓ {query}")
-                    
-                    time.sleep(2)  # Rate limiting between requests
-                    
-                except Exception as e:
-                    print(f"   ⚠️ Failed for '{topic}': {str(e)[:50]}...")
-                    continue
+            # Try daily trends
+            try:
+                trending = pytrends.trending_searches(pn='united_states')
+                all_trends = trending[0].head(20).tolist()
+                
+                for trend in all_trends:
+                    trend_lower = trend.lower()
+                    if any(keyword in trend_lower for keyword in tech_keywords):
+                        relevant_trends.append(trend)
+                        print(f"   ✓ Found daily trend: {trend}")
+                
+                print(f"✅ Found {len(relevant_trends)} tech-related daily trends")
+                
+            except Exception as e:
+                print(f"   ⚠️ Daily trends failed: {str(e)[:100]}")
             
-            print(f"✅ Found {len(relevant_trends)} gardening-related trends from Google")
+            # Search specific topics if needed
+            if len(relevant_trends) < 10:
+                print("   🔄 Searching related queries...")
+                
+                search_topics = [
+                    'artificial intelligence', 'chatgpt', 'ai technology',
+                    'tech news', 'innovation', 'productivity apps',
+                    'brain hack', 'psychology', 'self improvement'
+                ]
+                
+                for topic in search_topics:
+                    try:
+                        print(f"   🔍 Searching: {topic}")
+                        pytrends.build_payload([topic], timeframe='now 7-d', geo='')
+                        related = pytrends.related_queries()
+                        
+                        if topic in related and 'top' in related[topic]:
+                            top_queries = related[topic]['top']
+                            if top_queries is not None and not top_queries.empty:
+                                for query in top_queries['query'].head(5):
+                                    if len(query) > 10 and query not in relevant_trends:
+                                        relevant_trends.append(query)
+                                        print(f"      ✓ {query}")
+                        
+                        time.sleep(2)
+                        
+                    except Exception as e:
+                        print(f"   ⚠️ Failed for '{topic}': {str(e)[:50]}...")
+                        continue
+            
+            print(f"✅ Found {len(relevant_trends)} tech trends from Google")
             return relevant_trends[:15]
             
         except ImportError:
-            print("⚠️ pytrends not installed - run: pip install pytrends")
+            print("⚠️ pytrends not installed")
             return []
         except Exception as e:
-            print(f"⚠️ Google Trends failed: {e}")
-            return []
+            print(f"⚠️ Attempt {attempt + 1} failed: {e}")
+            if attempt < 2:
+                time.sleep(5)
+            continue
+    
+    return []
 
 
 def get_tech_news_rss() -> List[str]:
-    """Scrape latest tech news from RSS feeds (FREE)"""
+    """Scrape latest tech news from RSS feeds (FREE) - ENHANCED VERSION"""
     try:
         print("📰 Fetching tech news from RSS feeds...")
         
-        # Free tech news RSS feeds
+        # Expanded tech news RSS feeds (verified working)
         rss_feeds = [
             'https://techcrunch.com/feed/',
             'https://www.theverge.com/rss/index.xml',
             'https://www.wired.com/feed/rss',
+            'https://arstechnica.com/feed/',
+            'https://www.engadget.com/rss.xml',
+            'https://mashable.com/feeds/rss/all',
+            'https://www.cnet.com/rss/news/',
         ]
         
         headlines = []
         
         for feed_url in rss_feeds:
             try:
-                response = requests.get(feed_url, timeout=10)
-                soup = BeautifulSoup(response.content, 'xml')
+                print(f"   📡 Fetching {feed_url}...")
+                response = requests.get(feed_url, timeout=15, headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                })
                 
-                # Get recent items (last 24 hours preferred)
-                items = soup.find_all('item')[:10]
+                if response.status_code != 200:
+                    print(f"      ⚠️ Status {response.status_code}")
+                    continue
                 
-                for item in items:
-                    title = item.find('title')
-                    if title:
-                        headline = title.text.strip()
+                # Try both XML and HTML parsing
+                try:
+                    soup = BeautifulSoup(response.content, 'xml')
+                except:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Try multiple title tag patterns
+                items = soup.find_all('item')
+                if not items:
+                    items = soup.find_all('entry')  # Atom format
+                
+                print(f"      Found {len(items)} items")
+                
+                for item in items[:15]:
+                    title = None
+                    
+                    # Try different title extraction methods
+                    if item.find('title'):
+                        title = item.find('title').text.strip()
+                    elif item.find('content'):
+                        title = item.find('content').text.strip()[:100]
+                    
+                    if title and len(title) > 15:
                         # Filter for AI/tech keywords
-                        if any(kw in headline.lower() for kw in [
+                        tech_words = [
                             'ai', 'chatgpt', 'openai', 'google', 'microsoft',
                             'tech', 'robot', 'vr', 'ar', 'space', 'science',
-                            'innovation', 'breakthrough'
-                        ]):
-                            headlines.append(headline)
+                            'innovation', 'breakthrough', 'app', 'software',
+                            'brain', 'psychology', 'productivity', 'hack'
+                        ]
+                        
+                        headline_lower = title.lower()
+                        if any(kw in headline_lower for kw in tech_words):
+                            headlines.append(title)
+                            print(f"      ✓ {title[:60]}...")
                 
             except Exception as e:
-                print(f"   ⚠️ Failed to fetch {feed_url}: {e}")
+                print(f"   ⚠️ Failed to fetch {feed_url}: {str(e)[:50]}...")
                 continue
         
         print(f"✅ Found {len(headlines)} relevant tech headlines")
@@ -137,8 +199,78 @@ def get_tech_news_rss() -> List[str]:
         return []
 
 
+def get_reddit_tech_trends() -> List[str]:
+    """Get trending posts from tech subreddits (FREE - no API key)"""
+    try:
+        print("💬 Fetching Reddit tech trends...")
+        
+        subreddits = [
+            'technology', 'artificial', 'ChatGPT', 'OpenAI', 
+            'dataisbeautiful', 'futurology', 'gadgets', 'productivity'
+        ]
+        trends = []
+        
+        for subreddit in subreddits:
+            try:
+                url = f'https://www.reddit.com/r/{subreddit}/hot.json?limit=20'
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                
+                print(f"   📱 Fetching r/{subreddit}...")
+                response = requests.get(url, headers=headers, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    posts_found = 0
+                    
+                    for post in data['data']['children'][:15]:
+                        title = post['data']['title']
+                        
+                        # STRICT filtering: Only accept informational/tutorial content
+                        good_phrases = [
+                            'how to', 'how i', 'guide to', 'tips for', 'method for',
+                            'update:', 'breaking:', 'new:', 'just released', 'announced',
+                            'discovered', 'study:', 'research:', 'found that',
+                            'hack:', 'technique', 'tutorial', 'explained', 'review:'
+                        ]
+                        
+                        # Reject questions and help requests
+                        bad_phrases = [
+                            '?', 'help', 'eli5', 'should i', 'why is',
+                            'can someone', 'does anyone', 'am i the only',
+                            'unpopular opinion', 'hot take'
+                        ]
+                        
+                        title_lower = title.lower()
+                        
+                        # Must have good phrase AND no bad phrases
+                        has_good = any(phrase in title_lower for phrase in good_phrases)
+                        has_bad = any(phrase in title_lower for phrase in bad_phrases)
+                        
+                        if has_good and not has_bad:
+                            trends.append(title)
+                            posts_found += 1
+                            print(f"      ✓ {title[:70]}...")
+                    
+                    print(f"      Found {posts_found} informational posts")
+                else:
+                    print(f"      ⚠️ Status {response.status_code}")
+                
+                time.sleep(2)  # Respectful rate limiting
+                
+            except Exception as e:
+                print(f"   ⚠️ Failed to fetch r/{subreddit}: {e}")
+                continue
+        
+        print(f"✅ Found {len(trends)} trending tech topics from Reddit")
+        return trends[:15]
+        
+    except Exception as e:
+        print(f"⚠️ Reddit scraping failed: {e}")
+        return []
+
+
 def get_real_trending_topics() -> List[str]:
-    """Combine multiple FREE sources for real trending topics"""
+    """Combine multiple FREE sources for real trending topics - ENHANCED"""
     
     print("\n" + "="*60)
     print("🌐 FETCHING REAL-TIME TRENDING TOPICS (FREE SOURCES)")
@@ -150,22 +282,26 @@ def get_real_trending_topics() -> List[str]:
     google_trends = get_google_trends()
     all_trends.extend(google_trends)
     
-    # Source 2: Tech News RSS
+    # Source 2: Tech News RSS (ENHANCED)
     tech_news = get_tech_news_rss()
     all_trends.extend(tech_news)
+    
+    # Source 3: Reddit Tech Communities (NEW)
+    reddit_trends = get_reddit_tech_trends()
+    all_trends.extend(reddit_trends)
     
     # Deduplicate and prioritize
     seen = set()
     unique_trends = []
     for trend in all_trends:
         trend_clean = trend.lower().strip()
-        if trend_clean not in seen and len(trend) > 10:  # Filter out too short
+        if trend_clean not in seen and len(trend) > 10:
             seen.add(trend_clean)
             unique_trends.append(trend)
     
     print(f"\n📊 Total unique trending topics found: {len(unique_trends)}")
     
-    return unique_trends[:20]  # Return top 20
+    return unique_trends[:25]  # Return top 25
 
 
 def filter_and_rank_trends(trends: List[str], user_query: str) -> List[Dict[str, str]]:
@@ -177,7 +313,6 @@ def filter_and_rank_trends(trends: List[str], user_query: str) -> List[Dict[str,
     
     print(f"\n🤖 Using Gemini to rank {len(trends)} real trends for viral potential...")
     
-    # Define the structure for the JSON output
     response_schema = {
         "type": "OBJECT",
         "properties": {
@@ -199,8 +334,8 @@ def filter_and_rank_trends(trends: List[str], user_query: str) -> List[Dict[str,
     
     prompt = f"""You are a viral content strategist. Here are REAL trending topics from today:
 
-REAL TRENDING TOPICS (from Google Trends & Tech News):
-{chr(10).join(f"{i+1}. {t}" for i, t in enumerate(trends[:20]))}
+REAL TRENDING TOPICS (from Google Trends, Tech RSS, Reddit):
+{chr(10).join(f"{i+1}. {t}" for i, t in enumerate(trends[:25]))}
 
 TASK: Select the TOP 5 topics that would make the MOST VIRAL YouTube Shorts.
 
@@ -210,6 +345,7 @@ SELECTION CRITERIA:
 ✅ Must be currently trending (these are all real trends from today)
 ✅ Must relate to: AI, Tech, Psychology, Money, Health, Productivity, Science, Innovation
 ✅ Must have "wow factor" - make viewers stop scrolling
+✅ Prefer specific tools, techniques, or discoveries over general news
 
 FOCUS AREAS: {user_query}
 
@@ -223,6 +359,11 @@ OUTPUT FORMAT (JSON ONLY):
     }}
   ]
 }}
+
+GOOD EXAMPLES:
+- "ChatGPT's Hidden Feature That Saves 2 Hours Daily"
+- "Scientists Discovered Why You Forget Names Instantly"
+- "This iPhone Setting Drains Your Battery 40% Faster"
 
 Select 5 topics, ranked by viral_score (highest first)."""
 
@@ -299,7 +440,6 @@ def get_fallback_ideas() -> List[Dict[str, str]]:
 
 
 if __name__ == "__main__":        
-    # Example usage:
     topic_focus = "AI brain hacks, cutting-edge technology, innovation, digital productivity, trending life enhancement tools, and life optimization tricks for Ultra Engaging Youtube Shorts"
     
     # Get real trending topics from free sources
@@ -331,7 +471,7 @@ if __name__ == "__main__":
             "full_data": trending_ideas,
             "generated_at": time.time(),
             "query": topic_focus,
-            "source": "google_trends + tech_rss + gemini_ranking"
+            "source": "google_trends + tech_rss + reddit + gemini_ranking"
         }
         
         trending_file = os.path.join(TMP, "trending.json")
@@ -339,6 +479,6 @@ if __name__ == "__main__":
             json.dump(trending_data, f, indent=2)
         
         print(f"\n💾 Saved trending data to: {trending_file}")
-        print(f"📊 Data sources: Google Trends + Tech News RSS (100% FREE)")
+        print(f"📊 Data sources: Google Trends + Tech RSS + Reddit (100% FREE)")
     else:
         print("\n❌ Could not retrieve any trending video ideas.")
