@@ -11,7 +11,7 @@ TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 os.makedirs(TMP, exist_ok=True)
 FULL_AUDIO_PATH = os.path.join(TMP, "voice.mp3")
 
-print("✅ Using Local Coqui TTS (offline)")
+print("✅ Using VCTK TTS model with speaker p226")
 
 def clean_text_for_tts(text):
     """
@@ -105,8 +105,7 @@ def clean_text_for_tts(text):
         r'\bUN\b': 'U N',
         r'\bEU\b': 'E U',
 
-
-                # Units
+        # Units
         r'\bGB\b': 'gigabytes',
         r'\bMB\b': 'megabytes',
         r'\bKB\b': 'kilobytes',
@@ -224,13 +223,14 @@ print(f"   Preview: {spoken[:100]}...")
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
 def generate_sectional_tts():
-    """Generates individual TTS files for precise timing and combines them."""
+    """Generates individual TTS files for precise timing and combines them using VCTK model."""
     section_paths = []
     sections = [("hook", hook)] + [(f"bullet_{i}", b) for i, b in enumerate(bullets)] + [("cta", cta)]
     
     try:
-        print("🔊 Initializing Coqui TTS for sectional generation...")
-        tts = TTS(model_name="tts_models/en/jenny/jenny", progress_bar=False)
+        print("🔊 Initializing VCTK TTS model with speaker p226...")
+        # Use VCTK model with speaker p226
+        tts = TTS(model_name="tts_models/en/vctk/vits", progress_bar=False)
 
         for name, text in sections:
             if not text.strip():
@@ -240,15 +240,16 @@ def generate_sectional_tts():
             out_path = os.path.join(TMP, f"{name}.mp3")
             print(f"🎧 Generating section: {name} (Text: {clean[:40]}...)")
             
-            tts.tts_to_file(text=clean, file_path=out_path)
+            # Generate TTS with VCTK speaker p226
+            tts.tts_to_file(text=clean, file_path=out_path, speaker="p226")
             
             if os.path.exists(out_path) and os.path.getsize(out_path) > 1024:
                 section_paths.append(out_path)
             else:
-                raise Exception(f"Coqui section generation failed for {name}")
+                raise Exception(f"VCTK section generation failed for {name}")
 
     except Exception as e:
-        print(f"⚠️ Sectional Coqui TTS failed: {e}")
+        print(f"⚠️ Sectional VCTK TTS failed: {e}")
         print("🔄 Falling back to gTTS with section splitting...")
         
         # ✅ FIX: Generate full audio, then split it into sections
@@ -331,7 +332,12 @@ try:
         "actual_duration": actual_duration,
         "file_size_kb": file_size,
         # Determine final provider
-        "tts_provider": "coqui_sectional" if len(section_paths) > 1 else "gtts_fallback_full",
+        "tts_provider": "vctk_sectional" if len(section_paths) > 1 else "gtts_fallback_full",
+        "model_info": {
+            "model": "tts_models/en/vctk/vits",
+            "speaker": "p226",
+            "description": "VCTK multi-speaker English TTS model"
+        }
     }
 
     with open(os.path.join(TMP, "audio_metadata.json"), "w") as f:
