@@ -11,7 +11,7 @@ TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 os.makedirs(TMP, exist_ok=True)
 FULL_AUDIO_PATH = os.path.join(TMP, "voice.mp3")
 
-print("✅ Using VCTK TTS model with speaker p225")
+print("✅ Using VCTK TTS model with speaker p294")
 
 def clean_text_for_tts(text):
     """
@@ -228,8 +228,8 @@ def generate_sectional_tts():
     sections = [("hook", hook)] + [(f"bullet_{i}", b) for i, b in enumerate(bullets)] + [("cta", cta)]
     
     try:
-        print("🔊 Initializing VCTK TTS model with speaker p225...")
-        # Use VCTK model with speaker p225
+        print("🔊 Initializing VCTK TTS model with speaker p294...")
+        # Use VCTK model with speaker p294
         tts = TTS(model_name="tts_models/en/vctk/vits", progress_bar=False)
 
         for name, text in sections:
@@ -240,8 +240,8 @@ def generate_sectional_tts():
             out_path = os.path.join(TMP, f"{name}.mp3")
             print(f"🎧 Generating section: {name} (Text: {clean[:40]}...)")
             
-            # Generate TTS with VCTK speaker p225
-            tts.tts_to_file(text=clean, file_path=out_path, speaker="p225")
+            # Generate TTS with VCTK speaker p294
+            tts.tts_to_file(text=clean, file_path=out_path, speaker="p294")
             
             if os.path.exists(out_path) and os.path.getsize(out_path) > 1024:
                 section_paths.append(out_path)
@@ -335,7 +335,7 @@ try:
         "tts_provider": "vctk_sectional" if len(section_paths) > 1 else "gtts_fallback_full",
         "model_info": {
             "model": "tts_models/en/vctk/vits",
-            "speaker": "p225",
+            "speaker": "p294",
             "description": "VCTK multi-speaker English TTS model"
         }
     }
