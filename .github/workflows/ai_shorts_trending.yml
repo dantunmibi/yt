@@ -273,9 +273,50 @@ jobs:
           FORCE_ALL: ${{ github.event.inputs.force_all }}
         run: python .github/scripts/upload_multiplatform.py
 
-      # Add this step after "Upload to multiple platforms"
+# Add this after the "Upload to multiple platforms" step in your workflow
+
+      # ===== MAKE.COM INTEGRATION (FIXED TO USE RENAMED VIDEO) =====
       
-      # Add this step after "Upload to multiple platforms"
+      - name: Find actual video file
+        if: success() && steps.schedule_check.outputs.should_post == 'true'
+        id: find_video
+        run: |
+          # Find the actual video file (YouTube may have renamed it)
+          if [ -f tmp/short.mp4 ]; then
+            VIDEO_PATH="tmp/short.mp4"
+            echo "✅ Found original video: short.mp4"
+          else
+            # Look for renamed video files
+            RENAMED_VIDEO=$(find tmp -name "*.mp4" -type f | head -n 1)
+            if [ -n "$RENAMED_VIDEO" ]; then
+              VIDEO_PATH="$RENAMED_VIDEO"
+              echo "✅ Found renamed video: $(basename $RENAMED_VIDEO)"
+            else
+              echo "❌ No video file found!"
+              exit 1
+            fi
+          fi
+          
+          # Get absolute path
+          VIDEO_PATH=$(realpath "$VIDEO_PATH")
+          
+          # Output for next steps
+          echo "video_path=$VIDEO_PATH" >> $GITHUB_OUTPUT
+          echo "video_name=$(basename $VIDEO_PATH)" >> $GITHUB_OUTPUT
+          
+          # Verify file exists and has size
+          if [ ! -f "$VIDEO_PATH" ]; then
+            echo "❌ Video file doesn't exist: $VIDEO_PATH"
+            exit 1
+          fi
+          
+          VIDEO_SIZE=$(stat -c%s "$VIDEO_PATH" 2>/dev/null || stat -f%z "$VIDEO_PATH")
+          if [ "$VIDEO_SIZE" -lt 100000 ]; then
+            echo "❌ Video file too small: $VIDEO_SIZE bytes"
+            exit 1
+          fi
+          
+          echo "✅ Video validated: $VIDEO_PATH ($VIDEO_SIZE bytes)"
       
       - name: Prepare Make.com payload
         if: success() && steps.schedule_check.outputs.should_post == 'true'
@@ -286,18 +327,34 @@ jobs:
           DESCRIPTION=$(jq -r '.description' tmp/script.json)
           HASHTAGS=$(jq -r '.hashtags | join(" ")' tmp/script.json)
           
-          # Get video info
-          VIDEO_SIZE=$(stat -f%z tmp/short.mp4 2>/dev/null || stat -c%s tmp/short.mp4)
+          # Use the actual video path from previous step
+          VIDEO_PATH="${{ steps.find_video.outputs.video_path }}"
+          VIDEO_SIZE=$(stat -c%s "$VIDEO_PATH" 2>/dev/null || stat -f%z "$VIDEO_PATH")
           
-          # Create payload
+          # Get multiplatform results if available
+          YOUTUBE_URL=""
+          FACEBOOK_URL=""
+          
+          if [ -f tmp/multiplatform_log.json ]; then
+            # Extract latest upload URLs
+            YOUTUBE_URL=$(jq -r '.[-1].results[] | select(.platform=="youtube") | .url // ""' tmp/multiplatform_log.json)
+            FACEBOOK_URL=$(jq -r '.[-1].results[] | select(.platform=="facebook") | .url // ""' tmp/multiplatform_log.json)
+          fi
+          
+          # Create payload with all info
           cat > tmp/makecom_payload.json <<EOF
           {
             "title": "$TITLE",
             "description": "$DESCRIPTION",
             "hashtags": "$HASHTAGS",
+            "video_name": "$(basename $VIDEO_PATH)",
             "video_size_mb": $(echo "scale=2; $VIDEO_SIZE/1024/1024" | bc),
             "workflow_run": "${{ github.run_number }}",
-            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platform_urls": {
+              "youtube": "$YOUTUBE_URL",
+              "facebook": "$FACEBOOK_URL"
+            }
           }
           EOF
           
@@ -309,6 +366,15 @@ jobs:
         id: upload_temp
         run: |
           echo "📤 Uploading video to Cloudinary for Make.com access..."
+          
+          # Use the actual video path
+          VIDEO_PATH="${{ steps.find_video.outputs.video_path }}"
+          
+          echo "Using video: $VIDEO_PATH"
+          
+          # Pass video path as environment variable to Python script
+          export VIDEO_TO_UPLOAD="$VIDEO_PATH"
+          
           python .github/scripts/upload_to_cloudinary.py
           
           # Read the URL from the output file
@@ -321,6 +387,7 @@ jobs:
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          VIDEO_TO_UPLOAD: ${{ steps.find_video.outputs.video_path }}
 
       - name: Send to Make.com webhook
         if: success() && steps.schedule_check.outputs.should_post == 'true'
@@ -328,17 +395,28 @@ jobs:
           # Read metadata
           PAYLOAD=$(cat tmp/makecom_payload.json)
           VIDEO_URL="${{ steps.upload_temp.outputs.video_url }}"
+          VIDEO_NAME="${{ steps.find_video.outputs.video_name }}"
           
-          # Send to Make.com
+          # Send to Make.com with enhanced payload
           curl -X POST "${{ secrets.MAKECOM_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "{
               \"video_url\": \"$VIDEO_URL\",
+              \"video_name\": \"$VIDEO_NAME\",
               \"metadata\": $PAYLOAD,
-              \"artifact_url\": \"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+              \"artifact_url\": \"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\",
+              \"github\": {
+                \"run_id\": \"${{ github.run_id }}\",
+                \"run_number\": \"${{ github.run_number }}\",
+                \"repository\": \"${{ github.repository }}\",
+                \"workflow\": \"${{ github.workflow }}\",
+                \"actor\": \"${{ github.actor }}\"
+              }
             }"
           
           echo "✅ Webhook sent to Make.com"
+          echo "   Video: $VIDEO_NAME"
+          echo "   URL: $VIDEO_URL"
 
       # ===== YOUTUBE-SPECIFIC POST-PROCESSING =====
       - name: Organize YouTube playlists
