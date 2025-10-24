@@ -15,7 +15,7 @@ print("✅ Using Local Coqui TTS (offline)")
 def clean_text_for_tts(text):
     """
     Enhanced text preprocessing for natural TTS pronunciation
-    FIXED: Removes all sources of unwanted pauses
+    FIXED: Removes unwanted pauses while preserving sentence structure
     """
     
     # Step 1: Protect common abbreviations/brand names
@@ -37,12 +37,13 @@ def clean_text_for_tts(text):
     for pattern, replacement in protected_patterns.items():
         text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
     
-    # Step 2: Replace ellipsis with single space (no pause marker)
+    # Step 2: Replace ellipsis with single space (no pause)
     text = text.replace('...', ' ')
     
-    # Step 3: CRITICAL FIX - Remove ALL periods except true sentence endings
-    # Only keep period if followed by space + capital OR at end of text
-    text = re.sub(r'\.(?!\s+[A-Z]|\s*$)', '', text)
+    # Step 3: CRITICAL FIX - Remove ONLY mid-sentence periods
+    # Keep periods that end sentences (before space + capital or at end)
+    # This prevents "Instagram Stories." from becoming "Instagram Stories [PAUSE]"
+    text = re.sub(r'\.(?=\s+[a-z])', '', text)  # Remove period before lowercase
     
     # Step 4: Handle special characters
     text = text.replace('%', ' percent')
@@ -141,19 +142,14 @@ def clean_text_for_tts(text):
         "]+", flags=re.UNICODE)
     text = emoji_pattern.sub('', text)
     
-    # Step 8: Clean up extra whitespace (but preserve single spaces)
+    # Step 8: Clean up extra whitespace
     text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'\s([,!?])', r'\1', text)  # Remove space before punctuation
+    text = re.sub(r'\s([,!?])', r'\1', text)
     
-    # Step 9: CRITICAL FIX - Strip all trailing periods/newlines
-    # Only add period at very end if no punctuation exists
+    # Step 9: Ensure proper sentence ending
     text = text.strip()
-    if text and text[-1] not in '.!?,':
+    if text and text[-1] not in '.!?':
         text = text + '.'
-    
-    # Step 10: Final cleanup - remove any remaining newlines
-    text = text.replace('\n', ' ').replace('\r', ' ')
-    text = re.sub(r'\s+', ' ', text).strip()
     
     return text
 
@@ -209,72 +205,74 @@ hook = data.get("hook", "")
 bullets = data.get("bullets", [])
 cta = data.get("cta", "")
 
-# CRITICAL FIX: Join sections with COMMA instead of period
-# This prevents pauses between sections
-sections_text = []
+# CRITICAL: Keep original structure - join with period for proper pauses
+spoken_parts = []
 if hook:
-    sections_text.append(hook.strip())
+    spoken_parts.append(hook.strip())
 for bullet in bullets:
     if bullet and bullet.strip():
-        sections_text.append(bullet.strip())
+        spoken_parts.append(bullet.strip())
 if cta:
-    sections_text.append(cta.strip())
+    spoken_parts.append(cta.strip())
 
-# Join with comma + space for natural flow
-spoken = ", ".join(sections_text)
+# Join with period + space for natural section breaks
+spoken = ". ".join(spoken_parts)
 
-# Clean the ENTIRE text at once
+# Clean the text (removes unwanted pauses but keeps structure)
 spoken = clean_text_for_tts(spoken)
 
 print(f"🎙️ Generating voice for text ({len(spoken)} chars)")
 print(f"   Preview: {spoken[:100]}...")
-print(f"   Sections: {len(sections_text)}")
+print(f"   Sections: {len(spoken_parts)}")
 
 # --- Sectional TTS Generation ---
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
 def generate_sectional_tts():
-    """Generate TTS with proper section handling"""
+    """Generate individual TTS files for precise timing"""
     section_paths = []
     
-    # Split the cleaned text back into sections (by commas we added)
-    clean_sections = [s.strip() for s in spoken.split(', ')]
-    
-    # Map to original section names
-    section_mapping = []
-    idx = 0
+    # Clean each section individually for better pronunciation
+    sections = []
     if hook:
-        section_mapping.append(("hook", clean_sections[idx] if idx < len(clean_sections) else ""))
-        idx += 1
+        sections.append(("hook", clean_text_for_tts(hook)))
     for i, bullet in enumerate(bullets):
         if bullet and bullet.strip():
-            section_mapping.append((f"bullet_{i}", clean_sections[idx] if idx < len(clean_sections) else ""))
-            idx += 1
+            sections.append((f"bullet_{i}", clean_text_for_tts(bullet)))
     if cta:
-        section_mapping.append(("cta", clean_sections[idx] if idx < len(clean_sections) else ""))
+        sections.append(("cta", clean_text_for_tts(cta)))
     
     try:
         print("🔊 Initializing Coqui TTS for sectional generation...")
         tts = TTS(model_name="tts_models/en/jenny/jenny", progress_bar=False)
 
-        for name, text in section_mapping:
+        for name, text in sections:
             if not text.strip():
                 continue
             
             out_path = os.path.join(TMP, f"{name}.mp3")
-            print(f"🎧 Generating section: {name} (Text: {text[:40]}...)")
+            print(f"🎧 Generating section: {name}")
+            print(f"   Text: {text[:60]}...")
             
-            # Generate TTS directly (text is already cleaned)
+            # Generate TTS
             tts.tts_to_file(text=text, file_path=out_path)
             
             if os.path.exists(out_path) and os.path.getsize(out_path) > 1024:
                 section_paths.append(out_path)
+                
+                # Get actual duration
+                try:
+                    audio = AudioSegment.from_file(out_path)
+                    duration = len(audio) / 1000.0
+                    print(f"   ✅ Duration: {duration:.2f}s")
+                except:
+                    print(f"   ✅ Generated successfully")
             else:
                 raise Exception(f"Coqui section generation failed for {name}")
 
     except Exception as e:
         print(f"⚠️ Sectional Coqui TTS failed: {e}")
-        print("🔄 Falling back to gTTS with full audio...")
+        print("🔄 Falling back to gTTS...")
         
         # Generate full audio with gTTS
         fallback_path = generate_tts_fallback(spoken, FULL_AUDIO_PATH)
@@ -287,17 +285,17 @@ def generate_sectional_tts():
         full_audio = AudioSegment.from_file(fallback_path)
         total_duration_ms = len(full_audio)
         
-        total_words = sum(len(text.split()) for _, text in section_mapping if text.strip())
+        total_words = sum(len(text.split()) for _, text in sections)
         
         current_pos = 0
         section_paths = []
         
-        for name, text in section_mapping:
+        for name, text in sections:
             if not text.strip():
                 continue
                 
             words = len(text.split())
-            proportion = words / total_words if total_words > 0 else 1.0 / len(section_mapping)
+            proportion = words / total_words if total_words > 0 else 1.0 / len(sections)
             section_duration_ms = int(total_duration_ms * proportion)
             
             # Extract section
@@ -313,18 +311,19 @@ def generate_sectional_tts():
         print("✅ Sections created from fallback audio")
         return section_paths
 
-    # Combine sections with MINIMAL pause (50ms instead of 150ms)
+    # Combine sections with appropriate pauses (150ms for natural breaks)
     combined_audio = AudioSegment.silent(duration=0)
     for i, path in enumerate(section_paths):
         part = AudioSegment.from_file(path)
         combined_audio += part
         
-        # Only add tiny pause between sections, not at the end
+        # Add pause between sections (not at the end)
         if i < len(section_paths) - 1:
-            combined_audio += AudioSegment.silent(duration=50)  # Reduced from 150ms
+            combined_audio += AudioSegment.silent(duration=150)
         
     combined_audio.export(FULL_AUDIO_PATH, format="mp3")
     print(f"✅ Combined TTS saved to {FULL_AUDIO_PATH}")
+    print(f"   Total duration: {len(combined_audio)/1000:.2f}s")
     
     return section_paths
 
@@ -340,7 +339,7 @@ try:
     actual_duration = audio_check.duration_seconds
     
     file_size = os.path.getsize(final_audio_path) / 1024
-    print(f"🎵 Actual audio duration: {actual_duration:.2f} seconds")
+    print(f"🎵 Final audio duration: {actual_duration:.2f} seconds")
 
     if actual_duration > 120:
         print(f"⚠️ Audio too long ({actual_duration:.1f}s), forcing gTTS fallback...")
@@ -353,7 +352,11 @@ try:
     words = len(spoken.split())
     estimated_duration = (words / 150) * 60
 
-    print(f"📊 Text stats: {words} words, estimated: {estimated_duration:.1f}s, actual: {actual_duration:.1f}s")
+    print(f"📊 Text stats:")
+    print(f"   Words: {words}")
+    print(f"   Estimated: {estimated_duration:.1f}s")
+    print(f"   Actual: {actual_duration:.1f}s")
+    print(f"   File size: {file_size:.1f} KB")
 
     metadata = {
         "text": spoken,
@@ -368,7 +371,7 @@ try:
     with open(os.path.join(TMP, "audio_metadata.json"), "w") as f:
         json.dump(metadata, f, indent=2)
 
-    print("✅ TTS generation complete - No unwanted pauses!")
+    print("✅ TTS generation complete!")
 
 except Exception as e:
     print(f"❌ TTS generation failed: {e}")
