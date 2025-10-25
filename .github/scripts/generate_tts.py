@@ -61,7 +61,6 @@ def clean_text_for_tts(text):
     # Step 6: Handle common acronyms with NATURAL spellings
     acronym_replacements = {
         # AI/ML terms
-        r'\bAI\b': 'A I',
         r'\bML\b': 'M L',
         r'\bGPT\b': 'G P T',
         r'\bLLM\b': 'L L M',
