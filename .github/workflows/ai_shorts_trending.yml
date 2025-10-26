@@ -18,26 +18,50 @@ on:
         type: boolean
         default: false
   
-  # Optimal posting times (WAT/UTC+1 timezone)
-  # These cron times are in UTC, so subtract 1 hour from WAT
+  # Optimal posting times based on research (WAT/UTC+1 timezone)
+  # Cron times are in UTC, so subtract 1 hour from WAT times
   schedule:
-    # Monday 2 PM WAT = 1 PM UTC (High priority - Productivity)
+    # ===== MONDAY =====
+    # 2:00 PM WAT = 1:00 PM UTC (High priority - Productivity)
     - cron: '0 13 * * 1'
+    # 7:00 PM WAT = 6:00 PM UTC (Medium - Trending content)
+    - cron: '0 18 * * 1'
     
-    # Tuesday 1 PM WAT = 12 PM UTC (HIGHEST - AI Tools) ⭐⭐⭐
+    # ===== TUESDAY (BEST DAY) ===== ⭐⭐⭐
+    # 1:00 PM WAT = 12:00 PM UTC (HIGHEST - AI Tools)
     - cron: '0 12 * * 2'
+    # 2:00 PM WAT = 1:00 PM UTC (High - Tech News)
+    - cron: '0 13 * * 2'
     
-    # Wednesday 1 PM WAT = 12 PM UTC (High - Brain Hacks)
+    # ===== WEDNESDAY =====
+    # 1:00 PM WAT = 12:00 PM UTC (High - Brain Hacks)
     - cron: '0 12 * * 3'
-    
-    # Wednesday 4 PM WAT = 3 PM UTC (Medium - Productivity)
+    # 4:00 PM WAT = 3:00 PM UTC (Medium - Productivity)
     - cron: '0 15 * * 3'
     
-    # Thursday 7 PM WAT = 6 PM UTC (High - Surprise content)
+    # ===== THURSDAY =====
+    # 7:00 PM WAT = 6:00 PM UTC (High - Surprise content)
     - cron: '0 18 * * 4'
+    # 8:00 PM WAT = 7:00 PM UTC (Medium - Entertainment)
+    - cron: '0 19 * * 4'
     
-    # Friday 5 PM WAT = 4 PM UTC (Medium - Entertainment)
+    # ===== FRIDAY =====
+    # 5:00 PM WAT = 4:00 PM UTC (Medium - Lifestyle)
     - cron: '0 16 * * 5'
+    # 7:00 PM WAT = 6:00 PM UTC (Medium - Entertainment)
+    - cron: '0 18 * * 5'
+    
+    # ===== SATURDAY =====
+    # 2:00 PM WAT = 1:00 PM UTC (Low - Lifestyle)
+    - cron: '0 13 * * 6'
+    # 8:00 PM WAT = 7:00 PM UTC (Low - Motivation)
+    - cron: '0 19 * * 6'
+    
+    # ===== SUNDAY =====
+    # 8:00 PM WAT = 7:00 PM UTC (Low - Motivation)
+    - cron: '0 19 * * 0'
+    # 9:00 PM WAT = 8:00 PM UTC (Low - Mindset)
+    - cron: '0 20 * * 0'
 
 jobs:
   build_and_upload:
@@ -87,19 +111,44 @@ jobs:
           tz = pytz.timezone('Africa/Lagos')
           current = datetime.now(tz)
           hour = current.hour
+          minute = current.minute
           weekday = current.weekday()
           
-          # Define optimal windows (with 30 min tolerance)
-          optimal_times = {
-              0: [14],  # Monday 2 PM
-              1: [13, 14],  # Tuesday 1-2 PM (BEST)
-              2: [13, 16],  # Wednesday 1 PM, 4 PM
-              3: [19, 20],  # Thursday 7-8 PM
-              4: [17, 19],  # Friday 5 PM, 7 PM
+          # Complete optimal schedule with content types
+          optimal_schedule = {
+              0: [  # Monday
+                  {'hour': 14, 'priority': 'high', 'type': 'productivity'},
+                  {'hour': 19, 'priority': 'medium', 'type': 'trending'}
+              ],
+              1: [  # Tuesday (BEST DAY)
+                  {'hour': 13, 'priority': 'highest', 'type': 'ai_tools'},
+                  {'hour': 14, 'priority': 'high', 'type': 'tech_news'}
+              ],
+              2: [  # Wednesday
+                  {'hour': 13, 'priority': 'high', 'type': 'brain_hack'},
+                  {'hour': 16, 'priority': 'medium', 'type': 'productivity'}
+              ],
+              3: [  # Thursday
+                  {'hour': 19, 'priority': 'high', 'type': 'surprise'},
+                  {'hour': 20, 'priority': 'medium', 'type': 'entertainment'}
+              ],
+              4: [  # Friday
+                  {'hour': 17, 'priority': 'medium', 'type': 'lifestyle'},
+                  {'hour': 19, 'priority': 'medium', 'type': 'entertainment'}
+              ],
+              5: [  # Saturday
+                  {'hour': 14, 'priority': 'low', 'type': 'lifestyle'},
+                  {'hour': 20, 'priority': 'low', 'type': 'motivation'}
+              ],
+              6: [  # Sunday
+                  {'hour': 20, 'priority': 'low', 'type': 'motivation'},
+                  {'hour': 21, 'priority': 'low', 'type': 'mindset'}
+              ]
           }
           
           should_post = False
           priority = 'medium'
+          content_type = 'general'
           
           ignore_schedule = '${{ github.event.inputs.ignore_schedule }}' == 'true'
           
@@ -107,22 +156,27 @@ jobs:
               print('⚠️ Schedule check BYPASSED by user input')
               should_post = True
               priority = 'manual'
-          elif weekday in optimal_times:
-              if hour in optimal_times[weekday]:
-                  should_post = True
-                  priority = 'highest' if (weekday == 1 and hour == 13) else 'high'
-                  print(f'✅ Within optimal window: {current.strftime(\"%A %I:%M %p WAT\")}')
-              else:
+              content_type = 'manual'
+          elif weekday in optimal_schedule:
+              # Check with 30-minute tolerance
+              for slot in optimal_schedule[weekday]:
+                  time_diff = abs(hour * 60 + minute - slot['hour'] * 60)
+                  if time_diff <= 30:
+                      should_post = True
+                      priority = slot['priority']
+                      content_type = slot['type']
+                      print(f'✅ Within optimal window: {current.strftime(\"%A %I:%M %p WAT\")}')
+                      print(f'   Content type: {content_type}, Priority: {priority}')
+                      break
+              
+              if not should_post:
                   print(f'⏳ Not optimal time. Current: {current.strftime(\"%A %I:%M %p WAT\")}')
-          else:
-              print(f'⏸️ Weekend - lower priority time')
-              should_post = weekday >= 5  # Allow weekend posts
-              priority = 'low'
           
           # Write to GITHUB_OUTPUT
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write(f'should_post={str(should_post).lower()}\n')
               f.write(f'priority={priority}\n')
+              f.write(f'content_type={content_type}\n')
               f.write(f'current_time={current.strftime(\"%Y-%m-%d %H:%M WAT\")}\n')
           "
 
@@ -481,10 +535,34 @@ jobs:
           echo "**Time:** ${{ steps.schedule_check.outputs.current_time }}" >> $GITHUB_STEP_SUMMARY
           echo "**Posted:** ${{ steps.schedule_check.outputs.should_post }}" >> $GITHUB_STEP_SUMMARY
           echo "**Priority:** ${{ steps.schedule_check.outputs.priority }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Content Type:** ${{ steps.schedule_check.outputs.content_type }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📅 Next Optimal Times (WAT)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Monday:** 2:00 PM (Productivity)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tuesday:** 1:00 PM ⭐⭐⭐ (AI Tools - BEST)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Wednesday:** 1:00 PM or 4:00 PM (Brain Hacks)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Thursday:** 7:00 PM (Surprise Content)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Friday:** 5:00 PM (Entertainment)" >> $GITHUB_STEP_SUMMARY
+          echo "### 📅 Complete Optimal Schedule (WAT)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Monday" >> $GITHUB_STEP_SUMMARY
+          echo "- ⭐⭐ 2:00 PM - Productivity tips" >> $GITHUB_STEP_SUMMARY
+          echo "- ⭐ 7:00 PM - Trending topics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Tuesday ⭐⭐⭐ (BEST DAY)" >> $GITHUB_STEP_SUMMARY
+          echo "- ⭐⭐⭐ 1:00 PM - AI Tools & Features" >> $GITHUB_STEP_SUMMARY
+          echo "- ⭐⭐ 2:00 PM - Tech News" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Wednesday" >> $GITHUB_STEP_SUMMARY
+          echo "- ⭐⭐ 1:00 PM - Brain Hacks" >> $GITHUB_STEP_SUMMARY
+          echo "- ⭐ 4:00 PM - Productivity" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Thursday" >> $GITHUB_STEP_SUMMARY
+          echo "- ⭐⭐ 7:00 PM - Surprise Content" >> $GITHUB_STEP_SUMMARY
+          echo "- ⭐ 8:00 PM - Entertainment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Friday" >> $GITHUB_STEP_SUMMARY
+          echo "- ⭐ 5:00 PM - Lifestyle" >> $GITHUB_STEP_SUMMARY
+          echo "- ⭐ 7:00 PM - Entertainment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Saturday" >> $GITHUB_STEP_SUMMARY
+          echo "- ○ 2:00 PM - Lifestyle" >> $GITHUB_STEP_SUMMARY
+          echo "- ○ 8:00 PM - Motivation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Sunday" >> $GITHUB_STEP_SUMMARY
+          echo "- ○ 8:00 PM - Motivation" >> $GITHUB_STEP_SUMMARY
+          echo "- ○ 9:00 PM - Mindset" >> $GITHUB_STEP_SUMMARY
