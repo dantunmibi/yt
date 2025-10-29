@@ -1,0 +1,36 @@
+{
+  "schedule": {
+    "timezone": "Africa/Lagos",
+    "description": "Optimal posting times for AI Shorts, all in WAT (UTC+1).",
+    "weekly_schedule": {
+      "Monday": [
+        { "time": "14:00", "priority": "high", "type": "productivity" },
+        { "time": "19:00", "priority": "medium", "type": "trending" }
+      ],
+      "Tuesday": [
+        { "time": "13:00", "priority": "highest", "type": "ai_tools" },
+        { "time": "14:00", "priority": "high", "type": "tech_news" }
+      ],
+      "Wednesday": [
+        { "time": "13:00", "priority": "high", "type": "brain_hack" },
+        { "time": "16:00", "priority": "medium", "type": "productivity" }
+      ],
+      "Thursday": [
+        { "time": "19:00", "priority": "high", "type": "surprise" },
+        { "time": "20:00", "priority": "medium", "type": "entertainment" }
+      ],
+      "Friday": [
+        { "time": "17:00", "priority": "medium", "type": "lifestyle" },
+        { "time": "19:00", "priority": "medium", "type": "entertainment" }
+      ],
+      "Saturday": [
+        { "time": "14:00", "priority": "low", "type": "lifestyle" },
+        { "time": "20:00", "priority": "low", "type": "motivation" }
+      ],
+      "Sunday": [
+        { "time": "20:00", "priority": "low", "type": "motivation" },
+        { "time": "21:00", "priority": "low", "type": "mindset" }
+      ]
+    }
+  }
+}

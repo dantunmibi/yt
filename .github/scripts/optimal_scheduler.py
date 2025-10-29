@@ -1,46 +1,37 @@
-# .github/scripts/optimal_scheduler.py
 import os
 import json
 from datetime import datetime, timedelta
 import pytz
 
-TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
+# --- START OF CHANGES ---
 
-# Your timezone (Lagos, Nigeria)
-LOCAL_TZ = pytz.timezone('Africa/Lagos')  # WAT (UTC+1)
+def load_schedule():
+    """Loads the schedule configuration from a JSON file."""
+    try:
+        with open('config/posting_schedule.json', 'r') as f:
+            config = json.load(f)['schedule']
+            return {
+                "tz": pytz.timezone(config.get('timezone', 'UTC')),
+                "schedule": config['weekly_schedule']
+            }
+    except (FileNotFoundError, KeyError) as e:
+        print(f"❌ CRITICAL: Could not load or parse 'config/posting_schedule.json'. Error: {e}")
+        return None
 
-# Optimal posting schedule based on research
-OPTIMAL_SCHEDULE = {
-    0: [  # Monday
-        {"time": "14:00", "priority": "high", "content_type": "productivity"},
-        {"time": "19:00", "priority": "medium", "content_type": "trending"}
-    ],
-    1: [  # Tuesday (BEST DAY)
-        {"time": "13:00", "priority": "highest", "content_type": "ai_tools"},
-        {"time": "14:00", "priority": "high", "content_type": "tech_news"}
-    ],
-    2: [  # Wednesday
-        {"time": "13:00", "priority": "high", "content_type": "brain_hack"},
-        {"time": "16:00", "priority": "medium", "content_type": "productivity"}
-    ],
-    3: [  # Thursday
-        {"time": "19:00", "priority": "high", "content_type": "surprise"},
-        {"time": "20:00", "priority": "medium", "content_type": "entertainment"}
-    ],
-    4: [  # Friday
-        {"time": "17:00", "priority": "medium", "content_type": "lifestyle"},
-        {"time": "19:00", "priority": "medium", "content_type": "entertainment"}
-    ],
-    5: [  # Saturday
-        {"time": "14:00", "priority": "low", "content_type": "lifestyle"},
-        {"time": "20:00", "priority": "low", "content_type": "motivation"}
-    ],
-    6: [  # Sunday
-        {"time": "20:00", "priority": "low", "content_type": "motivation"},
-        {"time": "21:00", "priority": "low", "content_type": "mindset"}
-    ]
-}
+# Load configuration globally
+config_data = load_schedule()
+if config_data:
+    LOCAL_TZ = config_data['tz']
+    OPTIMAL_SCHEDULE = config_data['schedule']
+else:
+    # Fallback if config fails to load
+    LOCAL_TZ = pytz.timezone('UTC')
+    OPTIMAL_SCHEDULE = {}
 
+# --- END OF CHANGES ---
+
+# (The rest of your script: CONTENT_RECOMMENDATIONS, get_next_optimal_time, etc., remains exactly the same)
+# ... your existing functions from here down ...
 # Content type recommendations
 CONTENT_RECOMMENDATIONS = {
     "ai_tools": "Latest AI tools, ChatGPT features, new tech releases",

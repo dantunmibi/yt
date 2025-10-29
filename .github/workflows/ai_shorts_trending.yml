@@ -101,89 +101,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytz
 
-      - name: Check optimal posting time
+      - name: 🎯 Check optimal posting time
         id: schedule_check
-        run: |
-          python -c "
-          import os
-          from datetime import datetime
-          import pytz
-          
-          # Lagos timezone
-          tz = pytz.timezone('Africa/Lagos')
-          current = datetime.now(tz)
-          hour = current.hour
-          minute = current.minute
-          weekday = current.weekday()
-          
-          # Complete optimal schedule with content types
-          optimal_schedule = {
-              0: [  # Monday
-                  {'hour': 14, 'priority': 'high', 'type': 'productivity'},
-                  {'hour': 19, 'priority': 'medium', 'type': 'trending'}
-              ],
-              1: [  # Tuesday (BEST DAY)
-                  {'hour': 13, 'priority': 'highest', 'type': 'ai_tools'},
-                  {'hour': 14, 'priority': 'high', 'type': 'tech_news'}
-              ],
-              2: [  # Wednesday
-                  {'hour': 13, 'priority': 'high', 'type': 'brain_hack'},
-                  {'hour': 16, 'priority': 'medium', 'type': 'productivity'}
-              ],
-              3: [  # Thursday
-                  {'hour': 19, 'priority': 'high', 'type': 'surprise'},
-                  {'hour': 20, 'priority': 'medium', 'type': 'entertainment'}
-              ],
-              4: [  # Friday
-                  {'hour': 17, 'priority': 'medium', 'type': 'lifestyle'},
-                  {'hour': 19, 'priority': 'medium', 'type': 'entertainment'}
-              ],
-              5: [  # Saturday
-                  {'hour': 14, 'priority': 'low', 'type': 'lifestyle'},
-                  {'hour': 20, 'priority': 'low', 'type': 'motivation'}
-              ],
-              6: [  # Sunday
-                  {'hour': 20, 'priority': 'low', 'type': 'motivation'},
-                  {'hour': 21, 'priority': 'low', 'type': 'mindset'}
-              ]
-          }
-          
-          should_post = False
-          priority = 'medium'
-          content_type = 'general'
-          
-          ignore_schedule = '${{ github.event.inputs.ignore_schedule }}' == 'true'
-          is_scheduled_run = '${{ github.event_name }}' == 'schedule'
-          
-          if ignore_schedule:
-              print('⚠️ Schedule check BYPASSED by user input')
-              should_post = True
-              priority = 'manual'
-              content_type = 'manual'
-          # For a scheduled run, we can assume it's the right time and just find the matching slot
-          elif is_scheduled_run and weekday in optimal_schedule:
-              # Check with a generous 30-minute tolerance to account for any slight runner delays
-              for slot in optimal_schedule[weekday]:
-                  time_diff_minutes = abs(hour * 60 + minute - slot['hour'] * 60)
-                  if time_diff_minutes <= 30:
-                      should_post = True
-                      priority = slot['priority']
-                      content_type = slot['type']
-                      print(f'✅ Scheduled run confirmed. Time is {current.strftime(\"%A %I:%M %p WAT\")}')
-                      print(f'   Content type: {content_type}, Priority: {priority}')
-                      break
-              if not should_post:
-                  print(f'🚨 Warning: A scheduled run was triggered, but no matching time slot was found within tolerance. Defaulting to not post.')
-          elif not is_scheduled_run:
-              print('ℹ️ This is a manual run without the ignore_schedule flag. No action will be taken unless it happens to be an optimal time.')
-          
-          # Write to GITHUB_OUTPUT
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f'should_post={str(should_post).lower()}\n')
-              f.write(f'priority={priority}\n')
-              f.write(f'content_type={content_type}\n')
-              f.write(f'current_time={current.strftime(\"%Y-%m-%d %H:%M WAT\")}\n')
-          "
+        env:
+          IGNORE_SCHEDULE: ${{ github.event.inputs.ignore_schedule }}
+        run: python .github/scripts/optimal_scheduler.py
 
       - name: Display scheduling decision
         run: |
