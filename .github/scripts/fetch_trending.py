@@ -63,19 +63,20 @@ def get_google_trends() -> List[str]:
             
             # Try daily trends
             try:
-                trending = pytrends.trending_searches(pn='united_states')
-                all_trends = trending[0].head(20).tolist()
-                
+                trending = pytrends.today_searches(pn='US')
+                all_trends = trending.head(20).tolist()  # ✅ remove [0]
+
                 for trend in all_trends:
                     trend_lower = trend.lower()
                     if any(keyword in trend_lower for keyword in tech_keywords):
                         relevant_trends.append(trend)
                         print(f"   ✓ Found daily trend: {trend}")
-                
+
                 print(f"✅ Found {len(relevant_trends)} tech-related daily trends")
-                
+
             except Exception as e:
                 print(f"   ⚠️ Daily trends failed: {str(e)[:100]}")
+
             
             # Search specific topics if needed
             if len(relevant_trends) < 10:
@@ -213,7 +214,7 @@ def get_reddit_tech_trends() -> List[str]:
         for subreddit in subreddits:
             try:
                 url = f'https://www.reddit.com/r/{subreddit}/hot.json?limit=20'
-                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'}
                 
                 print(f"   📱 Fetching r/{subreddit}...")
                 response = requests.get(url, headers=headers, timeout=10)
