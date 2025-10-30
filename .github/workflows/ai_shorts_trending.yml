@@ -106,7 +106,7 @@ jobs:
         env:
           IGNORE_SCHEDULE: ${{ github.event.inputs.ignore_schedule }}
         run: python .github/scripts/optimal_scheduler.py
-        
+
       - name: Display scheduling decision
         run: |
           echo "📅 Current Time: ${{ steps.schedule_check.outputs.current_time }}"
