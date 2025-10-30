@@ -45,7 +45,7 @@ on:
     # 19:00 WAT -> 18:00 UTC (High - Surprise)
     - cron: '0 18 * * 4'
     # 20:00 WAT -> 19:00 UTC (Medium - Entertainment)
-    - cron: '0 20 * * 4'
+    - cron: '0 21 * * 4'
     
     # ===== FRIDAY =====
     # 17:00 WAT -> 16:00 UTC (Medium - Lifestyle)
