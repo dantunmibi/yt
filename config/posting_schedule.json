@@ -16,7 +16,7 @@
       ],
       "Thursday": [
         { "time": "19:00", "priority": "high", "type": "surprise" },
-        { "time": "20:00", "priority": "medium", "type": "entertainment" }
+        { "time": "21:00", "priority": "medium", "type": "entertainment" }
       ],
       "Friday": [
         { "time": "17:00", "priority": "medium", "type": "lifestyle" },
