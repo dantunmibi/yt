@@ -19,51 +19,38 @@ on:
         default: false
   
   schedule:
-    # This schedule is based on your optimal times in WAT (West Africa Time, UTC+1).
-    # GitHub cron jobs run in UTC, so all times are correctly set to be 1 hour earlier than WAT.
-    # Your current configuration is valid and requires no changes.
+    # ===== OPTIMIZED FOR US AUDIENCE (UTC times) =====
+    # Format: 'minute hour day month weekday'
+    # All times are UTC (EST = UTC-5 in winter, UTC-4 in summer)
     
     # ===== MONDAY =====
-    # 14:00 WAT -> 13:00 UTC (High - Productivity)
-    - cron: '0 13 * * 1'
-    # 19:00 WAT -> 18:00 UTC (Medium - Trending)
-    - cron: '0 18 * * 1'
+    - cron: '0 17 * * 1'   # 12:00 PM EST - Lunch (Productivity)
+    - cron: '0 23 * * 1'   # 6:00 PM EST - After work (Trending)
     
     # ===== TUESDAY (BEST DAY) ===== ⭐⭐⭐
-    # 13:00 WAT -> 12:00 UTC (HIGHEST - AI Tools)
-    - cron: '0 12 * * 2'
-    # 14:00 WAT -> 13:00 UTC (High - Tech News)
-    - cron: '0 13 * * 2'
+    - cron: '0 16 * * 2'   # 11:00 AM EST - Late morning (AI Tools - HIGHEST)
+    - cron: '0 19 * * 2'   # 2:00 PM EST - Afternoon (Tech News)
     
     # ===== WEDNESDAY =====
-    # 13:00 WAT -> 12:00 UTC (High - Brain Hacks)
-    - cron: '0 12 * * 3'
-    # 16:00 WAT -> 15:00 UTC (Medium - Productivity)
-    - cron: '0 15 * * 3'
+    - cron: '0 1 * * 3'    # 8:00 PM EST Tue - Prime time (Brain Hacks)
+    - cron: '0 17 * * 3'   # 12:00 PM EST Wed - Lunch (Productivity)
     
     # ===== THURSDAY =====
-    # 19:00 WAT -> 18:00 UTC (High - Surprise)
-    - cron: '0 18 * * 4'
-    # 20:00 WAT -> 19:00 UTC (Medium - Entertainment)
-    - cron: '0 21 * * 4'
+    - cron: '0 0 * * 4'    # 7:00 PM EST Wed - Evening (Surprise)
+    - cron: '0 23 * * 4'   # 6:00 PM EST Thu - After work (Tech)
     
     # ===== FRIDAY =====
-    # 17:00 WAT -> 16:00 UTC (Medium - Lifestyle)
-    - cron: '0 16 * * 5'
-    # 19:00 WAT -> 18:00 UTC (Medium - Entertainment)
-    - cron: '0 18 * * 5'
+    - cron: '0 2 * * 5'    # 9:00 PM EST Thu - Prime time (Entertainment)
+    - cron: '0 20 * * 5'   # 3:00 PM EST Fri - Afternoon (Lifestyle)
     
     # ===== SATURDAY =====
-    # 14:00 WAT -> 13:00 UTC (Low - Lifestyle)
-    - cron: '0 13 * * 6'
-    # 20:00 WAT -> 19:00 UTC (Low - Motivation)
-    - cron: '0 19 * * 6'
+    - cron: '0 0 * * 6'    # 7:00 PM EST Fri - Friday night (Entertainment)
+    - cron: '0 16 * * 6'   # 11:00 AM EST Sat - Weekend morning (Lifestyle)
     
     # ===== SUNDAY =====
-    # 20:00 WAT -> 19:00 UTC (Low - Motivation)
-    - cron: '0 19 * * 0'
-    # 21:00 WAT -> 20:00 UTC (Low - Mindset)
-    - cron: '0 20 * * 0'
+    - cron: '0 1 * * 0'    # 8:00 PM EST Sat - Saturday night (Motivation)
+    - cron: '0 18 * * 0'   # 1:00 PM EST Sun - Sunday afternoon (Mindset)
+    - cron: '0 0 * * 1'    # 7:00 PM EST Sun - Sunday evening (Motivation)
 
 jobs:
   build_and_upload:

@@ -1,34 +1,36 @@
 {
   "schedule": {
-    "timezone": "Africa/Lagos",
+    "timezone": "UTC",
+    "target_audience": "United States",
     "weekly_schedule": {
       "Monday": [
-        { "time": "14:00", "priority": "high", "type": "productivity" },
-        { "time": "19:00", "priority": "medium", "type": "trending" }
+        { "time": "00:00", "priority": "medium", "type": "motivation" },
+        { "time": "17:00", "priority": "high", "type": "productivity" },
+        { "time": "23:00", "priority": "medium", "type": "trending" }
       ],
       "Tuesday": [
-        { "time": "13:00", "priority": "highest", "type": "ai_tools" },
-        { "time": "14:00", "priority": "high", "type": "tech_news" }
+        { "time": "16:00", "priority": "highest", "type": "ai_tools" },
+        { "time": "19:00", "priority": "high", "type": "tech_news" }
       ],
       "Wednesday": [
-        { "time": "13:00", "priority": "high", "type": "brain_hack" },
-        { "time": "16:00", "priority": "medium", "type": "productivity" }
+        { "time": "01:00", "priority": "high", "type": "brain_hack" },
+        { "time": "17:00", "priority": "medium", "type": "productivity" }
       ],
       "Thursday": [
-        { "time": "19:00", "priority": "high", "type": "surprise" },
-        { "time": "22:00", "priority": "medium", "type": "entertainment" }
+        { "time": "00:00", "priority": "high", "type": "surprise" },
+        { "time": "23:00", "priority": "medium", "type": "tech_news" }
       ],
       "Friday": [
-        { "time": "17:00", "priority": "medium", "type": "lifestyle" },
-        { "time": "19:00", "priority": "medium", "type": "entertainment" }
+        { "time": "02:00", "priority": "medium", "type": "entertainment" },
+        { "time": "20:00", "priority": "medium", "type": "lifestyle" }
       ],
       "Saturday": [
-        { "time": "14:00", "priority": "low", "type": "lifestyle" },
-        { "time": "20:00", "priority": "low", "type": "motivation" }
+        { "time": "00:00", "priority": "high", "type": "entertainment" },
+        { "time": "16:00", "priority": "low", "type": "lifestyle" }
       ],
       "Sunday": [
-        { "time": "20:00", "priority": "low", "type": "motivation" },
-        { "time": "21:00", "priority": "low", "type": "mindset" }
+        { "time": "01:00", "priority": "medium", "type": "motivation" },
+        { "time": "18:00", "priority": "low", "type": "mindset" }
       ]
     }
   }
