@@ -7,7 +7,7 @@ import pytz
 ENABLE_PRIORITY_RETRY = os.getenv("ENABLE_PRIORITY_RETRY", "true").lower() == "true"
 ENABLE_DELAY_TRACKING = os.getenv("ENABLE_DELAY_TRACKING", "true").lower() == "true"
 ENABLE_COMPLETION_PREDICTION = os.getenv("ENABLE_COMPLETION_PREDICTION", "true").lower() == "true"
-ENABLE_AUTO_ADJUSTMENT = os.getenv("ENABLE_AUTO_ADJUSTMENT", "false").lower() == "true"  # Disabled by default
+ENABLE_AUTO_ADJUSTMENT = os.getenv("ENABLE_AUTO_ADJUSTMENT", "true").lower() == "true"  # ENABLED by default
 
 print(f"🔧 Package 4 Features:")
 print(f"   Priority Retry: {ENABLE_PRIORITY_RETRY}")

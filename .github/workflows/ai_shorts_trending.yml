@@ -78,6 +78,7 @@ jobs:
         id: schedule_check
         env:
           IGNORE_SCHEDULE: ${{ github.event.inputs.ignore_schedule }}
+          ENABLE_AUTO_ADJUSTMENT: ${{ vars.ENABLE_AUTO_ADJUSTMENT || 'false' }}
         run: python .github/scripts/optimal_scheduler.py
 
       - name: Display scheduling decision (ENHANCED)
