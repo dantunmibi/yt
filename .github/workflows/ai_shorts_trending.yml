@@ -74,12 +74,51 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytz
 
+      - name: Restore episode tracking (Package 3)
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/episode_tracking.json
+          key: episode-tracking-${{ github.run_number }}
+          restore-keys: |
+            episode-tracking-
+
+      - name: Restore performance data (Package 4)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            tmp/content_performance.json
+            tmp/delay_log.json
+            tmp/retry_queue.json
+            tmp/schedule_recommendations.json
+          key: performance-data-${{ github.run_number }}
+          restore-keys: |
+            performance-data-
+
       - name: 🎯 Check optimal posting time (ENHANCED)
         id: schedule_check
         env:
           IGNORE_SCHEDULE: ${{ github.event.inputs.ignore_schedule }}
           ENABLE_AUTO_ADJUSTMENT: ${{ vars.ENABLE_AUTO_ADJUSTMENT || 'false' }}
         run: python .github/scripts/optimal_scheduler.py
+            
+      - name: Load episode tracking (Package 3)
+        if: steps.schedule_check.outputs.should_post == 'true'
+        run: |
+          mkdir -p tmp
+          if [ ! -f tmp/episode_tracking.json ]; then
+            echo '{}' > tmp/episode_tracking.json
+          fi
+
+      - name: Display series information (Package 3)
+        if: steps.schedule_check.outputs.should_post == 'true'
+        run: |
+          echo "📺 SERIES INFO:"
+          echo "   Series: ${{ steps.schedule_check.outputs.series }}"
+          echo "   Episode: ${{ steps.schedule_check.outputs.episode_number }}"
+          echo "   Content Type: ${{ steps.schedule_check.outputs.content_type }}"
+          echo "   Target Completion: ${{ steps.schedule_check.outputs.target_completion }}"
+          echo "   Predicted Completion: ${{ steps.schedule_check.outputs.predicted_completion }}"
+          echo "⏱️  Scheduling Delay: ${{ steps.schedule_check.outputs.delay_minutes }} minutes"
 
       - name: Display scheduling decision (ENHANCED)
         run: |
@@ -228,6 +267,30 @@ jobs:
           EPISODE_NUMBER: ${{ steps.schedule_check.outputs.episode_number }}
         run: python .github/scripts/upload_youtube.py
 
+      - name: Increment episode counter (Package 3)
+        if: success() && steps.schedule_check.outputs.should_post == 'true'
+        run: |
+          python -c "
+          import json, os
+          series = '${{ steps.schedule_check.outputs.series }}'
+          if series and series != 'none':
+              tracking_file = 'tmp/episode_tracking.json'
+              os.makedirs('tmp', exist_ok=True)
+              try:
+                  with open(tracking_file, 'r') as f:
+                      tracking = json.load(f)
+              except:
+                  tracking = {}
+              tracking[series] = tracking.get(series, 0) + 1
+              with open(tracking_file, 'w') as f:
+                  json.dump(tracking, f, indent=2)
+              print(f'✅ Episode counter incremented: {series} -> Episode {tracking[series]}')
+          "
+
+      - name: Track upload performance (Package 4)
+        if: success() && steps.schedule_check.outputs.should_post == 'true'
+        run: python .github/scripts/track_performance.py
+
       - name: Track upload performance (Package 4)
         if: success() && steps.schedule_check.outputs.should_post == 'true'
         run: python .github/scripts/track_performance.py
@@ -321,12 +384,23 @@ jobs:
           SERIES_NAME: ${{ steps.schedule_check.outputs.series }}
         run: python .github/scripts/manage_playlists.py
 
-      - name: Save episode tracking (NEW)
+      - name: Save episode tracking (Package 3)
         uses: actions/cache/save@v4
         if: always() && steps.schedule_check.outputs.should_post == 'true'
         with:
           path: tmp/episode_tracking.json
           key: episode-tracking-${{ github.run_number }}
+
+      - name: Save performance data (Package 4)
+        uses: actions/cache/save@v4
+        if: always() && steps.schedule_check.outputs.should_post == 'true'
+        with:
+          path: |
+            tmp/content_performance.json
+            tmp/delay_log.json
+            tmp/retry_queue.json
+            tmp/schedule_recommendations.json
+          key: performance-data-${{ github.run_number }}
 
       - name: Save platform config
         uses: actions/cache/save@v4
@@ -363,11 +437,11 @@ jobs:
             tmp/platform_config.json
             tmp/upload_history.json
             tmp/episode_tracking.json
+            tmp/content_performance.json
+            tmp/delay_log.json
+            tmp/retry_queue.json
+            tmp/schedule_recommendations.json
             tmp/voice.mp3
-            tmp/content_performance.json      # NEW
-            tmp/delay_log.json                # NEW
-            tmp/retry_queue.json              # NEW
-            tmp/schedule_recommendations.json # NEW
           retention-days: 30
 
       - name: Upload logs on failure
@@ -378,7 +452,7 @@ jobs:
           path: tmp/*.log
           retention-days: 7
 
-      - name: Post-run summary (Package 4 ENHANCED)
+      - name: Post-run summary (Package 3 & 4 ENHANCED)
         if: always()
         run: |
           echo "## 📊 Workflow Summary" >> $GITHUB_STEP_SUMMARY
@@ -397,11 +471,11 @@ jobs:
           if [ -f tmp/delay_log.json ]; then
             echo "### ⏱️ Delay Statistics" >> $GITHUB_STEP_SUMMARY
             if command -v jq &> /dev/null; then
-              STATS=$(jq -r '.statistics // {}' tmp/delay_log.json)
+              STATS=$(jq -r '.statistics // {}' tmp/delay_log.json 2>/dev/null || echo "{}")
               if [ "$STATS" != "{}" ]; then
-                AVG_DELAY=$(echo $STATS | jq -r '.average_delay // 0')
-                MAX_DELAY=$(echo $STATS | jq -r '.max_delay // 0')
-                ON_TIME=$(echo $STATS | jq -r '.on_time_rate // 0')
+                AVG_DELAY=$(echo $STATS | jq -r '.average_delay // 0' 2>/dev/null || echo "0")
+                MAX_DELAY=$(echo $STATS | jq -r '.max_delay // 0' 2>/dev/null || echo "0")
+                ON_TIME=$(echo $STATS | jq -r '.on_time_rate // 0' 2>/dev/null || echo "0")
                 echo "- Average delay: ${AVG_DELAY} minutes" >> $GITHUB_STEP_SUMMARY
                 echo "- Maximum delay: ${MAX_DELAY} minutes" >> $GITHUB_STEP_SUMMARY
                 echo "- On-time rate: ${ON_TIME}%" >> $GITHUB_STEP_SUMMARY

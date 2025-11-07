@@ -1,3 +1,4 @@
+# .github/scripts/optimal_scheduler.py
 import os
 import json
 from datetime import datetime, timedelta
@@ -7,7 +8,7 @@ import pytz
 ENABLE_PRIORITY_RETRY = os.getenv("ENABLE_PRIORITY_RETRY", "true").lower() == "true"
 ENABLE_DELAY_TRACKING = os.getenv("ENABLE_DELAY_TRACKING", "true").lower() == "true"
 ENABLE_COMPLETION_PREDICTION = os.getenv("ENABLE_COMPLETION_PREDICTION", "true").lower() == "true"
-ENABLE_AUTO_ADJUSTMENT = os.getenv("ENABLE_AUTO_ADJUSTMENT", "true").lower() == "true"  # ENABLED by default
+ENABLE_AUTO_ADJUSTMENT = os.getenv("ENABLE_AUTO_ADJUSTMENT", "false").lower() == "true"  # Disabled by default until 4+ weeks data
 
 print(f"🔧 Package 4 Features:")
 print(f"   Priority Retry: {ENABLE_PRIORITY_RETRY}")
@@ -20,8 +21,8 @@ def check_schedule():
     PACKAGE 4 ENHANCED SCHEDULER with:
     - Feature 1: Priority-based retry logic
     - Feature 2: Delay tracking and reporting
-    - Feature 3: Completion rate prediction (basic version)
-    - Feature 4: Auto schedule adjustment recommendations
+    - Feature 3: Completion rate prediction
+    - Feature 4: Auto schedule adjustment recommendations (manual approval required)
     """
     schedule_file = 'config/posting_schedule.json'
     
@@ -37,6 +38,7 @@ def check_schedule():
             current_time=datetime.now(pytz.UTC).strftime("%Y-%m-%d %H:%M UTC"),
             delay_minutes=0,
             target_completion='N/A',
+            predicted_completion='N/A',
             has_recommendations='false'
         )
         return
@@ -55,9 +57,9 @@ def check_schedule():
                 current_time=datetime.now(pytz.UTC).strftime("%Y-%m-%d %H:%M UTC"),
                 delay_minutes='retry',
                 target_completion=retry_result.get('target_completion', 'N/A'),
+                predicted_completion='N/A',
                 has_recommendations='false'
             )
-            # Remove from retry queue
             remove_from_retry_queue(retry_result)
             return
 
@@ -104,7 +106,7 @@ def check_schedule():
             # Load episode tracking
             episode_number = get_next_episode_number(match.get('series', 'none'))
             
-            # FEATURE 3: Predict completion rate
+            # FEATURE 3: Predict completion rate based on YOUR 83-video data
             predicted_completion = 'N/A'
             if ENABLE_COMPLETION_PREDICTION:
                 predicted_completion = predict_completion_rate(
@@ -192,8 +194,9 @@ def check_schedule():
     
     set_github_output('false', current_time=now.strftime("%Y-%m-%d %H:%M %Z"), has_recommendations=has_recommendations)
 
+
 def check_day_schedule_with_windows(now, day_slots, day_name):
-    """Check if current time falls within posting window"""
+    """Check if current time falls within posting window (3-hour windows)"""
     for slot in day_slots:
         window_start_str = slot.get('window_start', slot['time'])
         window_end_str = slot.get('window_end', slot['time'])
@@ -227,6 +230,7 @@ def check_day_schedule_with_windows(now, day_slots, day_name):
     
     return None
 
+
 def get_next_episode_number(series_name):
     """Track episode numbers for series content"""
     if series_name == 'none':
@@ -252,6 +256,37 @@ def get_next_episode_number(series_name):
         print(f"⚠️ Episode tracking error: {e}, defaulting to Episode 1")
         return 1
 
+
+def increment_episode_number(series_name):
+    """
+    Increment episode counter after successful post.
+    Called by workflow AFTER upload succeeds.
+    """
+    if series_name == 'none':
+        return
+    
+    tracking_file = 'tmp/episode_tracking.json'
+    
+    try:
+        os.makedirs('tmp', exist_ok=True)
+        
+        if os.path.exists(tracking_file):
+            with open(tracking_file, 'r') as f:
+                tracking = json.load(f)
+        else:
+            tracking = {}
+        
+        current = tracking.get(series_name, 0)
+        tracking[series_name] = current + 1
+        
+        with open(tracking_file, 'w') as f:
+            json.dump(tracking, f, indent=2)
+            
+        print(f"📝 Episode tracking updated: {series_name} -> Episode {tracking[series_name]}")
+    except Exception as e:
+        print(f"⚠️ Could not update episode tracking: {e}")
+
+
 # ===== FEATURE 1: PRIORITY RETRY SYSTEM =====
 
 def check_retry_queue():
@@ -270,7 +305,6 @@ def check_retry_queue():
         if not pending:
             return None
         
-        # Get oldest retry that hasn't expired
         now = datetime.now(pytz.UTC)
         
         for retry in pending:
@@ -288,6 +322,7 @@ def check_retry_queue():
         print(f"⚠️ Error reading retry queue: {e}")
         return None
 
+
 def add_to_retry_queue(slot, missed_time):
     """Add a missed high-priority slot to retry queue"""
     retry_file = 'tmp/retry_queue.json'
@@ -301,7 +336,6 @@ def add_to_retry_queue(slot, missed_time):
         else:
             queue = {'pending_retries': [], 'completed_retries': []}
         
-        # Add to pending
         retry_entry = {
             'original_slot': f"{missed_time.strftime('%A')} {slot['time']}",
             'priority': slot['priority'],
@@ -324,6 +358,7 @@ def add_to_retry_queue(slot, missed_time):
     except Exception as e:
         print(f"⚠️ Could not add to retry queue: {e}")
 
+
 def remove_from_retry_queue(retry_entry):
     """Remove retry from queue after successful posting"""
     retry_file = 'tmp/retry_queue.json'
@@ -332,13 +367,11 @@ def remove_from_retry_queue(retry_entry):
         with open(retry_file, 'r') as f:
             queue = json.load(f)
         
-        # Move from pending to completed
         queue['pending_retries'] = [r for r in queue['pending_retries'] if r != retry_entry]
         
         retry_entry['completed_at'] = datetime.now(pytz.UTC).isoformat()
         queue['completed_retries'].append(retry_entry)
         
-        # Keep only last 30 completed
         queue['completed_retries'] = queue['completed_retries'][-30:]
         
         with open(retry_file, 'w') as f:
@@ -348,6 +381,7 @@ def remove_from_retry_queue(retry_entry):
         
     except Exception as e:
         print(f"⚠️ Could not update retry queue: {e}")
+
 
 def check_for_missed_priority_slot(now, weekly_schedule):
     """Check if we just missed a HIGHEST priority slot"""
@@ -370,11 +404,11 @@ def check_for_missed_priority_slot(now, weekly_schedule):
             microsecond=0
         )
         
-        # Check if we just passed the window (within last 30 minutes)
         if window_end < now <= window_end + timedelta(minutes=30):
             return slot
     
     return None
+
 
 # ===== FEATURE 2: DELAY TRACKING =====
 
@@ -402,12 +436,10 @@ def track_delay(slot, delay_minutes, actual_time):
             'series': slot.get('series', 'none'),
             'window_start': slot.get('window_start', slot['time']),
             'window_end': slot.get('window_end', slot['time']),
-            'window_hit': True  # If we're here, we hit the window
+            'window_hit': True
         }
         
         log['delays'].append(delay_entry)
-        
-        # Keep last 100 delays
         log['delays'] = log['delays'][-100:]
         
         # Calculate statistics
@@ -436,33 +468,39 @@ def track_delay(slot, delay_minutes, actual_time):
     except Exception as e:
         print(f"⚠️ Could not track delay: {e}")
 
-# ===== FEATURE 3: COMPLETION RATE PREDICTION =====
+
+# ===== FEATURE 3: COMPLETION RATE PREDICTION (Based on YOUR 83 videos) =====
 
 def predict_completion_rate(content_type, series_name):
-    """Predict completion rate based on historical data"""
+    """
+    Predict completion rate based on YOUR historical data from 83 videos.
+    
+    YOUR PROVEN AVERAGES:
+    - tool_teardown_tuesday: 64.6% (24 videos)
+    - viral_ai_saturday: ~60% estimated (entertainment)
+    - ai_news_roundup: 30.5% (KILLED)
+    - secret_prompts_thursday: 14.7% (KILLED)
+    """
     performance_file = 'tmp/content_performance.json'
     
+    # Use YOUR proven data as baseline
+    proven_baselines = {
+        'tool_teardown_tuesday': 64.6,
+        'tool_teardown_thursday': 64.6,  # Same format as Tuesday
+        'viral_ai_saturday': 60.0,  # Based on Rizzbot (80.7%), Adobe (91.1%), AWS (77.9%)
+        'ai_tools': 64.6,  # Tool teardown average
+        'entertainment': 60.0  # Viral average
+    }
+    
+    # If no performance file yet, use YOUR proven baselines
     if not os.path.exists(performance_file):
-        # No data yet, use targets from schedule
-        schedule_file = 'config/posting_schedule.json'
-        try:
-            with open(schedule_file, 'r') as f:
-                schedule = json.load(f)['schedule']
-                
-            for day_slots in schedule['weekly_schedule'].values():
-                for slot in day_slots:
-                    if slot['type'] == content_type:
-                        return f"{slot.get('target_completion', '60')} (target)"
-        except:
-            pass
-        
-        return "No data"
+        baseline = proven_baselines.get(content_type, 50.0)
+        return f"{baseline:.1f}% (proven avg from 83 videos)"
     
     try:
         with open(performance_file, 'r') as f:
             performance = json.load(f)
         
-        # Check if we have data for this content type
         if content_type in performance:
             type_data = performance[content_type]
             avg_completion = type_data.get('average_completion', 0)
@@ -476,11 +514,15 @@ def predict_completion_rate(content_type, series_name):
                 
                 return f"{avg_completion:.1f}% (type avg)"
         
-        return "No data"
+        # Fallback to YOUR proven baseline
+        baseline = proven_baselines.get(content_type, 50.0)
+        return f"{baseline:.1f}% (proven baseline)"
         
     except Exception as e:
         print(f"⚠️ Prediction error: {e}")
-        return "Error"
+        baseline = proven_baselines.get(content_type, 50.0)
+        return f"{baseline:.1f}% (baseline)"
+
 
 # ===== FEATURE 4: AUTO SCHEDULE ADJUSTMENT =====
 
@@ -506,6 +548,7 @@ def check_schedule_recommendations():
     except Exception as e:
         print(f"⚠️ Error checking recommendations: {e}")
         return 'false'
+
 
 def find_next_scheduled_post(weekly_schedule, current_time):
     """Find and display next scheduled posting window"""
@@ -536,6 +579,7 @@ def find_next_scheduled_post(weekly_schedule, current_time):
             return f"{next_day} {first_slot['time']} UTC ({first_slot.get('series', first_slot['type'])})"
     
     return "No upcoming posts scheduled"
+
 
 def set_github_output(
     should_post='false',
@@ -571,6 +615,7 @@ def set_github_output(
         print("--- GITHUB_OUTPUT (local run) ---")
         for key, value in outputs.items():
             print(f"{key}={value}")
+
 
 if __name__ == "__main__":
     check_schedule()

@@ -1,7 +1,14 @@
+# .github/scripts/track_performance.py
 """
 Performance Tracking & Auto-Adjustment System
 Tracks video completion rates and generates schedule recommendations.
 Run this AFTER upload completes to log performance data.
+
+CONTEXT: Based on YOUR 83-video analysis showing:
+- tool_teardown_tuesday: 64.6% avg completion (WINNER)
+- viral_ai_saturday: Entertainment content 60-80% range
+- ai_news_roundup: 30.5% avg (KILLED)
+- secret_prompts_thursday: 14.7% avg (KILLED)
 """
 
 import os
@@ -24,17 +31,19 @@ def load_performance_data():
             return {}
     return {}
 
+
 def save_performance_data(data):
     """Save performance data"""
     os.makedirs(TMP, exist_ok=True)
     with open(PERFORMANCE_FILE, 'w') as f:
         json.dump(data, f, indent=2)
 
+
 def track_upload_performance():
     """
     Track the upload that just completed.
     NOTE: Actual completion rate data requires YouTube Analytics API.
-    For now, we track uploads and predict based on content type patterns.
+    For now, we track uploads and predict based on YOUR proven patterns.
     """
     
     # Load script data
@@ -87,7 +96,7 @@ def track_upload_performance():
         'series': series_name,
         'episode': episode,
         'shorts_url': latest_upload.get('shorts_url'),
-        'completion_rate_24h': None,  # Will be updated later
+        'completion_rate_24h': None,  # Will be updated by analytics workflow
         'views_24h': None,
         'rewatch_rate': None,
         'status': 'pending_analytics'
@@ -126,10 +135,16 @@ def track_upload_performance():
     print(f"   Total uploads for {content_type}: {performance[content_type]['total_uploads']}")
     print(f"   Status: Waiting for 24h analytics data")
 
+
 def generate_recommendations():
     """
     Generate schedule adjustment recommendations based on performance.
-    Requires at least 4 weeks of data (12 uploads minimum).
+    Uses YOUR 83-video baseline as reference.
+    
+    YOUR PROVEN BASELINES:
+    - tool_teardown_tuesday: 64.6% (target: 70%)
+    - viral_ai_saturday: ~60% (target: 50%)
+    - KILLED: ai_news_roundup (30.5%), secret_prompts_thursday (14.7%)
     """
     
     performance = load_performance_data()
@@ -138,93 +153,131 @@ def generate_recommendations():
         print("ℹ️ No performance data yet, skipping recommendations")
         return
     
-    # Check if we have enough data
-    total_uploads = sum(data['total_uploads'] for data in performance.values())
+    # Check if we have enough data (need uploads with analytics)
+    total_uploads_with_data = 0
+    for content_type, data in performance.items():
+        uploads_with_data = [u for u in data['uploads'] if u.get('completion_rate_24h') is not None]
+        total_uploads_with_data += len(uploads_with_data)
     
-    if total_uploads < 12:
-        print(f"ℹ️ Only {total_uploads} uploads tracked, need 12+ for recommendations")
+    if total_uploads_with_data < 4:
+        print(f"ℹ️ Only {total_uploads_with_data} uploads with analytics data")
+        print(f"   Need at least 4 for meaningful recommendations")
+        print(f"   Using YOUR 83-video baseline as reference for now")
         return
     
-    print(f"\n📊 Analyzing performance data ({total_uploads} total uploads)...")
+    print(f"\n📊 Analyzing performance data ({total_uploads_with_data} uploads with analytics)...")
     
     recommendations = {
         'generated_at': datetime.now(pytz.UTC).isoformat(),
+        'baseline_reference': 'Based on YOUR 83-video historical analysis',
         'pending_recommendations': [],
         'completed_recommendations': []
+    }
+    
+    # YOUR proven targets from 83-video analysis
+    proven_targets = {
+        'tool_teardown_tuesday': {
+            'target_completion': 70,
+            'proven_average': 64.6,
+            'sample_size': 24,
+            'grade': 'A (your best performer)'
+        },
+        'tool_teardown_thursday': {
+            'target_completion': 65,
+            'proven_average': 64.6,  # Same format as Tuesday
+            'sample_size': 0,  # New series
+            'grade': 'A (predicted based on Tuesday data)'
+        },
+        'viral_ai_saturday': {
+            'target_completion': 50,
+            'proven_average': 60.0,  # Estimated from entertainment videos
+            'sample_size': 5,  # Rizzbot, Adobe, AWS, etc.
+            'grade': 'B+ (entertainment/shock value)'
+        }
     }
     
     # Analyze each content type
     for content_type, data in performance.items():
         uploads_with_data = [u for u in data['uploads'] if u.get('completion_rate_24h') is not None]
         
-        if len(uploads_with_data) < 4:
-            print(f"   {content_type}: Only {len(uploads_with_data)} uploads with analytics, skipping")
+        if len(uploads_with_data) < 2:
+            print(f"   {content_type}: Only {len(uploads_with_data)} uploads with analytics, using baseline")
             continue
         
-        # Calculate average completion
+        # Calculate current performance
         avg_completion = sum(u['completion_rate_24h'] for u in uploads_with_data) / len(uploads_with_data)
         avg_views = sum(u.get('views_24h', 0) for u in uploads_with_data) / len(uploads_with_data)
         
         print(f"\n   📈 {content_type}:")
-        print(f"      Avg Completion: {avg_completion:.1f}%")
-        print(f"      Avg Views (24h): {avg_views:.0f}")
-        print(f"      Sample Size: {len(uploads_with_data)} videos")
+        print(f"      Current Avg Completion: {avg_completion:.1f}%")
+        print(f"      Current Avg Views (24h): {avg_views:.0f}")
+        print(f"      Sample Size: {len(uploads_with_data)} new videos")
         
-        # Check if performance is below target
-        schedule_file = 'config/posting_schedule.json'
-        target_completion = 60  # default
+        # Get target and baseline
+        target_info = proven_targets.get(content_type, {
+            'target_completion': 60,
+            'proven_average': 50,
+            'sample_size': 0,
+            'grade': 'Unknown'
+        })
         
-        try:
-            with open(schedule_file, 'r') as f:
-                schedule = json.load(f)['schedule']
-                
-            for day_slots in schedule['weekly_schedule'].values():
-                for slot in day_slots:
-                    if slot['type'] == content_type:
-                        target_str = slot.get('target_completion', '60%')
-                        target_completion = int(target_str.replace('%', ''))
-                        break
-        except:
-            pass
+        target_completion = target_info['target_completion']
+        proven_average = target_info['proven_average']
         
-        # Generate recommendation if significantly below target
-        if avg_completion < target_completion - 10:
+        print(f"      YOUR Proven Baseline: {proven_average:.1f}% ({target_info['sample_size']} videos from backfill)")
+        print(f"      Target: {target_completion}%")
+        
+        # Compare new performance to YOUR baseline
+        baseline_delta = avg_completion - proven_average
+        target_delta = avg_completion - target_completion
+        
+        # Generate recommendation if significantly different from baseline
+        if baseline_delta < -10:  # Performing 10% worse than YOUR proven average
             recommendation = {
-                'type': 'UNDERPERFORMING',
+                'type': 'UNDERPERFORMING_VS_BASELINE',
                 'content_type': content_type,
                 'current_performance': {
                     'avg_completion': avg_completion,
                     'avg_views': avg_views,
                     'sample_size': len(uploads_with_data)
                 },
+                'your_proven_baseline': proven_average,
                 'target_completion': target_completion,
-                'gap': target_completion - avg_completion,
-                'suggested_action': f"Consider reducing {content_type} frequency or improving content quality",
+                'gap_vs_baseline': baseline_delta,
+                'gap_vs_target': target_delta,
+                'suggested_action': f"New {content_type} videos performing {abs(baseline_delta):.1f}% worse than YOUR proven {proven_average:.1f}% average. Review recent video quality or revert to proven format.",
                 'created_at': datetime.now(pytz.UTC).isoformat(),
-                'status': 'pending_review'
+                'status': 'pending_review',
+                'severity': 'high' if baseline_delta < -15 else 'medium'
             }
             
             recommendations['pending_recommendations'].append(recommendation)
             print(f"      ⚠️ RECOMMENDATION: {recommendation['suggested_action']}")
         
-        elif avg_completion > target_completion + 10:
+        elif baseline_delta > 10:  # Performing 10% better than YOUR proven average
             recommendation = {
-                'type': 'OVERPERFORMING',
+                'type': 'OUTPERFORMING_BASELINE',
                 'content_type': content_type,
                 'current_performance': {
                     'avg_completion': avg_completion,
                     'avg_views': avg_views,
                     'sample_size': len(uploads_with_data)
                 },
+                'your_proven_baseline': proven_average,
                 'target_completion': target_completion,
-                'gap': avg_completion - target_completion,
-                'suggested_action': f"Consider INCREASING {content_type} frequency - it's outperforming!",
+                'gap_vs_baseline': baseline_delta,
+                'gap_vs_target': target_delta,
+                'suggested_action': f"New {content_type} videos performing {baseline_delta:.1f}% BETTER than YOUR proven {proven_average:.1f}% average! Whatever you changed is WORKING. Replicate this format.",
                 'created_at': datetime.now(pytz.UTC).isoformat(),
-                'status': 'pending_review'
+                'status': 'pending_review',
+                'severity': 'positive'
             }
             
             recommendations['pending_recommendations'].append(recommendation)
             print(f"      ✅ RECOMMENDATION: {recommendation['suggested_action']}")
+        
+        else:
+            print(f"      ✅ Performing within {abs(baseline_delta):.1f}% of YOUR proven baseline - consistent!")
     
     # Save recommendations
     os.makedirs(TMP, exist_ok=True)
@@ -235,7 +288,8 @@ def generate_recommendations():
         print(f"\n💡 Generated {len(recommendations['pending_recommendations'])} new recommendations")
         print(f"   Review them in: {RECOMMENDATIONS_FILE}")
     else:
-        print(f"\n✅ No new recommendations - all content types performing within targets")
+        print(f"\n✅ No new recommendations - performance consistent with YOUR proven baselines")
+
 
 if __name__ == "__main__":
     print("=" * 60)

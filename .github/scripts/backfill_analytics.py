@@ -107,8 +107,10 @@ def categorize_video_by_title(title, description):
     # SECRET PROMPTS patterns
     prompt_keywords = [
         'secret prompt', 'chatgpt prompt', 'email prompt',
-        'prompts', 'prompt library', 'ai hack'
-    ]
+        'prompts', 'prompt library', 'ai hack',
+        'chatgpt\'s secret', 'secret productivity',  # ← ADD THESE
+        'secret email'  # ← ADD THIS
+    ]                                                   
     
     # AI News patterns
     news_keywords = [
