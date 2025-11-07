@@ -23,7 +23,7 @@ def get_youtube_client():
             client_id=os.getenv("GOOGLE_CLIENT_ID"),
             client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
             scopes=[
-                "https://www.googleapis.com/auth/youtube.readonly",
+                "https://www.googleapis.com/auth/youtube",
                 "https://www.googleapis.com/auth/yt-analytics.readonly"
             ]
         )
