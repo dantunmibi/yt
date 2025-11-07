@@ -438,20 +438,21 @@ if __name__ == "__main__":
     # Organize videos
     stats = organize_playlists(youtube, history, config, niche)
     
+    # Replace the final print section (around line 447) with:
+
     # Print results
     print("\n" + "="*60)
     print("📊 ORGANIZATION RESULTS")
     print("="*60)
     print(f"Total videos processed: {stats['total_videos']}")
     print(f"Successfully categorized: {stats['categorized']}")
-    print(f"Added to playlists: {stats['added_to_playlists']}")
-    print(f"Already in playlists: {stats['already_in_playlists']}")
-    print(f"Failed/Skipped: {stats['failed']}")
-    
-    # Print playlist summary
-    print_playlist_summary(config, niche)
-    
-    print("\n✅ Playlist organization complete!")
-    print("\n💡 Tip: Playlists are created automatically and will grow with each new upload!")
     print(f"Added to topic playlists: {stats['added_to_topic_playlists']}")
     print(f"Added to series playlists: {stats['added_to_series_playlists']}")
+    print(f"Already in playlists: {stats['already_in_playlists']}")
+    print(f"Failed/Skipped: {stats['failed']}")
+
+    # Print playlist summary
+    print_playlist_summary(config, niche)
+
+    print("\n✅ Playlist organization complete!")
+    print("\n💡 Tip: Playlists are created automatically and will grow with each new upload!")
