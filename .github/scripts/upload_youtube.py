@@ -24,6 +24,18 @@ except FileNotFoundError:
     print("❌ Error: script.json not found.")
     raise
 
+# ===== SERIES-AWARE TITLE FORMATTING =====
+series_name = data.get("series", os.getenv("SERIES_NAME", ""))
+episode_number = data.get("episode", int(os.getenv("EPISODE_NUMBER", "0")))
+
+# If this is part of a series, format title with episode number
+if series_name and series_name != "none" and episode_number > 0:
+    # Check if episode number is already in title
+    if f"Episode {episode_number}" not in title and f"Ep {episode_number}" not in title:
+        # Prepend series name and episode
+        title = f"{series_name} - Episode {episode_number}: {title}"
+        print(f"📺 Series title: {title}")
+
 title = data.get("title", "AI Short")
 description = data.get("description", f"{title}")
 hashtags = data.get("hashtags", ["#shorts", "#viral", "#trending"])
@@ -72,7 +84,19 @@ except Exception as e:
     raise
 
 # ---- Step 4: Prepare metadata ----
-enhanced_description = f"""{description}
+# Build series-aware description
+series_info = ""
+if series_name and series_name != "none" and episode_number > 0:
+    next_episode = episode_number + 1
+    series_info = f"""
+🎬 This is Episode {episode_number} of {series_name}!
+
+📅 Episode {next_episode} coming soon - Subscribe so you don't miss it!
+
+---
+"""
+
+enhanced_description = f"""{series_info}{description}
 
 {' '.join(hashtags)}
 
@@ -80,6 +104,8 @@ enhanced_description = f"""{description}
 Follow Ascent Dragox For More!
 Created: {datetime.now().strftime('%Y-%m-%d')}
 Topic: {topic}
+{f'Series: {series_name}' if series_name != 'none' else ''}
+{f'Episode: {episode_number}' if episode_number > 0 else ''}
 """
 
 tags = ["shorts", "viralshorts", topic, "trending", "fyp"]

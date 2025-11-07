@@ -1,14 +1,288 @@
 {
+  "version": "2.0_series_based",
+  "legacy_mode": false,
+  "migration_note": "This structure supports both old scripts (via 'recommendations') and new series-based system (via 'series')",
+  
   "recommendations": {
-    "ai_tools": "Latest AI tools, ChatGPT features, new tech releases",
-    "productivity": "Time management, focus hacks, workflow optimization",
-    "brain_hack": "Memory techniques, learning methods, cognitive enhancement",
-    "tech_news": "Breaking tech news, industry updates, innovations",
-    "trending": "Viral topics, trending discussions, hot takes",
-    "surprise": "Mind-blowing facts, unexpected discoveries, 'did you know'",
-    "entertainment": "Fun tech, cool gadgets, interesting demonstrations",
-    "lifestyle": "Tech lifestyle, daily routines, practical applications",
-    "motivation": "Success stories, inspirational content, mindset shifts",
-    "mindset": "Philosophy, long-term thinking, perspective shifts"
+    "_comment": "Legacy format for backward compatibility - kept for scripts that haven't been updated yet",
+    "ai_tools": "Specific AI tool demonstrations with visual transformations (Midjourney, ChatGPT, Notion AI, Canva AI)",
+    "productivity": "ChatGPT prompts, workflow automation, time-saving techniques with measurable results",
+    "trending": "ONLY trending AI news with clear practical impact - filter out controversies and failures"
+  },
+  
+  "series": {
+    "tool_teardown_tuesday": {
+      "series_name": "Tool Teardown Tuesday",
+      "content_type": "ai_tools",
+      "posting_day": "Tuesday",
+      "episode_prefix": "Tool Teardown Tuesday - Episode",
+      
+      "title_formula": {
+        "template": "[TOOL NAME]'s SECRET [FEATURE]: [TRANSFORMATION] in [TIME]!",
+        "with_episode": "Tool Teardown Tuesday - Episode [N]: [Tool] [Feature]",
+        "examples": [
+          "Tool Teardown Tuesday - Episode 5: Midjourney's SECRET Parameter Creates Perfect Images!",
+          "Tool Teardown Tuesday - Episode 6: Notion AI's HIDDEN Feature Builds Workflows in 60 Seconds!"
+        ]
+      },
+      
+      "content_requirements": {
+        "must_include": [
+          "Visual before/after transformation",
+          "Specific tool name (not 'this AI tool')",
+          "Time benefit quantified (seconds/minutes)",
+          "Episode number for continuity"
+        ],
+        "optimal_length": "25-28 seconds",
+        "target_completion": "70%",
+        "target_rewatch": "1.5x",
+        "hook_structure": "Show the END RESULT in first 3 seconds, then explain how"
+      },
+      
+      "topics": {
+        "high_priority": [
+          "Midjourney secret parameters and settings",
+          "ChatGPT advanced features (Code Interpreter, Vision, DALL-E integration)",
+          "Notion AI workspace automation",
+          "Canva AI design tricks",
+          "Claude advanced prompting techniques",
+          "Perplexity research methods",
+          "Gemini Live features"
+        ],
+        "proven_performers": [
+          "Text-to-3D tools (461.7% rewatch rate)",
+          "ChatGPT email automation (380 views)",
+          "Canva secret AI features (114 views, 70% completion)"
+        ],
+        "exclude": [
+          "Failed products or discontinued tools",
+          "Tools requiring paid subscriptions without free tier",
+          "Generic 'AI tool' without naming specific product",
+          "Tools with complex setup (over 5 minutes to start)"
+        ]
+      },
+      
+      "script_guidance": {
+        "hook_examples": [
+          "Midjourney just leaked a parameter that creates PERFECT faces",
+          "This Notion AI trick builds your entire workflow in 60 seconds",
+          "Canva's hidden AI feature designs better than professional designers"
+        ],
+        "bullet_structure": [
+          "Bullet 1: What the secret feature is + why most people miss it",
+          "Bullet 2: Exactly how to access it (step-by-step, under 15 words)",
+          "Bullet 3: What changes for the viewer (measurable benefit)"
+        ],
+        "cta_template": "Next Tuesday (Episode [N+1]): I'm testing [NEXT_TOOL]'s [FEATURE]. Subscribe so you don't miss it!"
+      },
+      
+      "quality_gates": {
+        "minimum_predicted_completion": 65,
+        "require_visual_transformation": true,
+        "require_specific_tool_name": true,
+        "max_setup_complexity": "under 2 minutes to explain"
+      }
+    },
+    
+    "secret_prompts_thursday": {
+      "series_name": "SECRET PROMPTS",
+      "content_type": "productivity",
+      "posting_day": "Thursday",
+      "episode_prefix": "SECRET PROMPTS - Episode",
+      
+      "title_formula": {
+        "template": "ChatGPT SECRET Prompts - Episode [N]: [SPECIFIC USE CASE]!",
+        "examples": [
+          "SECRET PROMPTS - Episode 3: Email Mastery in SECONDS!",
+          "SECRET PROMPTS - Episode 4: Meeting Notes AUTOMATION!",
+          "SECRET PROMPTS - Episode 5: Content Creation SUPERCHARGED!"
+        ]
+      },
+      
+      "content_requirements": {
+        "must_include": [
+          "Episode number in title AND hook",
+          "Specific use case (not 'general productivity')",
+          "1-2 actual prompts shown on screen",
+          "Before/after example of prompt results"
+        ],
+        "optimal_length": "22-25 seconds",
+        "target_completion": "60%",
+        "target_rewatch": "1.2x",
+        "hook_structure": "Episode [N] solves [SPECIFIC PROBLEM] that [AUDIENCE] faces daily"
+      },
+      
+      "topics": {
+        "use_cases": [
+          "Email writing and responses",
+          "Meeting notes and summaries",
+          "Content creation and ideation",
+          "Code debugging and explanation",
+          "Research and fact-checking",
+          "Data analysis and visualization",
+          "Learning and study guides",
+          "Creative writing and storytelling"
+        ],
+        "prompt_categories": [
+          "Email prompts (proven: 380 views, 49.6% completion)",
+          "Productivity prompts",
+          "Creative prompts",
+          "Learning prompts",
+          "Business prompts"
+        ],
+        "exclude": [
+          "Generic 'be more creative' prompts without specifics",
+          "Prompts requiring paid ChatGPT Plus features (unless clearly disclosed)",
+          "Overly complex prompts (over 100 words)",
+          "Prompts that work inconsistently"
+        ]
+      },
+      
+      "script_guidance": {
+        "hook_examples": [
+          "Episode 5: This ChatGPT prompt writes YOUR emails in 10 seconds",
+          "Episode 6: SECRET prompt turns 1-hour meetings into 2-minute summaries",
+          "Episode 7: I found the ULTIMATE content creation prompt"
+        ],
+        "bullet_structure": [
+          "Bullet 1: Show the exact prompt (readable text on screen)",
+          "Bullet 2: Demonstrate the result (before/after comparison)",
+          "Bullet 3: When to use it (specific daily scenario)"
+        ],
+        "cta_template": "Episode [N+1] next Thursday: The [USE_CASE] prompt that [BENEFIT]. Hit subscribe or you'll miss it!"
+      },
+      
+      "quality_gates": {
+        "minimum_predicted_completion": 55,
+        "require_actual_prompt_display": true,
+        "require_use_case_specificity": true,
+        "max_prompt_complexity": "under 50 words per prompt"
+      }
+    },
+    
+    "ai_news_roundup": {
+      "series_name": "AI Weekend Roundup",
+      "content_type": "trending",
+      "posting_day": "Saturday",
+      "episode_prefix": "AI Weekend Roundup",
+      
+      "title_formula": {
+        "template": "[COMPANY]'s [PRODUCT]: [SHOCKING IMPACT ON YOU]!",
+        "examples": [
+          "Google's Gemini 2.0 Flash: YOUR Search Just Got 10x Smarter!",
+          "OpenAI's GPT-5 Leak: Changes EVERYTHING About AI Coding!",
+          "Samsung's Secret VR Headset: Transforms YOUR Daily Workflow!"
+        ]
+      },
+      
+      "content_requirements": {
+        "must_include": [
+          "Specific company and product name",
+          "Personal impact angle (how it affects viewer TODAY)",
+          "Visual demonstration of the change",
+          "Bridge to Tuesday's tool demo"
+        ],
+        "optimal_length": "20-24 seconds",
+        "target_completion": "50%",
+        "target_rewatch": "1.0x",
+        "hook_structure": "What changed + why it matters to YOU specifically"
+      },
+      
+      "topics": {
+        "include": [
+          "Major AI model releases (GPT, Gemini, Claude updates)",
+          "New features in existing popular tools",
+          "Game-changing AI breakthroughs with immediate applications",
+          "Industry shifts that affect daily tool usage"
+        ],
+        "proven_low_performers_to_avoid": [
+          "Failed products (Microsoft FAILED: 31.8% completion)",
+          "Security hacks without resolution (HACKED: low engagement)",
+          "Dark/controversial topics (ChatGPT Suicide: 20 views)",
+          "Vague trends without specific tools (Google Maps: 38.8%)"
+        ],
+        "quality_filter": [
+          "ONLY news with clear 'how this affects you' angle",
+          "MUST have visual demonstration potential",
+          "MUST relate to tools viewers actually use",
+          "AVOID pure announcements without impact explanation"
+        ]
+      },
+      
+      "script_guidance": {
+        "hook_examples": [
+          "Google just made YOUR searches 10x more accurate with Gemini 2.0",
+          "OpenAI's new GPT-5 writes code like a senior developer",
+          "This Samsung VR leak changes how YOU work from home"
+        ],
+        "bullet_structure": [
+          "Bullet 1: What's new (specific feature or change)",
+          "Bullet 2: How it works (simple 1-sentence explanation)",
+          "Bullet 3: What you can do with it TODAY (immediate action)"
+        ],
+        "cta_template": "Tuesday's Tool Teardown: I'm testing [RELATED_TOOL]. Follow so you don't miss it!"
+      },
+      
+      "quality_gates": {
+        "minimum_predicted_completion": 45,
+        "require_personal_impact_angle": true,
+        "require_specific_product_name": true,
+        "reject_negative_news": true,
+        "reject_vague_trends": true
+      }
+    }
+  },
+  
+  "content_mixing_strategy": {
+    "weekly_breakdown": {
+      "tool_demos": "2 per week (Tuesday + occasional Saturday if news is weak)",
+      "prompt_libraries": "1 per week (Thursday episodic)",
+      "curated_news": "0-1 per week (Saturday, only if passes quality gates)"
+    },
+    
+    "reasoning": {
+      "tool_demos_priority": "Your Text-to-3D video got 461.7% rewatch - this is your STRENGTH",
+      "prompt_libraries_value": "ChatGPT Email Prompts got 380 views - SECRET formula works",
+      "news_caution": "Microsoft FAILED got 31.8% completion - news is RISKY, filter heavily"
+    }
+  },
+  
+  "historical_performance_reference": {
+    "best_performers": [
+      {
+        "title": "Text to 3D Models: This AI Tool Changes Design FOREVER!",
+        "views": 175,
+        "completion": "461.7%",
+        "rewatch_rate": "4.6x",
+        "why_it_worked": "Visual transformation, specific tool, rewatch-worthy demo"
+      },
+      {
+        "title": "ChatGPT's SECRET Email Prompts: Write Perfect Emails in SECONDS!",
+        "views": 380,
+        "completion": "49.6%",
+        "why_it_worked": "SECRET hook, specific use case, time benefit quantified"
+      },
+      {
+        "title": "Canva's Secret AI: Designs YOUR Projects In SECONDS!",
+        "views": 114,
+        "completion": "70.0%",
+        "why_it_worked": "Secret feature angle, tool demo, high completion"
+      }
+    ],
+    
+    "worst_performers": [
+      {
+        "title": "Microsoft AI Agents FAILED: Project Nexus Shocking Truth!",
+        "views": 53,
+        "completion": "31.8%",
+        "why_it_failed": "Negative framing, no value in rewatching, clickbait without substance"
+      },
+      {
+        "title": "Google Maps New Feature ENDS Merging Stress!",
+        "views": 52,
+        "completion": "38.8%",
+        "why_it_failed": "Vague benefit, no clear transformation shown"
+      }
+    ]
   }
 }

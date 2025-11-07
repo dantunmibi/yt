@@ -1,0 +1,104 @@
+name: Daily Analytics Fetch
+
+on:
+  schedule:
+    # Run daily at 3:00 AM UTC (10 PM EST)
+    - cron: '0 3 * * *'
+  
+  workflow_dispatch:
+    inputs:
+      force_fetch:
+        description: 'Force fetch all video analytics'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  fetch_analytics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-api-python-client google-auth pytz
+
+      - name: Make tmp folder
+        run: |
+          mkdir -p tmp
+          chmod -R 777 tmp
+
+      - name: Restore performance data
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            tmp/content_performance.json
+            tmp/upload_history.json
+          key: performance-data-${{ github.run_number }}
+          restore-keys: |
+            performance-data-
+
+      - name: Fetch YouTube Analytics
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: python .github/scripts/fetch_youtube_analytics.py
+
+      - name: Generate recommendations
+        run: python .github/scripts/track_performance.py
+
+      - name: Save performance data
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            tmp/content_performance.json
+            tmp/schedule_recommendations.json
+          key: performance-data-${{ github.run_number }}
+
+      - name: Upload analytics report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: analytics-report-${{ github.run_number }}
+          path: |
+            tmp/content_performance.json
+            tmp/schedule_recommendations.json
+            tmp/delay_log.json
+          retention-days: 90
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 📊 Daily Analytics Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f tmp/content_performance.json ]; then
+            echo "### Performance Data Updated" >> $GITHUB_STEP_SUMMARY
+            if command -v jq &> /dev/null; then
+              for type in $(jq -r 'keys[]' tmp/content_performance.json); do
+                AVG=$(jq -r ".[\"$type\"].average_completion // 0" tmp/content_performance.json)
+                TOTAL=$(jq -r ".[\"$type\"].total_uploads // 0" tmp/content_performance.json)
+                echo "- **$type**: ${AVG}% avg completion ($TOTAL uploads)" >> $GITHUB_STEP_SUMMARY
+              done
+            fi
+          fi
+          
+          if [ -f tmp/schedule_recommendations.json ]; then
+            RECS=$(jq -r '.pending_recommendations | length' tmp/schedule_recommendations.json)
+            if [ "$RECS" != "0" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### 💡 $RECS Schedule Recommendations" >> $GITHUB_STEP_SUMMARY
+              echo "Review in artifacts or tmp/schedule_recommendations.json" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi

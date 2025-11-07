@@ -76,6 +76,68 @@ PLAYLIST_RULES = {
 
 }
 
+# ===== SERIES-BASED PLAYLIST RULES =====
+SERIES_PLAYLISTS = {
+    "Tool Teardown Tuesday": {
+        "title": "🔧 Tool Teardown Tuesday - Complete Series",
+        "description": "Every Tuesday, we tear down the latest AI tools and reveal their SECRET features. Watch the entire series to become an AI power user!",
+        "keywords": ["ai tools", "tool teardown", "midjourney", "chatgpt", "notion ai", "canva ai", "ai tutorials"]
+    },
+    "SECRET PROMPTS": {
+        "title": "🔐 SECRET PROMPTS - ChatGPT Mastery Series",
+        "description": "The ultimate ChatGPT prompt library. Every Thursday, Episode by episode, learn the SECRET prompts that 10x your productivity.",
+        "keywords": ["chatgpt prompts", "ai prompts", "productivity", "chatgpt tutorial", "secret prompts"]
+    },
+    "AI Weekend Roundup": {
+        "title": "📰 AI Weekend Roundup - Latest AI News",
+        "description": "Your weekly curated AI news. Every Saturday, we break down the week's most important AI updates and how they impact YOU.",
+        "keywords": ["ai news", "tech news", "ai updates", "artificial intelligence", "trending ai"]
+    }
+}
+
+def get_or_create_series_playlist(youtube, series_name, config):
+    """
+    Get or create playlist for a series (e.g., "Tool Teardown Tuesday").
+    Separate from topic-based playlists.
+    """
+    playlist_key = f"series_{series_name.lower().replace(' ', '_')}"
+    
+    if playlist_key in config:
+        print(f"✅ Using existing series playlist: {series_name} (ID: {config[playlist_key]})")
+        return config[playlist_key]
+    
+    # Check if series playlist config exists
+    if series_name not in SERIES_PLAYLISTS:
+        print(f"⚠️ No series playlist config for: {series_name}")
+        return None
+    
+    # Create new series playlist
+    try:
+        playlist_info = SERIES_PLAYLISTS[series_name]
+        
+        request = youtube.playlists().insert(
+            part="snippet,status",
+            body={
+                "snippet": {
+                    "title": playlist_info["title"],
+                    "description": playlist_info["description"],
+                    "tags": playlist_info["keywords"]
+                },
+                "status": {"privacyStatus": "public"}
+            }
+        )
+        response = request.execute()
+        playlist_id = response["id"]
+        
+        config[playlist_key] = playlist_id
+        save_playlist_config(config)
+        print(f"🎉 Created series playlist: {playlist_info['title']} (ID: {playlist_id})")
+        return playlist_id
+        
+    except Exception as e:
+        print(f"❌ Failed to create series playlist: {e}")
+        return None
+
 # ---- Core Functions ----
 
 # Fetch your existing channel playlists and map them to categories if titles match
@@ -260,14 +322,15 @@ def add_video_to_playlist(youtube, video_id, playlist_id):
         return False
 
 def organize_playlists(youtube, history, config, niche):
-    """Main function to organize videos into playlists"""
+    """Main function to organize videos into BOTH topic AND series playlists"""
     print(f"\n🎬 Organizing {len(history)} videos into playlists...")
     print(f"   Niche: {niche}")
     
     stats = {
         "total_videos": len(history),
         "categorized": 0,
-        "added_to_playlists": 0,
+        "added_to_topic_playlists": 0,
+        "added_to_series_playlists": 0,
         "already_in_playlists": 0,
         "failed": 0
     }
@@ -275,35 +338,40 @@ def organize_playlists(youtube, history, config, niche):
     for video in history:
         video_id = video.get("video_id")
         title = video.get("title", "Unknown")
+        series_name = video.get("series", "none")  # NEW: Check for series metadata
         
         if not video_id:
             continue
         
         print(f"\n📹 Processing: {title}")
+        if series_name and series_name != "none":
+            print(f"   📺 Series: {series_name}")
         
-        # Determine category
+        # 1. Add to TOPIC-BASED playlist (existing logic)
         category = categorize_video(video, niche)
         
-        if not category:
-            stats["failed"] += 1
-            continue
+        if category:
+            stats["categorized"] += 1
+            playlist_id = get_or_create_playlist(youtube, niche, category, config)
+            
+            if playlist_id:
+                success = add_video_to_playlist(youtube, video_id, playlist_id)
+                if success:
+                    stats["added_to_topic_playlists"] += 1
+                else:
+                    stats["already_in_playlists"] += 1
         
-        stats["categorized"] += 1
-        
-        # Get or create playlist
-        playlist_id = get_or_create_playlist(youtube, niche, category, config)
-        
-        if not playlist_id:
-            stats["failed"] += 1
-            continue
-        
-        # Add video to playlist
-        success = add_video_to_playlist(youtube, video_id, playlist_id)
-        
-        if success:
-            stats["added_to_playlists"] += 1
-        else:
-            stats["already_in_playlists"] += 1
+        # 2. Add to SERIES-BASED playlist (NEW)
+        if series_name and series_name != "none":
+            series_playlist_id = get_or_create_series_playlist(youtube, series_name, config)
+            
+            if series_playlist_id:
+                success = add_video_to_playlist(youtube, video_id, series_playlist_id)
+                if success:
+                    stats["added_to_series_playlists"] += 1
+                    print(f"      ✅ Added to series playlist: {series_name}")
+                else:
+                    print(f"      ℹ️ Already in series playlist: {series_name}")
     
     return stats
 
@@ -385,3 +453,5 @@ if __name__ == "__main__":
     
     print("\n✅ Playlist organization complete!")
     print("\n💡 Tip: Playlists are created automatically and will grow with each new upload!")
+    print(f"Added to topic playlists: {stats['added_to_topic_playlists']}")
+    print(f"Added to series playlists: {stats['added_to_series_playlists']}")

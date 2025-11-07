@@ -6,7 +6,7 @@ on:
       platforms:
         description: 'Platforms to upload to (comma-separated: youtube,tiktok,instagram,facebook)'
         required: false
-        default: 'youtube,facebook'
+        default: 'youtube'
       force_all:
         description: 'Force upload to all enabled platforms'
         required: false
@@ -19,38 +19,24 @@ on:
         default: false
   
   schedule:
-    # ===== OPTIMIZED FOR US AUDIENCE (UTC times) =====
-    # Format: 'minute hour day month weekday'
-    # All times are UTC (EST = UTC-5 in winter, UTC-4 in summer)
+    # ===== STRATEGIC 3-POSTS-PER-WEEK SCHEDULE (DATA-DRIVEN) =====
+    # Designed for GitHub Actions delays up to 120 minutes
+    # All times UTC (EST = UTC-5 winter, UTC-4 summer)
     
-    # ===== MONDAY =====
-    - cron: '0 17 * * 1'   # 12:00 PM EST - Lunch (Productivity)
-    - cron: '0 23 * * 1'   # 6:00 PM EST - After work (Trending)
+    # TUESDAY - Tool Teardown Tuesday (HIGHEST PRIORITY)
+    # Target window: 10:00 AM - 1:00 PM EST (15:00-18:00 UTC)
+    # Scheduler handles 3-hour window to absorb delays
+    - cron: '0 15 * * 2'   # Triggers at 10:00 AM EST
     
-    # ===== TUESDAY (BEST DAY) ===== ⭐⭐⭐
-    - cron: '0 16 * * 2'   # 11:00 AM EST - Late morning (AI Tools - HIGHEST)
-    - cron: '0 19 * * 2'   # 2:00 PM EST - Afternoon (Tech News)
+    # THURSDAY - SECRET PROMPTS Thursday (HIGHEST PRIORITY)  
+    # Target window: 10:00 AM - 1:00 PM EST (15:00-18:00 UTC)
+    # Episodic content to build returning viewers
+    - cron: '0 15 * * 4'   # Triggers at 10:00 AM EST
     
-    # ===== WEDNESDAY =====
-    - cron: '0 1 * * 3'    # 8:00 PM EST Tue - Prime time (Brain Hacks)
-    - cron: '0 17 * * 3'   # 12:00 PM EST Wed - Lunch (Productivity)
-    
-    # ===== THURSDAY =====
-    - cron: '0 0 * * 4'    # 7:00 PM EST Wed - Evening (Surprise)
-    - cron: '0 23 * * 4'   # 6:00 PM EST Thu - After work (Tech)
-    
-    # ===== FRIDAY =====
-    - cron: '0 2 * * 5'    # 9:00 PM EST Thu - Prime time (Entertainment)
-    - cron: '0 20 * * 5'   # 3:00 PM EST Fri - Afternoon (Lifestyle)
-    
-    # ===== SATURDAY =====
-    - cron: '0 0 * * 6'    # 7:00 PM EST Fri - Friday night (Entertainment)
-    - cron: '0 16 * * 6'   # 11:00 AM EST Sat - Weekend morning (Lifestyle)
-    
-    # ===== SUNDAY =====
-    - cron: '0 1 * * 0'    # 8:00 PM EST Sat - Saturday night (Motivation)
-    - cron: '0 18 * * 0'   # 1:00 PM EST Sun - Sunday afternoon (Mindset)
-    - cron: '0 0 * * 1'    # 7:00 PM EST Sun - Sunday evening (Motivation)
+    # SATURDAY - AI Weekend Roundup (HIGH PRIORITY)
+    # Target window: 9:00 AM - 12:00 PM EST (14:00-17:00 UTC)
+    # Curated news for new viewer acquisition
+    - cron: '0 14 * * 6'   # Triggers at 9:00 AM EST
 
 jobs:
   build_and_upload:
@@ -88,23 +74,27 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytz
 
-      - name: 🎯 Check optimal posting time
+      - name: 🎯 Check optimal posting time (ENHANCED)
         id: schedule_check
         env:
           IGNORE_SCHEDULE: ${{ github.event.inputs.ignore_schedule }}
         run: python .github/scripts/optimal_scheduler.py
 
-      - name: Display scheduling decision
+      - name: Display scheduling decision (ENHANCED)
         run: |
           echo "📅 Current Time: ${{ steps.schedule_check.outputs.current_time }}"
           echo "🎯 Should Post: ${{ steps.schedule_check.outputs.should_post }}"
           echo "⭐ Priority: ${{ steps.schedule_check.outputs.priority }}"
+          echo "📺 Series: ${{ steps.schedule_check.outputs.series }}"
+          echo "🎬 Episode: ${{ steps.schedule_check.outputs.episode_number }}"
+          echo "🎯 Target Completion: ${{ steps.schedule_check.outputs.target_completion }}"
+          echo "⏱️ Delay: ${{ steps.schedule_check.outputs.delay_minutes }} minutes"
 
       - name: Skip if not optimal time
         if: steps.schedule_check.outputs.should_post != 'true'
         run: |
-          echo "⏸️ Skipping run - not within optimal posting window or not a forced manual run."
-          echo "💡 This workflow will only post if triggered by a specific schedule or if 'ignore_schedule' is set to true."
+          echo "⏸️ Skipping run - not within optimal posting window"
+          echo "💡 Next post: Check posting_schedule.json for upcoming slots"
           exit 0
           
       - name: Cache apt packages
@@ -148,6 +138,15 @@ jobs:
           mkdir -p tmp
           chmod -R 777 tmp
 
+      - name: Restore episode tracking (NEW)
+        if: steps.schedule_check.outputs.should_post == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/episode_tracking.json
+          key: episode-tracking-${{ github.run_number }}
+          restore-keys: |
+            episode-tracking-
+
       - name: Restore platform config
         if: steps.schedule_check.outputs.should_post == 'true'
         uses: actions/cache/restore@v4
@@ -187,10 +186,13 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python .github/scripts/fetch_trending.py
 
-      - name: Generate trending topic & script
+      - name: Generate trending topic & script (SERIES-AWARE)
         if: steps.schedule_check.outputs.should_post == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SERIES_NAME: ${{ steps.schedule_check.outputs.series }}
+          EPISODE_NUMBER: ${{ steps.schedule_check.outputs.episode_number }}
+          CONTENT_TYPE: ${{ steps.schedule_check.outputs.content_type }}
         run: python .github/scripts/generate_trending_and_script.py
 
       - name: Generate TTS (Local Coqui)
@@ -215,21 +217,19 @@ jobs:
           find tmp -name "scene_*.jpg" -type f -delete || true
           rm -f tmp/short_ready.mp4 || true
 
-      - name: Upload to multiple platforms
+      - name: Upload to YouTube (SERIES-AWARE)
         if: steps.schedule_check.outputs.should_post == 'true'
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-          TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
-          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
-          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
-          TEMP_VIDEO_URL: ${{ secrets.TEMP_VIDEO_URL }}
-          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
-          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
-          PLATFORMS: ${{ github.event.inputs.platforms }}
-          FORCE_ALL: ${{ github.event.inputs.force_all }}
-        run: python .github/scripts/upload_multiplatform.py
+          SERIES_NAME: ${{ steps.schedule_check.outputs.series }}
+          EPISODE_NUMBER: ${{ steps.schedule_check.outputs.episode_number }}
+        run: python .github/scripts/upload_youtube.py
+
+      - name: Track upload performance (Package 4)
+        if: success() && steps.schedule_check.outputs.should_post == 'true'
+        run: python .github/scripts/track_performance.py
       
       - name: Find actual video file
         if: success() && steps.schedule_check.outputs.should_post == 'true'
@@ -256,24 +256,21 @@ jobs:
           VIDEO_PATH="${{ steps.find_video.outputs.video_path }}"
           VIDEO_SIZE=$(stat -c%s "$VIDEO_PATH" 2>/dev/null || stat -f%z "$VIDEO_PATH")
           YOUTUBE_URL=""
-          FACEBOOK_URL=""
-          if [ -f tmp/multiplatform_log.json ]; then
-            YOUTUBE_URL=$(jq -r '.[-1].results[] | select(.platform=="youtube") | .url // ""' tmp/multiplatform_log.json)
-            FACEBOOK_URL=$(jq -r '.[-1].results[] | select(.platform=="facebook") | .url // ""' tmp/multiplatform_log.json)
+          if [ -f tmp/upload_history.json ]; then
+            YOUTUBE_URL=$(jq -r '.[-1].shorts_url // ""' tmp/upload_history.json)
           fi
           cat > tmp/makecom_payload.json <<EOF
           {
             "title": "$TITLE",
             "description": "$DESCRIPTION",
             "hashtags": "$HASHTAGS",
+            "series": "${{ steps.schedule_check.outputs.series }}",
+            "episode": "${{ steps.schedule_check.outputs.episode_number }}",
             "video_name": "$(basename $VIDEO_PATH)",
             "video_size_mb": $(echo "scale=2; $VIDEO_SIZE/1024/1024" | bc),
             "workflow_run": "${{ github.run_number }}",
             "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platform_urls": {
-              "youtube": "$YOUTUBE_URL",
-              "facebook": "$FACEBOOK_URL"
-            }
+            "youtube_url": "$YOUTUBE_URL"
           }
           EOF
           echo "✅ Make.com payload prepared"
@@ -314,13 +311,21 @@ jobs:
             }"
           echo "✅ Webhook sent to Make.com"
 
-      - name: Organize YouTube playlists
+      - name: Organize YouTube playlists (SERIES-AWARE)
         if: success() && steps.schedule_check.outputs.should_post == 'true'
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          SERIES_NAME: ${{ steps.schedule_check.outputs.series }}
         run: python .github/scripts/manage_playlists.py
+
+      - name: Save episode tracking (NEW)
+        uses: actions/cache/save@v4
+        if: always() && steps.schedule_check.outputs.should_post == 'true'
+        with:
+          path: tmp/episode_tracking.json
+          key: episode-tracking-${{ github.run_number }}
 
       - name: Save platform config
         uses: actions/cache/save@v4
@@ -355,9 +360,13 @@ jobs:
             tmp/content_history.json
             tmp/playlist_config.json
             tmp/platform_config.json
-            tmp/multiplatform_log.json
-            tmp/posting_schedule.json
+            tmp/upload_history.json
+            tmp/episode_tracking.json
             tmp/voice.mp3
+            tmp/content_performance.json      # NEW
+            tmp/delay_log.json                # NEW
+            tmp/retry_queue.json              # NEW
+            tmp/schedule_recommendations.json # NEW
           retention-days: 30
 
       - name: Upload logs on failure
@@ -368,7 +377,7 @@ jobs:
           path: tmp/*.log
           retention-days: 7
 
-      - name: Post-run summary
+      - name: Post-run summary (Package 4 ENHANCED)
         if: always()
         run: |
           echo "## 📊 Workflow Summary" >> $GITHUB_STEP_SUMMARY
@@ -376,4 +385,31 @@ jobs:
           echo "**Time:** ${{ steps.schedule_check.outputs.current_time }}" >> $GITHUB_STEP_SUMMARY
           echo "**Posted:** ${{ steps.schedule_check.outputs.should_post }}" >> $GITHUB_STEP_SUMMARY
           echo "**Priority:** ${{ steps.schedule_check.outputs.priority }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Series:** ${{ steps.schedule_check.outputs.series }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Episode:** ${{ steps.schedule_check.outputs.episode_number }}" >> $GITHUB_STEP_SUMMARY
           echo "**Content Type:** ${{ steps.schedule_check.outputs.content_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Target Completion:** ${{ steps.schedule_check.outputs.target_completion }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Predicted Completion:** ${{ steps.schedule_check.outputs.predicted_completion }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Scheduling Delay:** ${{ steps.schedule_check.outputs.delay_minutes }} minutes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f tmp/delay_log.json ]; then
+            echo "### ⏱️ Delay Statistics" >> $GITHUB_STEP_SUMMARY
+            if command -v jq &> /dev/null; then
+              STATS=$(jq -r '.statistics // {}' tmp/delay_log.json)
+              if [ "$STATS" != "{}" ]; then
+                AVG_DELAY=$(echo $STATS | jq -r '.average_delay // 0')
+                MAX_DELAY=$(echo $STATS | jq -r '.max_delay // 0')
+                ON_TIME=$(echo $STATS | jq -r '.on_time_rate // 0')
+                echo "- Average delay: ${AVG_DELAY} minutes" >> $GITHUB_STEP_SUMMARY
+                echo "- Maximum delay: ${MAX_DELAY} minutes" >> $GITHUB_STEP_SUMMARY
+                echo "- On-time rate: ${ON_TIME}%" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          fi
+          
+          if [ "${{ steps.schedule_check.outputs.has_recommendations }}" == "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 💡 Schedule Recommendations Available" >> $GITHUB_STEP_SUMMARY
+            echo "Review recommendations in artifacts: schedule_recommendations.json" >> $GITHUB_STEP_SUMMARY
+          fi

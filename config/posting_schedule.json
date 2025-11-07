@@ -1,37 +1,159 @@
 {
   "schedule": {
     "timezone": "UTC",
-    "target_audience": "United States",
+    "target_audience": "United States (58.3% of audience)",
+    "strategy": "Quality over quantity - build returning viewers through episodic series",
+    "posting_philosophy": "3 strategic posts per week aligned with data-proven content types",
+    
     "weekly_schedule": {
-      "Monday": [
-        { "time": "00:00", "priority": "medium", "type": "motivation" },
-        { "time": "17:00", "priority": "high", "type": "productivity" },
-        { "time": "23:00", "priority": "medium", "type": "trending" }
-      ],
       "Tuesday": [
-        { "time": "16:00", "priority": "highest", "type": "ai_tools" },
-        { "time": "19:00", "priority": "high", "type": "tech_news" }
+        {
+          "time": "15:00",
+          "window_start": "15:00",
+          "window_end": "18:00",
+          "priority": "highest",
+          "type": "tool_teardown_tuesday",
+          "series": "Tool Teardown Tuesday",
+          "description": "AI tool demonstrations with visual transformations",
+          "target_completion": "70%",
+          "expected_behavior": "High rewatch rate, reference content, save & share",
+          "historical_performance": "461.7% rewatch on Text-to-3D demo, 70% completion on Canva",
+          "reasoning": "Tool demos are your BEST performers - Text-to-3D got 4.6x rewatches"
+        }
       ],
-      "Wednesday": [
-        { "time": "01:00", "priority": "high", "type": "brain_hack" },
-        { "time": "17:00", "priority": "medium", "type": "productivity" }
-      ],
+      
       "Thursday": [
-        { "time": "00:00", "priority": "high", "type": "surprise" },
-        { "time": "23:00", "priority": "medium", "type": "tech_news" }
+        {
+          "time": "15:00",
+          "window_start": "15:00",
+          "window_end": "18:00",
+          "priority": "highest",
+          "type": "secret_prompts_thursday",
+          "series": "SECRET PROMPTS",
+          "description": "ChatGPT/AI prompt libraries - episodic numbered series",
+          "target_completion": "60%",
+          "expected_behavior": "Episodic viewers return weekly, bookmark for reference",
+          "historical_performance": "ChatGPT Email Prompts: 380 views, 49.6% completion",
+          "reasoning": "'SECRET' hook + specific tool = proven 380 views, creates anticipation"
+        }
       ],
-      "Friday": [
-        { "time": "02:00", "priority": "medium", "type": "entertainment" },
-        { "time": "20:00", "priority": "medium", "type": "lifestyle" }
-      ],
+      
       "Saturday": [
-        { "time": "00:00", "priority": "high", "type": "entertainment" },
-        { "time": "16:00", "priority": "low", "type": "lifestyle" }
-      ],
-      "Sunday": [
-        { "time": "01:00", "priority": "medium", "type": "motivation" },
-        { "time": "18:00", "priority": "low", "type": "mindset" }
+        {
+          "time": "14:00",
+          "window_start": "14:00",
+          "window_end": "17:00",
+          "priority": "high",
+          "type": "ai_news_roundup",
+          "series": "AI Weekend Roundup",
+          "description": "Curated AI news (ONLY stories with high-completion potential)",
+          "target_completion": "50%",
+          "expected_behavior": "New viewer acquisition, occasional viral hits",
+          "historical_performance": "Microsoft FAILED: 31.8% (AVOID), Google Maps: 38.8% (BORDERLINE)",
+          "reasoning": "News CAN work but ONLY with practical value - filter heavily",
+          "quality_gate": "Reject news without clear 'how this affects you' angle"
+        }
       ]
+    },
+    
+    "content_strategy": {
+      "tool_teardown_tuesday": {
+        "title_template": "[TOOL NAME]'s SECRET [FEATURE]: [TRANSFORMATION] in [TIME]!",
+        "episode_format": "Tool Teardown Tuesday - Episode [N]: [Tool] [Feature]",
+        "hook_structure": "Show visual transformation in first 3 seconds",
+        "cta": "Next Tuesday: [Teaser for next tool]. Subscribe so you don't miss it!",
+        "optimal_length": "25-28 seconds",
+        "required_elements": [
+          "Before/after visual comparison",
+          "Specific tool name in title",
+          "Time benefit (seconds/minutes)",
+          "Episode number for series continuity"
+        ],
+        "examples": [
+          "Tool Teardown Tuesday - Episode 5: Midjourney's SECRET Parameter Creates Perfect Images!",
+          "Tool Teardown Tuesday - Episode 6: Notion's HIDDEN AI Builds Your Workflow in 60 Seconds!"
+        ],
+        "success_metrics": {
+          "min_completion": 70,
+          "target_rewatch": 1.5,
+          "min_views_24h": 100
+        }
+      },
+      
+      "secret_prompts_thursday": {
+        "title_template": "ChatGPT SECRET Prompts - Episode [N]: [SPECIFIC USE CASE]!",
+        "episode_format": "SECRET PROMPTS - Episode [N]: [Use Case]",
+        "hook_structure": "Episode number + immediate problem it solves",
+        "cta": "Episode [N+1] next Thursday reveals the [TEASER]! Subscribe now!",
+        "optimal_length": "22-25 seconds",
+        "required_elements": [
+          "Episode number MUST be in title",
+          "Specific use case (Email, Meetings, Content, etc.)",
+          "Show 1-2 actual prompts on screen",
+          "End with next episode teaser"
+        ],
+        "examples": [
+          "SECRET PROMPTS - Episode 3: Email Mastery in SECONDS!",
+          "SECRET PROMPTS - Episode 4: Meeting Notes AUTOMATION!"
+        ],
+        "success_metrics": {
+          "min_completion": 60,
+          "target_rewatch": 1.2,
+          "min_views_24h": 150
+        }
+      },
+      
+      "ai_news_roundup": {
+        "title_template": "[COMPANY]'s [PRODUCT]: [SHOCKING IMPACT ON YOU]!",
+        "hook_structure": "What changed + how it affects viewer TODAY",
+        "cta": "Follow for Tuesday's tool demo on [Related Tool]!",
+        "optimal_length": "20-24 seconds",
+        "required_elements": [
+          "Specific company/product name",
+          "Personal impact angle (not just 'announcement')",
+          "Visual demonstration of the change",
+          "Bridge to Tuesday's tool demo"
+        ],
+        "exclusion_criteria": [
+          "NO 'failed products' or negative news (31.8% completion)",
+          "NO 'hacked' or security scares (low engagement)",
+          "NO controversy without resolution (ChatGPT Suicide: 20 views)",
+          "NO vague 'AI trends' - must be SPECIFIC tool/feature"
+        ],
+        "examples": [
+          "Google's Gemini 2.0 Flash: YOUR Search Just Got 10x Smarter!",
+          "Samsung's Secret VR Headset: Changes YOUR Daily Workflow!"
+        ],
+        "success_metrics": {
+          "min_completion": 50,
+          "target_rewatch": 1.0,
+          "min_views_24h": 80
+        }
+      }
+    },
+    
+    "scheduling_notes": {
+      "github_actions_reality": "Delays of 0-120 minutes are normal and EXPECTED",
+      "window_strategy": "3-hour windows absorb delays while hitting target audience",
+      "time_zone_targeting": "15:00 UTC = 10:00 AM EST (late morning, high desktop usage)",
+      "why_these_days": {
+        "tuesday": "Historically your BEST day (16:00 slot was 'HIGHEST' priority in old schedule)",
+        "thursday": "Mid-week, high engagement, builds anticipation for weekend",
+        "saturday": "Weekend morning, different audience segment, new viewer acquisition"
+      },
+      "why_3_posts_not_17": {
+        "problem": "17 posts/week = 99.7% new viewers (burnout, no retention)",
+        "solution": "3 posts/week = viewers can follow ALL episodes, build habits",
+        "math": "3 quality posts at 70% completion > 17 mediocre posts at 40% completion"
+      }
+    },
+    
+    "migration_plan": {
+      "week_1": "Launch all 3 series with Episode 1",
+      "week_2": "Episode 2 for all series - measure returning viewer %",
+      "week_3": "Episode 3 - should see first uptick in regular viewers",
+      "week_4": "Episode 4 - evaluate which series has highest retention",
+      "week_5_plus": "Double down on best-performing series, adjust weakest"
     }
   }
 }

@@ -13,6 +13,38 @@ TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 os.makedirs(TMP, exist_ok=True)
 HISTORY_FILE = os.path.join(TMP, "content_history.json")
 
+# ===== SERIES-AWARE ENHANCEMENTS =====
+# Read series metadata from scheduler
+SERIES_NAME = os.getenv("SERIES_NAME", "none")
+EPISODE_NUMBER = int(os.getenv("EPISODE_NUMBER", "0"))
+CONTENT_TYPE = os.getenv("CONTENT_TYPE", "general")
+
+print(f"🎬 Series-aware generation:")
+print(f"   Series: {SERIES_NAME}")
+print(f"   Episode: {EPISODE_NUMBER}")
+print(f"   Content Type: {CONTENT_TYPE}")
+
+# Load series-specific guidance from content_recommendations.json
+def load_series_guidance():
+    """Load series-specific content guidance"""
+    try:
+        with open('config/content_recommendations.json', 'r') as f:
+            config = json.load(f)
+            
+        # Support both old and new structure
+        if 'series' in config and CONTENT_TYPE in config['series']:
+            series_config = config['series'][CONTENT_TYPE]
+            print(f"✅ Loaded series guidance for: {CONTENT_TYPE}")
+            return series_config
+        else:
+            print(f"⚠️ No series guidance found for: {CONTENT_TYPE}, using defaults")
+            return None
+    except Exception as e:
+        print(f"⚠️ Could not load series guidance: {e}")
+        return None
+
+series_guidance = load_series_guidance()
+
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 try:
@@ -167,82 +199,116 @@ If a trend is about "Samsung VR headset", your script MUST be about that specifi
 else:
     trending_mandate = ""
 
+# Build series-specific prompt enhancements
+series_instructions = ""
+title_template = ""
+cta_template = ""
+
+if series_guidance:
+    title_template = series_guidance.get('title_formula', {}).get('with_episode', '')
+    if title_template and EPISODE_NUMBER > 0:
+        title_template = title_template.replace('[N]', str(EPISODE_NUMBER))
+    
+    cta_data = series_guidance.get('script_guidance', {}).get('cta_template', '')
+    if cta_data and EPISODE_NUMBER > 0:
+        cta_template = cta_data.replace('[N+1]', str(EPISODE_NUMBER + 1))
+    
+    series_instructions = f"""
+⚠️ SERIES-SPECIFIC REQUIREMENTS FOR {SERIES_NAME}:
+
+Title Template: {title_template}
+
+Content Requirements:
+{chr(10).join(f"  • {req}" for req in series_guidance.get('content_requirements', {}).get('must_include', []))}
+
+Optimal Length: {series_guidance.get('content_requirements', {}).get('optimal_length', '25-28 seconds')}
+
+Target Completion Rate: {series_guidance.get('content_requirements', {}).get('target_completion', '60%')}+
+
+Hook Structure: {series_guidance.get('content_requirements', {}).get('hook_structure', 'Grab attention in first 3 seconds')}
+
+Example Hooks:
+{chr(10).join(f"  • {ex}" for ex in series_guidance.get('script_guidance', {}).get('hook_examples', [])[:3])}
+
+CTA Template: {cta_template}
+
+This is EPISODE {EPISODE_NUMBER} of the {SERIES_NAME} series.
+Viewers expect consistency with previous episodes while delivering NEW value.
+"""
+
+# Build the main prompt with series awareness
 prompt = f"""You are a viral YouTube Shorts content creator with millions of views.
 
 CONTEXT:
 - Current date: {datetime.now().strftime('%Y-%m-%d')}
+- Series: {SERIES_NAME}
+- Episode Number: {EPISODE_NUMBER}
+- Content Type: {CONTENT_TYPE}
 - Previously covered (DO NOT REPEAT THESE): 
 {chr(10).join(f"  • {t}" for t in previous_topics) if previous_topics else '  None'}
 
 {trending_mandate}
 
+{series_instructions}
+
 TASK: Create a trending, viral-worthy script for a 45-75 second YouTube Short.
 
 CRITICAL REQUIREMENTS:
 ✅ Topic must be COMPLETELY DIFFERENT from previous topics above
+✅ MUST follow the series title template and include episode number
 ✅ Hook must create a curiosity gap (make viewers NEED to watch)
 ✅ Include specific numbers, statistics, or surprising facts
 ✅ 3 concise, punchy bullet points (each 15-20 words max)
-✅ Be SPECIFIC - name actual tools, apps, techniques, not vague "this tool" or "this method"
-✅ CTA must be casual and engaging - NOT salesy or course-pitchy
+✅ Be SPECIFIC - name actual tools, apps, techniques, not vague "this tool"
+✅ CTA must follow the series template and tease next episode
 ✅ Add 5-10 relevant and trending hashtags for maximum discoverability
 
-PROVEN VIRAL FORMULAS:
-- "3 Things Nobody Tells You About..."
-- "Why [Surprising Fact] Will Change Everything"
-- "The Secret [Group] Don't Want You to Know"
-- "I Tried [Thing] For 30 Days, Here's What Happened"
-- "[Number] Mind-Blowing Facts About..."
+PROVEN VIRAL FORMULAS (adapted for series):
+- "Episode {EPISODE_NUMBER}: 3 Things Nobody Tells You About..."
+- "Episode {EPISODE_NUMBER}: Why [Surprising Fact] Will Change Everything"
+- "Episode {EPISODE_NUMBER}: The Secret [Group] Don't Want You to Know"
 
-CTA GUIDELINES (VERY IMPORTANT):
-❌ BAD CTAs: "Comment which one...", "Subscribe for more", "Click the link", "Take my course"
-✅ GOOD CTAs: "Try this yourself and tag me!", "Which one shocked you?", "Save this before it's gone", "Share with someone who needs this", "Follow for daily tips like this"
-- Keep it natural and conversational
-- Make it feel like talking to a friend
-- Encourage ACTION not just engagement metrics
-- No selling, no courses, no links
+CTA REQUIREMENTS FOR SERIES:
+❌ BAD: "Comment which one...", "Subscribe for more"
+✅ GOOD: "Episode {EPISODE_NUMBER + 1} next {series_guidance.get('posting_day', 'week')}: [TEASER]! Subscribe so you don't miss it!"
 
-SPECIFICITY RULES (VERY IMPORTANT):
+Example: "Episode {EPISODE_NUMBER + 1} drops Thursday - I'm revealing the MEETING NOTES hack! Hit subscribe now!"
+
+SPECIFICITY RULES:
 DO NOT INCLUDE SPECIAL CHARACTERS OR QUOTES IN THE OUTPUT
 
 ❌ VAGUE: "This AI tool can help you"
 ✅ SPECIFIC: "ChatGPT's Code Interpreter can help you"
 
-❌ VAGUE: "A simple trick improves focus"
-✅ SPECIFIC: "The Pomodoro Technique improves focus by 40%"
-
-❌ VAGUE: "Experts recommend this method"
-✅ SPECIFIC: "Stanford researchers found this method doubles retention"
-
-❌ VAGUE: "New AI feature"
-✅ SPECIFIC: "Google's Gemini 2.0 Flash with live video"
-
 OUTPUT FORMAT (JSON ONLY - NO OTHER TEXT):
 {{
-  "title": "Catchy title with specific details (under 100 chars)",
+  "title": "MUST follow series template with Episode {EPISODE_NUMBER} (under 100 chars)",
   "topic": "one_word_category",
-  "hook": "Question or shocking statement with specifics (under 12 words)",
+  "series": "{SERIES_NAME}",
+  "episode": {EPISODE_NUMBER},
+  "hook": "Question or shocking statement with episode number (under 12 words)",
   "bullets": [
     "First key point - BE SPECIFIC with names/numbers/details (15-20 words)",
     "Second point - SPECIFIC fact or statistic with source (15-20 words)",
     "Third point - SPECIFIC actionable insight with exact method (15-20 words)"
   ],
-  "cta": "Casual, friendly call-to-action - NO SALESY LANGUAGE (under 15 words)",
-  "hashtags": ["#shorts", "#viral", "#trending", "#category", "#fyp"],
-  "description": "2-3 sentence description with specific details for YouTube",
+  "cta": "MUST follow series CTA template and tease Episode {EPISODE_NUMBER + 1} (under 20 words)",
+  "hashtags": ["#shorts", "#viral", "#trending", "#{CONTENT_TYPE}", "#fyp"],
+  "description": "2-3 sentence description mentioning this is Episode {EPISODE_NUMBER} of {SERIES_NAME}",
   "visual_prompts": [
-    "Specific, detailed image prompt for hook scene with exact visual elements",
-    "Specific, detailed image prompt for bullet 1 showing the exact concept visually",
-    "Specific, detailed image prompt for bullet 2 with clear visual representation",
-    "Specific, detailed image prompt for bullet 3 demonstrating the specific action"
+    "Specific, detailed image prompt for hook scene",
+    "Specific, detailed image prompt for bullet 1",
+    "Specific, detailed image prompt for bullet 2",
+    "Specific, detailed image prompt for bullet 3"
   ]
 }}
 
 REMEMBER: 
-- YOU MUST USE ONE OF THE 5 TRENDING TOPICS PROVIDED ABOVE!
-- Be SPECIFIC! Name actual tools, techniques, studies, numbers!
-- Make it COMPLETELY DIFFERENT from previous topics!
-- Make it IRRESISTIBLE to click and watch!"""
+- This is EPISODE {EPISODE_NUMBER} - include it in the title!
+- YOU MUST USE ONE OF THE TRENDING TOPICS PROVIDED ABOVE!
+- Follow the series format consistently!
+- Tease Episode {EPISODE_NUMBER + 1} in your CTA!
+- Be SPECIFIC with tool names and benefits!"""
 
 # Try generating script with multiple attempts
 max_attempts = 5
@@ -371,6 +437,11 @@ while attempt < max_attempts:
 # Save script to file
 os.makedirs(TMP, exist_ok=True)
 script_path = os.path.join(TMP, "script.json")
+
+# Add series metadata to script
+data['series'] = SERIES_NAME
+data['episode'] = EPISODE_NUMBER
+data['content_type'] = CONTENT_TYPE
 
 with open(script_path, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
