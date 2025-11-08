@@ -1,6 +1,6 @@
 """
-One-time script to backfill analytics for existing 74 videos.
-Run this ONCE before enabling Package 4 features.
+One-time script to backfill analytics for existing videos.
+FIXED: Now uses unified data structure matching daily analytics.
 """
 
 import os
@@ -108,9 +108,9 @@ def categorize_video_by_title(title, description):
     prompt_keywords = [
         'secret prompt', 'chatgpt prompt', 'email prompt',
         'prompts', 'prompt library', 'ai hack',
-        'chatgpt\'s secret', 'secret productivity',  # ← ADD THESE
-        'secret email'  # ← ADD THIS
-    ]                                                   
+        'chatgpt\'s secret', 'secret productivity',
+        'secret email'
+    ]
     
     # AI News patterns
     news_keywords = [
@@ -256,17 +256,17 @@ def backfill_performance_data():
         if analytics_data['average_view_percentage'] > 100:
             rewatch_rate = analytics_data['average_view_percentage'] / 100
         
-        # Add to performance data
+        # FIXED: Use unified field names matching daily analytics
         upload_record = {
             'video_id': video_id,
             'title': title,
             'upload_date': video['published_at'],
-            'completion_rate': analytics_data['average_view_percentage'],
-            'views': analytics_data['views'],
+            'completion_rate_24h': analytics_data['average_view_percentage'],  # ← FIXED
+            'views_24h': analytics_data['views'],  # ← FIXED
             'avg_view_duration_seconds': analytics_data['average_view_duration_seconds'],
             'rewatch_rate': rewatch_rate,
-            'status': 'backfilled',
-            'backfilled_at': datetime.now(pytz.UTC).isoformat()
+            'status': 'analytics_available',  # ← FIXED
+            'analytics_fetched_at': datetime.now(pytz.UTC).isoformat()  # ← ADDED
         }
         
         performance[content_type]['uploads'].append(upload_record)
@@ -276,16 +276,16 @@ def backfill_performance_data():
         
         processed += 1
     
-    # Calculate averages for each content type
+    # Calculate averages for each content type (FIXED: Use new field names)
     print(f"\n📊 Calculating averages...")
     
     for content_type, data in performance.items():
         uploads_with_data = data['uploads']
         
         if uploads_with_data:
-            data['average_completion'] = sum(u['completion_rate'] for u in uploads_with_data) / len(uploads_with_data)
+            data['average_completion'] = sum(u['completion_rate_24h'] for u in uploads_with_data) / len(uploads_with_data)  # ← FIXED
             data['average_rewatch'] = sum(u['rewatch_rate'] for u in uploads_with_data) / len(uploads_with_data)
-            data['average_views'] = sum(u['views'] for u in uploads_with_data) / len(uploads_with_data)
+            data['average_views'] = sum(u['views_24h'] for u in uploads_with_data) / len(uploads_with_data)  # ← FIXED
             
             print(f"\n   {content_type}:")
             print(f"      Videos: {len(uploads_with_data)}")
@@ -303,7 +303,7 @@ def backfill_performance_data():
     print(f"   Skipped: {skipped} videos")
     print(f"   Saved to: {PERFORMANCE_FILE}")
     
-    # Identify top performers
+    # Identify top performers (FIXED: Use new field names)
     print(f"\n🏆 TOP PERFORMERS:")
     
     all_uploads = []
@@ -313,12 +313,12 @@ def backfill_performance_data():
             all_uploads.append(upload)
     
     # Sort by completion rate
-    top_completion = sorted(all_uploads, key=lambda x: x['completion_rate'], reverse=True)[:5]
+    top_completion = sorted(all_uploads, key=lambda x: x['completion_rate_24h'], reverse=True)[:5]  # ← FIXED
     
     print(f"\n   📈 Highest Completion Rates:")
     for i, video in enumerate(top_completion, 1):
         print(f"      {i}. {video['title'][:50]}")
-        print(f"         Completion: {video['completion_rate']:.1f}% | Views: {video['views']}")
+        print(f"         Completion: {video['completion_rate_24h']:.1f}% | Views: {video['views_24h']}")  # ← FIXED
     
     # Sort by rewatch rate
     top_rewatch = sorted(all_uploads, key=lambda x: x['rewatch_rate'], reverse=True)[:5]
@@ -326,7 +326,7 @@ def backfill_performance_data():
     print(f"\n   🔄 Highest Rewatch Rates:")
     for i, video in enumerate(top_rewatch, 1):
         print(f"      {i}. {video['title'][:50]}")
-        print(f"         Rewatch: {video['rewatch_rate']:.2f}x | Completion: {video['completion_rate']:.1f}%")
+        print(f"         Rewatch: {video['rewatch_rate']:.2f}x | Completion: {video['completion_rate_24h']:.1f}%")  # ← FIXED
 
 if __name__ == "__main__":
     backfill_performance_data()

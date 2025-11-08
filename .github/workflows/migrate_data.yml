@@ -1,0 +1,155 @@
+name: 🔄 Migrate Performance Data (ONE-TIME)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Make tmp folder
+        run: mkdir -p tmp
+      
+      - name: Restore old performance data
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/content_performance.json
+          key: performance-data-restore-${{ github.run_number }}
+          restore-keys: |
+            performance-data-backfilled-
+            performance-data-
+      
+      - name: Show what we found
+        run: |
+          if [ -f tmp/content_performance.json ]; then
+            echo "✅ Found performance data"
+            echo "File size: $(du -h tmp/content_performance.json)"
+            echo ""
+            echo "📊 Checking current structure..."
+            
+            if grep -q "\"completion_rate\":" tmp/content_performance.json; then
+              echo "⚠️ Has OLD structure (completion_rate)"
+              echo "   Migration NEEDED"
+            fi
+            
+            if grep -q "completion_rate_24h" tmp/content_performance.json; then
+              echo "✅ Has NEW structure (completion_rate_24h)"
+              echo "   ⚠️ May already be migrated - will verify"
+            fi
+            
+            echo ""
+            echo "Sample (first upload structure):"
+            cat tmp/content_performance.json | head -n 30
+          else
+            echo "❌ No performance data found in cache"
+            echo ""
+            echo "🔍 This means:"
+            echo "   1. Backfill hasn't run yet, OR"
+            echo "   2. Cache keys don't match"
+            echo ""
+            echo "Available cache keys:"
+            echo "We're looking for keys starting with:"
+            echo "  - performance-data-backfilled-"
+            echo "  - performance-data-"
+            exit 1
+          fi
+      
+      - name: Run migration script
+        run: python .github/scripts/migrate_performance_data.py
+      
+      - name: Verify migration success
+        run: |
+          echo "🔍 VERIFICATION CHECKS:"
+          echo "=" * 60
+          
+          # Check 1: New fields exist
+          if grep -q "completion_rate_24h" tmp/content_performance.json; then
+            echo "✅ CHECK 1: Found 'completion_rate_24h' field"
+          else
+            echo "❌ CHECK 1: FAILED - Missing 'completion_rate_24h'"
+            exit 1
+          fi
+          
+          # Check 2: Old fields removed
+          if grep -q "\"completion_rate\":" tmp/content_performance.json; then
+            echo "❌ CHECK 2: FAILED - Still has old 'completion_rate' field"
+            echo "   Migration incomplete!"
+            exit 1
+          else
+            echo "✅ CHECK 2: Old 'completion_rate' field removed"
+          fi
+          
+          # Check 3: views_24h exists
+          if grep -q "views_24h" tmp/content_performance.json; then
+            echo "✅ CHECK 3: Found 'views_24h' field"
+          else
+            echo "❌ CHECK 3: FAILED - Missing 'views_24h'"
+            exit 1
+          fi
+          
+          # Check 4: Status updated
+          if grep -q "analytics_available" tmp/content_performance.json; then
+            echo "✅ CHECK 4: Status updated to 'analytics_available'"
+          else
+            echo "⚠️ CHECK 4: WARNING - No 'analytics_available' status found"
+          fi
+          
+          echo ""
+          echo "=" * 60
+          echo "✅ ALL CHECKS PASSED - Migration successful!"
+          echo "=" * 60
+          echo ""
+          echo "📊 Sample migrated upload:"
+          cat tmp/content_performance.json | grep -A 15 "completion_rate_24h" | head -n 20
+      
+      - name: Upload migrated data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: migrated-performance-data-${{ github.run_number }}
+          path: |
+            tmp/content_performance.json
+            tmp/content_performance_BACKUP.json
+          retention-days: 90
+      
+      - name: Save to unified cache key
+        uses: actions/cache/save@v4
+        with:
+          path: tmp/content_performance.json
+          key: performance-data-${{ github.run_number }}
+      
+      - name: Summary
+        run: |
+          echo "## ✅ Migration Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔄 Changes Made:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`completion_rate\` → \`completion_rate_24h\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`views\` → \`views_24h\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`status: backfilled\` → \`status: analytics_available\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Added \`analytics_fetched_at\` timestamps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Artifacts Created:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`migrated-performance-data-${{ github.run_number }}\` - Download to verify" >> $GITHUB_STEP_SUMMARY
+          echo "- Backup saved as \`content_performance_BACKUP.json\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Cache Updated:" >> $GITHUB_STEP_SUMMARY
+          echo "- Saved with unified key: \`performance-data-${{ github.run_number }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Daily analytics will now find this data" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Download artifact to verify migration" >> $GITHUB_STEP_SUMMARY
+          echo "2. 🔧 Update workflow files:" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`.github/workflows/backfill_analytics.yml\`" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`.github/workflows/daily_analytics.yml\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. 🐍 Update script:" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`.github/scripts/backfill_analytics.py\`" >> $GITHUB_STEP_SUMMARY
+          echo "4. 🧪 Test with daily_analytics workflow" >> $GITHUB_STEP_SUMMARY

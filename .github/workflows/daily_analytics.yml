@@ -43,8 +43,10 @@ jobs:
           path: |
             tmp/content_performance.json
             tmp/upload_history.json
+            tmp/schedule_recommendations.json
           key: performance-data-${{ github.run_number }}
           restore-keys: |
+            performance-data-backfilled-
             performance-data-
 
       - name: Fetch YouTube Analytics
@@ -63,6 +65,7 @@ jobs:
         with:
           path: |
             tmp/content_performance.json
+            tmp/upload_history.json
             tmp/schedule_recommendations.json
           key: performance-data-${{ github.run_number }}
 

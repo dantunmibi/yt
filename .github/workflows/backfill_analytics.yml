@@ -60,13 +60,13 @@ jobs:
           path: |
             tmp/content_performance.json
             tmp/schedule_recommendations.json
-          key: performance-data-backfilled-${{ github.run_number }}
+          key: performance-data-${{ github.run_number }}  # ← FIXED: Unified cache key
 
       - name: Summary
         run: |
           echo "## 🎉 Backfill Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Your 74 existing videos have been analyzed." >> $GITHUB_STEP_SUMMARY
+          echo "Your existing videos have been analyzed with unified data structure." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ -f tmp/content_performance.json ]; then
