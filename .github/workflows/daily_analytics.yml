@@ -44,9 +44,9 @@ jobs:
             tmp/content_performance.json
             tmp/upload_history.json
             tmp/schedule_recommendations.json
-          key: performance-data-${{ github.run_number }}
+          key: performance-data-6
           restore-keys: |
-            performance-data-
+            performance-data-6
 
       - name: Fallback to migration artifact if cache empty
         if: steps.cache-restore.outputs.cache-hit != 'true'
@@ -54,7 +54,7 @@ jobs:
           echo "⚠️ Cache not found, checking for migration artifact..."
           
           # Download the migrated artifact from the successful migration run
-          # Run ID: 19185099307 (your successful migration)
+          # Run ID: 19185207383 (your successful migration)
           
           echo "📥 Attempting to download migration artifact..."
         continue-on-error: true
@@ -65,7 +65,7 @@ jobs:
         continue-on-error: true
         with:
           name: migrated-performance-data-4
-          run-id: 19185099307
+          run-id: 19185207383
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: tmp/
 
