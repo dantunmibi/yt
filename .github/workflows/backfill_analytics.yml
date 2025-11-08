@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     
-    # Safety check
     if: github.event.inputs.confirm == 'BACKFILL'
 
     steps:
@@ -60,7 +59,7 @@ jobs:
           path: |
             tmp/content_performance.json
             tmp/schedule_recommendations.json
-          key: performance-data-${{ github.run_number }}  # ← FIXED: Unified cache key
+          key: performance-data-${{ github.run_number }}
 
       - name: Summary
         run: |
