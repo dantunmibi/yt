@@ -6,11 +6,10 @@ on:
   
   workflow_dispatch:
     inputs:
-      force_fetch:
-        description: 'Force fetch all video analytics'
-        required: false
-        type: boolean
-        default: false
+      artifact_run_id:
+        description: 'Migrate data workflow run ID (find in URL of migrate data run)'
+        required: true
+        type: string
 
 jobs:
   fetch_analytics:
