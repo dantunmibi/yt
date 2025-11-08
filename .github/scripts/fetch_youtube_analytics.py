@@ -1,7 +1,7 @@
 """
 YouTube Analytics Data Fetcher
 Fetches completion rates for recent videos using YouTube Analytics API.
-Run this daily via separate workflow to update performance data.
+FIXED: Works without upload_history.json by reading from content_performance.json
 """
 
 import os
@@ -61,7 +61,6 @@ def fetch_video_analytics(analytics, video_id, upload_date):
         ).execute()
         
         if 'rows' not in response or not response['rows']:
-            print(f"   ⚠️ No analytics data yet for {video_id}")
             return None
         
         # Extract metrics
@@ -71,19 +70,13 @@ def fetch_video_analytics(analytics, video_id, upload_date):
             'views': row[1],
             'estimated_minutes_watched': row[2],
             'average_view_duration_seconds': row[3],
-            'average_view_percentage': row[4],
-            'fetched_at': datetime.now(pytz.UTC).isoformat(),
-            'data_period': f"{start_date} to {end_date}"
+            'average_view_percentage': row[4]
         }
-        
-        print(f"   ✅ Fetched analytics for {video_id}")
-        print(f"      Views: {analytics_data['views']}")
-        print(f"      Avg View %: {analytics_data['average_view_percentage']:.1f}%")
         
         return analytics_data
         
     except Exception as e:
-        print(f"   ❌ Failed to fetch analytics for {video_id}: {e}")
+        print(f"   ⚠️ Failed to fetch analytics for {video_id}: {str(e)[:100]}")
         return None
 
 def update_performance_data():
@@ -98,58 +91,75 @@ def update_performance_data():
     # Load performance data
     if not os.path.exists(PERFORMANCE_FILE):
         print("⚠️ No performance data file found")
+        print("   This is normal for first-time setup")
+        print("   Performance tracking will begin with the next upload")
         return
     
     with open(PERFORMANCE_FILE, 'r') as f:
         performance = json.load(f)
     
-    # Load upload history
-    if not os.path.exists(UPLOAD_LOG):
-        print("⚠️ No upload history found")
-        return
+    print(f"✅ Loaded performance data")
     
-    with open(UPLOAD_LOG, 'r') as f:
-        upload_history = json.load(f)
+    # Count total videos
+    total_videos = sum(len(data['uploads']) for data in performance.values())
+    print(f"📊 Found {total_videos} videos across all content types")
     
-    # Find videos that need analytics updates
+    # Update analytics for videos that need it
     videos_updated = 0
+    videos_checked = 0
     
     for content_type, data in performance.items():
-        print(f"\n📊 Updating analytics for {content_type}...")
+        if not data['uploads']:
+            continue
+            
+        print(f"\n📈 Checking {content_type}...")
         
         for upload in data['uploads']:
+            videos_checked += 1
+            
             # Skip if already has recent analytics data (< 24 hours old)
             if upload.get('completion_rate_24h') is not None:
                 fetched_at = upload.get('analytics_fetched_at')
                 if fetched_at:
-                    fetched_time = datetime.fromisoformat(fetched_at.replace('Z', '+00:00'))
-                    if datetime.now(pytz.UTC) - fetched_time < timedelta(hours=24):
-                        continue  # Skip, data is fresh
+                    try:
+                        fetched_time = datetime.fromisoformat(fetched_at.replace('Z', '+00:00'))
+                        hours_since_fetch = (datetime.now(pytz.UTC) - fetched_time).total_seconds() / 3600
+                        
+                        if hours_since_fetch < 24:
+                            # Data is fresh, skip
+                            continue
+                    except:
+                        pass  # If parsing fails, fetch new data
             
             video_id = upload.get('video_id')
             upload_date = upload.get('upload_date')
+            title = upload.get('title', 'Unknown')[:50]
             
             if not video_id or not upload_date:
                 continue
             
-            # Fetch analytics
+            # Fetch fresh analytics
+            print(f"   🔄 Updating: {title}...")
             analytics_data = fetch_video_analytics(analytics, video_id, upload_date)
             
             if analytics_data:
-                # Update upload record
+                # Update upload record with fresh data
                 upload['completion_rate_24h'] = analytics_data['average_view_percentage']
                 upload['views_24h'] = analytics_data['views']
                 upload['avg_view_duration_seconds'] = analytics_data['average_view_duration_seconds']
-                upload['analytics_fetched_at'] = analytics_data['fetched_at']
+                upload['analytics_fetched_at'] = datetime.now(pytz.UTC).isoformat()
                 upload['status'] = 'analytics_available'
                 
-                # Calculate rewatch rate (if video is < 60 seconds, avg_view_percentage > 100% = rewatches)
+                # Calculate rewatch rate
                 if analytics_data['average_view_percentage'] > 100:
                     upload['rewatch_rate'] = analytics_data['average_view_percentage'] / 100
                 else:
                     upload['rewatch_rate'] = 1.0
                 
+                print(f"      ✅ Views: {analytics_data['views']}, Completion: {analytics_data['average_view_percentage']:.1f}%")
                 videos_updated += 1
+            else:
+                print(f"      ⚠️ No analytics available yet")
         
         # Recalculate averages for content type
         uploads_with_data = [u for u in data['uploads'] if u.get('completion_rate_24h') is not None]
@@ -157,18 +167,18 @@ def update_performance_data():
         if uploads_with_data:
             data['average_completion'] = sum(u['completion_rate_24h'] for u in uploads_with_data) / len(uploads_with_data)
             data['average_rewatch'] = sum(u.get('rewatch_rate', 1.0) for u in uploads_with_data) / len(uploads_with_data)
-            data['average_views_24h'] = sum(u.get('views_24h', 0) for u in uploads_with_data) / len(uploads_with_data)
+            data['average_views'] = sum(u.get('views_24h', 0) for u in uploads_with_data) / len(uploads_with_data)
             
-            print(f"   📈 Updated averages:")
-            print(f"      Completion: {data['average_completion']:.1f}%")
-            print(f"      Rewatch: {data['average_rewatch']:.2f}x")
-            print(f"      Views (24h): {data['average_views_24h']:.0f}")
+            print(f"   📊 Updated averages: {data['average_completion']:.1f}% completion, {data['average_views']:.0f} avg views")
     
     # Save updated performance data
     with open(PERFORMANCE_FILE, 'w') as f:
         json.dump(performance, f, indent=2)
     
-    print(f"\n✅ Updated analytics for {videos_updated} videos")
+    print(f"\n" + "=" * 60)
+    print(f"✅ Analytics update complete!")
+    print(f"   Checked: {videos_checked} videos")
+    print(f"   Updated: {videos_updated} videos")
     print(f"💾 Saved to: {PERFORMANCE_FILE}")
 
 if __name__ == "__main__":
