@@ -121,7 +121,7 @@ jobs:
       - name: Upload migrated data
         uses: actions/upload-artifact@v4
         with:
-          name: migrated-performance-data-${{ github.run_number }}
+          name: migrated-performance-data
           path: |
             tmp/content_performance.json
             tmp/content_performance_BACKUP.json

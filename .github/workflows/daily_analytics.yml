@@ -64,7 +64,7 @@ jobs:
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          name: migrated-performance-data-4
+          name: migrated-performance-data
           run-id: ${{ inputs.artifact_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: tmp/
