@@ -33,11 +33,43 @@ description = data.get("description", f"{title}")
 hashtags = data.get("hashtags", ["#shorts", "#viral", "#trending"])
 topic = data.get("topic", "general")
 
-# NEW: Extract series metadata from script if not in env
+# ✅ FIX: Extract series metadata from script if not in env
 if not SERIES_NAME or SERIES_NAME == "none":
     SERIES_NAME = data.get("series", "none")
 if EPISODE_NUMBER == 0:
     EPISODE_NUMBER = data.get("episode", 0)
+
+# ✅ FIX: FALLBACK - Parse series from title if still "none"
+if SERIES_NAME == "none" and title:
+    import re
+    
+    # Pattern 1: "Tool Teardown Tuesday - Episode X: ..."
+    match = re.match(r'^(Tool Teardown (?:Tuesday|Thursday))\s*-\s*Episode\s+(\d+)', title)
+    if match:
+        SERIES_NAME = match.group(1)
+        if EPISODE_NUMBER == 0:
+            EPISODE_NUMBER = int(match.group(2))
+        print(f"📺 Extracted from title: {SERIES_NAME} - Episode {EPISODE_NUMBER}")
+    
+    # Pattern 2: "SECRET PROMPTS - Episode X: ..."
+    elif "SECRET PROMPTS" in title:
+        match = re.search(r'Episode\s+(\d+)', title)
+        SERIES_NAME = "SECRET PROMPTS"
+        if match and EPISODE_NUMBER == 0:
+            EPISODE_NUMBER = int(match.group(1))
+        print(f"📺 Extracted from title: {SERIES_NAME} - Episode {EPISODE_NUMBER}")
+    
+    # Pattern 3: "AI Weekend Roundup - Episode X: ..."
+    elif "AI Weekend Roundup" in title:
+        match = re.search(r'Episode\s+(\d+)', title)
+        SERIES_NAME = "AI Weekend Roundup"
+        if match and EPISODE_NUMBER == 0:
+            EPISODE_NUMBER = int(match.group(1))
+        print(f"📺 Extracted from title: {SERIES_NAME} - Episode {EPISODE_NUMBER}")
+
+print(f"📺 Final Series Info:")
+print(f"   Series: {SERIES_NAME}")
+print(f"   Episode: {EPISODE_NUMBER}")
 
 print(f"📺 Series Info:")
 print(f"   Series: {SERIES_NAME}")

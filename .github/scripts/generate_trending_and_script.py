@@ -1,9 +1,16 @@
-# .github/scripts/generate_trending_and_script.py
+#!/usr/bin/env python3
+"""
+ENHANCED: CTA Continuity System (Option C - Hybrid)
+- Keeps CTA promises when topic is trending
+- Graceful fallback when promised topic unavailable
+- Full promise tracking and success metrics
+"""
+
 import os
 import json
 import re
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 import google.generativeai as genai
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -22,6 +29,9 @@ print(f"   Content Type: {CONTENT_TYPE}")
 # ✅ CRITICAL: Store history in tmp (will use GitHub artifact for persistence)
 os.makedirs(TMP, exist_ok=True)
 HISTORY_FILE = os.path.join(TMP, "content_history.json")
+
+# ✅ CTA CONTINUITY: Promise tracking file
+NEXT_EPISODE_FILE = os.path.join(TMP, "next_episode.json")
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -44,6 +54,172 @@ try:
 except Exception as e:
     print(f"⚠️ Error listing models: {e}")
     model = genai.GenerativeModel("models/gemini-1.5-flash")
+
+
+# ===== CTA CONTINUITY SYSTEM (NEW) =====
+
+def load_promised_topic():
+    """
+    ✅ CTA CONTINUITY: Load topic promised in previous video's CTA
+    Returns None if no promise exists or promise is stale (>10 days old)
+    """
+    if not os.path.exists(NEXT_EPISODE_FILE):
+        print("ℹ️ CTA Continuity: No promised topic found (first run or fresh start)")
+        return None
+    
+    try:
+        with open(NEXT_EPISODE_FILE, 'r') as f:
+            promise = json.load(f)
+        
+        # Check if promise is stale (older than 10 days)
+        created = datetime.fromisoformat(promise['created_at'].replace('Z', '+00:00'))
+        age_days = (datetime.utcnow().replace(tzinfo=created.tzinfo) - created).days
+        
+        if age_days > 10:
+            print(f"⚠️ CTA Continuity: Promised topic expired ({age_days} days old)")
+            return None
+        
+        print(f"✅ CTA Continuity: Found promised topic from previous video")
+        print(f"   Promised: '{promise['promised_topic']}'")
+        print(f"   Series: {promise['promised_series']}")
+        print(f"   Episode: {promise['promised_episode']}")
+        print(f"   Age: {age_days} days")
+        
+        return promise
+        
+    except Exception as e:
+        print(f"⚠️ CTA Continuity: Error loading promise: {e}")
+        return None
+
+
+def save_next_episode_promise(next_topic, next_episode, series_name):
+    """
+    ✅ CTA CONTINUITY: Save the topic we're promising in current video's CTA
+    This becomes the REQUIRED topic for next run
+    """
+    try:
+        promise = {
+            "promised_topic": next_topic,
+            "promised_episode": next_episode,
+            "promised_series": series_name,
+            "promised_date": (datetime.utcnow() + timedelta(days=3)).strftime("%Y-%m-%d"),
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "fallback_topics": []
+        }
+        
+        with open(NEXT_EPISODE_FILE, 'w') as f:
+            json.dump(promise, f, indent=2)
+        
+        print(f"💾 CTA Continuity: Saved promise for next episode")
+        print(f"   Next topic: '{next_topic}'")
+        print(f"   Next episode: {next_episode}")
+        
+    except Exception as e:
+        print(f"⚠️ CTA Continuity: Could not save promise: {e}")
+
+
+def check_promise_match(promised_topic, trending_topic):
+    """
+    ✅ CTA CONTINUITY: Check if trending topic matches promised topic
+    Uses fuzzy keyword matching (minimum 2 matching keywords)
+    """
+    if not promised_topic or not trending_topic:
+        return False
+    
+    # Extract significant keywords (length > 3, not common words)
+    stop_words = {'this', 'that', 'with', 'from', 'will', 'just', 'new', 'the', 'and', 'for'}
+    
+    promised_keywords = [
+        w.lower() for w in promised_topic.split() 
+        if len(w) > 3 and w.lower() not in stop_words
+    ][:3]  # First 3 significant words
+    
+    trending_text = trending_topic.lower()
+    
+    # Count matches
+    matches = sum(1 for kw in promised_keywords if kw in trending_text)
+    
+    return matches >= 2  # Need at least 2 keyword matches
+
+
+def select_topic_with_promise_check(trending_data, promised_topic_data):
+    """
+    ✅ CTA CONTINUITY: HYBRID topic selection
+    1. If promised topic exists, try to find it in trending
+    2. If found: USE IT (promise kept!)
+    3. If NOT found: Use top trending (graceful fallback)
+    4. If no promise: Standard trending selection
+    
+    Returns: (selected_topic, kept_promise: bool, fallback_reason: str)
+    """
+    
+    trending_topics = trending_data.get('topics', [])
+    full_data = trending_data.get('full_data', [])
+    
+    # No promise? Standard selection
+    if not promised_topic_data:
+        print("📊 CTA Continuity: No promise to honor, selecting top trending")
+        if full_data:
+            return full_data[0], False, None
+        elif trending_topics:
+            return {
+                'topic_title': trending_topics[0],
+                'summary': 'Trending topic',
+                'category': 'Trending'
+            }, False, None
+        else:
+            return None, False, "No trending data available"
+    
+    # Have a promise - try to honor it
+    promised_topic = promised_topic_data['promised_topic']
+    
+    print(f"🔍 CTA Continuity: Searching for promised topic in trending data...")
+    print(f"   Looking for: '{promised_topic}'")
+    
+    # Search in full_data first (has summaries)
+    for item in full_data:
+        topic_title = item.get('topic_title', '')
+        summary = item.get('summary', '')
+        combined = f"{topic_title} {summary}"
+        
+        if check_promise_match(promised_topic, combined):
+            print(f"✅ CTA CONTINUITY: PROMISE KEPT!")
+            print(f"   Promised: '{promised_topic}'")
+            print(f"   Matched: '{topic_title}'")
+            return item, True, None
+    
+    # Search in topics list
+    for topic in trending_topics:
+        if check_promise_match(promised_topic, topic):
+            print(f"✅ CTA CONTINUITY: PROMISE KEPT!")
+            print(f"   Promised: '{promised_topic}'")
+            print(f"   Matched: '{topic}'")
+            return {
+                'topic_title': topic,
+                'summary': 'Trending topic',
+                'category': 'Trending'
+            }, True, None
+    
+    # Promise not in trending - graceful fallback
+    print(f"⚠️ CTA CONTINUITY: Promise not in trending topics")
+    print(f"   Promised: '{promised_topic}'")
+    print(f"   Action: Using top trending as graceful fallback")
+    
+    fallback_reason = f"Promised '{promised_topic}' not trending, pivoted to breaking news"
+    
+    if full_data:
+        return full_data[0], False, fallback_reason
+    elif trending_topics:
+        return {
+            'topic_title': trending_topics[0],
+            'summary': 'Trending topic',
+            'category': 'Trending'
+        }, False, fallback_reason
+    else:
+        return None, False, "No trending data available"
+
+
+# ===== END CTA CONTINUITY SYSTEM =====
 
 
 def load_series_guidance():
@@ -165,7 +341,6 @@ def generate_script_with_retry(prompt):
     response = model.generate_content(prompt)
     return response.text.strip()
 
-
 # ===== MAIN EXECUTION =====
 
 # Load history and trending
@@ -173,11 +348,39 @@ history = load_history()
 trending = load_trending()
 series_guidance = load_series_guidance()
 
+# ✅ CTA CONTINUITY: Load promised topic from previous video
+promised_topic_data = load_promised_topic()
+
 # Get previous topics
 previous_topics = [f"{t.get('topic', 'unknown')}: {t.get('title', '')}" for t in history['topics'][-15:]]
 previous_titles = [t.get('title', '') for t in history['topics']]
 
-# Extract real trending topics
+# ✅ CTA CONTINUITY: Select topic (honors promise if possible)
+selected_topic_data = None
+kept_promise = False
+fallback_reason = None
+
+if trending and trending.get('topics'):
+    print(f"🎯 Loaded trending data from: {trending.get('source', 'unknown')}")
+    
+    # Use CTA continuity system for topic selection
+    selected_topic_data, kept_promise, fallback_reason = select_topic_with_promise_check(
+        trending, 
+        promised_topic_data
+    )
+    
+    if selected_topic_data:
+        print(f"\n🎯 SELECTED TOPIC: {selected_topic_data.get('topic_title', 'Unknown')}")
+        if kept_promise:
+            print("   ✅ CTA PROMISE FULFILLED!")
+        elif fallback_reason:
+            print(f"   ⚠️ Fallback used: {fallback_reason}")
+    else:
+        print("⚠️ Topic selection failed, will use fallback")
+else:
+    print("⚠️ No trending data found - will use fallback")
+
+# Extract trending topics for validation
 trending_topics = []
 trending_summaries = []
 
@@ -190,11 +393,6 @@ if trending and trending.get('topics'):
             trending_summaries.append(f"• {item['topic_title']}: {item.get('summary', 'No summary')}")
     else:
         trending_summaries = [f"• {t}" for t in trending_topics]
-    
-    print(f"🎯 Loaded {len(trending_topics)} REAL trending topics from web sources")
-    print(f"   Source: {trending.get('source', 'unknown')}")
-else:
-    print("⚠️ No trending data found - will use fallback")
 
 # ===== BUILD SERIES-SPECIFIC PROMPT =====
 
@@ -241,6 +439,29 @@ USE THE EXACT TREND and expand it into a viral script.
 else:
     trending_mandate = ""
 
+# ✅ CTA CONTINUITY: Add promise context to prompt
+promise_context = ""
+if kept_promise:
+    promise_context = f"""
+✅✅✅ PROMISE FULFILLMENT CONTEXT ✅✅✅
+
+This video FULFILLS A PROMISE made in the previous episode's CTA.
+Previous CTA promised: "{promised_topic_data['promised_topic']}"
+Selected topic: "{selected_topic_data.get('topic_title', 'Unknown')}"
+
+CRITICAL: Viewers are expecting this topic! Deliver HIGH value to build trust.
+"""
+elif fallback_reason:
+    promise_context = f"""
+⚠️ FALLBACK CONTEXT (GRACEFUL PIVOT)
+
+Previous CTA promised: "{promised_topic_data['promised_topic'] if promised_topic_data else 'N/A'}"
+But that topic is not currently trending.
+
+Action: Pivoting to BREAKING NEWS with this trending topic.
+Tone: "Even MORE important than what I planned - this just dropped!"
+"""
+
 # Build series-specific instructions
 series_instructions = ""
 if series_guidance:
@@ -285,6 +506,8 @@ CONTEXT:
 {chr(10).join(f"  • {t}" for t in previous_topics) if previous_topics else '  None'}
 
 {trending_mandate}
+
+{promise_context}
 
 {series_instructions}
 
@@ -333,7 +556,7 @@ OUTPUT FORMAT (JSON ONLY - NO OTHER TEXT):
     "Second point - SPECIFIC fact with source or demo (15-20 words)",
     "Third point - SPECIFIC actionable result with exact method (15-20 words)"
   ],
-  "cta": "MUST follow series CTA template (under 20 words)",
+  "cta": "DO NOT FILL - Will be generated separately",
   "hashtags": ["#shorts", "#viral", "#trending", "#{CONTENT_TYPE}", "#fyp"],
   "description": "2-3 sentence description mentioning Episode {EPISODE_NUMBER if EPISODE_NUMBER > 0 else ''}",
   "visual_prompts": [
@@ -384,7 +607,7 @@ while attempt < max_attempts:
         data = json.loads(json_text)
         
         # Validate required fields
-        required_fields = ["title", "topic", "hook", "bullets", "cta"]
+        required_fields = ["title", "topic", "hook", "bullets"]
         for field in required_fields:
             if field not in data:
                 raise ValueError(f"Missing required field: {field}")
@@ -410,6 +633,74 @@ while attempt < max_attempts:
         data['series'] = SERIES_NAME
         data['episode'] = EPISODE_NUMBER
         data['content_type'] = CONTENT_TYPE
+        
+        # ✅ CTA CONTINUITY: Generate CTA with NEXT topic promise
+        next_episode_num = EPISODE_NUMBER + 1
+        
+        # Determine NEXT topic from remaining trending topics
+        next_topic_title = "next week's AI breakthrough"
+        
+        if trending and trending.get('full_data'):
+            remaining_topics = [
+                item for item in trending['full_data'] 
+                if item != selected_topic_data
+            ]
+            
+            if remaining_topics:
+                next_candidate = remaining_topics[0]
+                next_topic_title = next_candidate.get('topic_title', 'AI secrets')
+                
+                # Shorten if too long
+                if len(next_topic_title) > 50:
+                    # Extract key phrase
+                    words = next_topic_title.split()
+                    if len(words) > 6:
+                        next_topic_title = ' '.join(words[:6]) + "..."
+        
+        # Generate CTA based on series style
+        if SERIES_NAME == "Tool Teardown Tuesday":
+            cta_options = [
+                f"Next Thursday (Episode {next_episode_num}): I'm revealing {next_topic_title}! Subscribe!",
+                f"Episode {next_episode_num} drops Thursday: {next_topic_title} secrets! Hit subscribe!",
+                f"Thursday's teardown: {next_topic_title}! Subscribe now!"
+            ]
+        elif SERIES_NAME == "SECRET PROMPTS":
+            cta_options = [
+                f"Next lesson (Episode {next_episode_num}): {next_topic_title}! Subscribe to level up!",
+                f"Episode {next_episode_num} Thursday: {next_topic_title} prompts revealed! Subscribe!",
+                f"Thursday: {next_topic_title} mastery! Don't miss it - subscribe!"
+            ]
+        elif SERIES_NAME == "AI Weekend Roundup":
+            cta_options = [
+                f"Next Saturday (Episode {next_episode_num}): {next_topic_title} roundup! Subscribe!",
+                f"Episode {next_episode_num} next week: {next_topic_title} + more! Hit subscribe!",
+                f"Saturday: {next_topic_title} breakdown! Subscribe for weekly AI news!"
+            ]
+        else:
+            cta_options = [
+                f"Next episode: {next_topic_title}! Subscribe!",
+                f"Coming soon: {next_topic_title}! Don't miss it - subscribe!"
+            ]
+        
+        import random
+        data['cta'] = random.choice(cta_options)
+        
+        # ✅ CTA CONTINUITY: Save promise for next run
+        if SERIES_NAME != 'none':
+            save_next_episode_promise(
+                next_topic=next_topic_title,
+                next_episode=next_episode_num,
+                series_name=SERIES_NAME
+            )
+        
+        # ✅ CTA CONTINUITY: Add metadata for tracking
+        data['cta_metadata'] = {
+            'promised_next_topic': next_topic_title,
+            'promised_next_episode': next_episode_num,
+            'kept_previous_promise': kept_promise,
+            'fallback_used': fallback_reason is not None,
+            'fallback_reason': fallback_reason
+        }
         
         # Add optional fields with defaults
         if "hashtags" not in data:
@@ -451,6 +742,15 @@ while attempt < max_attempts:
         print(f"   Series: {data['series']} - Episode {data['episode']}")
         print(f"   Content Type: {data['content_type']}")
         print(f"   Hook: {data['hook']}")
+        print(f"   CTA: {data['cta']}")
+        
+        # ✅ CTA CONTINUITY: Show promise status
+        if kept_promise:
+            print(f"   ✅ Promise Status: KEPT (viewer expectation fulfilled)")
+        elif fallback_reason:
+            print(f"   ⚠️ Promise Status: FALLBACK ({fallback_reason})")
+        else:
+            print(f"   ℹ️ Promise Status: No previous promise")
         
         break  # Success, exit loop
         
@@ -459,6 +759,9 @@ while attempt < max_attempts:
         
         if attempt >= max_attempts:
             print("⚠️ Max attempts reached, using fallback based on YOUR best performers...")
+            
+            # ✅ CTA CONTINUITY: Fallback still uses promise system
+            next_episode_num = EPISODE_NUMBER + 1
             
             # Fallback uses YOUR proven format (Text to 3D style)
             data = {
@@ -473,7 +776,7 @@ while attempt < max_attempts:
                     "Upload any image to ChatGPT, ask specific questions about it, and get detailed analysis in under 10 seconds",
                     "You can use it for homework help, document analysis, design feedback, or understanding complex diagrams with zero learning curve"
                 ],
-                "cta": f"Next Thursday Episode {EPISODE_NUMBER + 1 if EPISODE_NUMBER > 0 else 2}: Midjourney SECRET parameter! Subscribe now!",
+                "cta": f"Next Thursday Episode {next_episode_num}: Midjourney SECRET parameter! Subscribe now!",
                 "hashtags": ["#chatgpt", "#ai", "#technology", "#aitools", "#shorts", "#viral"],
                 "description": f"Episode {EPISODE_NUMBER if EPISODE_NUMBER > 0 else 1} of Tool Teardown Tuesday: ChatGPT Vision's image analysis feature changes everything. Upload any image and get instant analysis. No setup required!",
                 "visual_prompts": [
@@ -481,8 +784,23 @@ while attempt < max_attempts:
                     "Before/after split screen: complex diagram on left, ChatGPT detailed explanation on right, clear visual transformation",
                     "User uploading screenshot to ChatGPT and receiving instant structured analysis with highlighted key points",
                     "Multiple example images (photo, document, chart) with ChatGPT analysis overlays showing the versatility"
-                ]
+                ],
+                "cta_metadata": {
+                    "promised_next_topic": "Midjourney SECRET parameter",
+                    "promised_next_episode": next_episode_num,
+                    "kept_previous_promise": False,
+                    "fallback_used": True,
+                    "fallback_reason": "Gemini generation failed - using proven template"
+                }
             }
+            
+            # Save promise even in fallback
+            if SERIES_NAME != 'none':
+                save_next_episode_promise(
+                    next_topic="Midjourney SECRET parameter",
+                    next_episode=next_episode_num,
+                    series_name=SERIES_NAME
+                )
             
             fallback_hash = get_content_hash(data)
             save_to_history(data['topic'], fallback_hash, data['title'])
@@ -500,6 +818,17 @@ print(f"📝 Script preview:")
 print(f"   Title: {data['title']}")
 print(f"   Series: {data.get('series', 'none')} - Episode {data.get('episode', 0)}")
 print(f"   Bullets: {len(data['bullets'])} points")
+print(f"   CTA: {data.get('cta', 'N/A')}")
+
+# ✅ CTA CONTINUITY: Show promise info
+if 'cta_metadata' in data:
+    print(f"\n🔮 CTA Promise System:")
+    print(f"   Next promised topic: {data['cta_metadata']['promised_next_topic']}")
+    print(f"   Next promised episode: {data['cta_metadata']['promised_next_episode']}")
+    if data['cta_metadata']['kept_previous_promise']:
+        print(f"   ✅ Previous promise: KEPT")
+    elif data['cta_metadata']['fallback_used']:
+        print(f"   ⚠️ Previous promise: FALLBACK")
 
 if trending:
     print(f"\n🌐 Source: {trending.get('source', 'Unknown')}")

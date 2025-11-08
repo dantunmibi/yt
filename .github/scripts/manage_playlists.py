@@ -99,6 +99,8 @@ def get_or_create_series_playlist(youtube, series_name, config):
     """
     Get or create playlist for a series (e.g., "Tool Teardown Tuesday").
     Separate from topic-based playlists.
+    
+    ✅ FIX: Added retry logic and propagation delay for newly created playlists
     """
     playlist_key = f"series_{series_name.lower().replace(' ', '_')}"
     
@@ -132,13 +134,34 @@ def get_or_create_series_playlist(youtube, series_name, config):
         config[playlist_key] = playlist_id
         save_playlist_config(config)
         print(f"🎉 Created series playlist: {playlist_info['title']} (ID: {playlist_id})")
+        
+        # ✅ FIX: Wait for YouTube API propagation (newly created playlists)
+        import time
+        print(f"   ⏳ Waiting 3 seconds for playlist propagation...")
+        time.sleep(3)
+        
+        # ✅ FIX: Verify playlist exists before returning
+        try:
+            verify_request = youtube.playlists().list(
+                part="snippet",
+                id=playlist_id
+            )
+            verify_response = verify_request.execute()
+            
+            if verify_response.get('items'):
+                print(f"   ✅ Playlist verified and ready to use")
+            else:
+                print(f"   ⚠️ Playlist created but not yet visible, waiting 2 more seconds...")
+                time.sleep(2)
+        except Exception as verify_error:
+            print(f"   ⚠️ Verification failed (playlist may still be propagating): {verify_error}")
+            time.sleep(2)
+        
         return playlist_id
         
     except Exception as e:
         print(f"❌ Failed to create series playlist: {e}")
         return None
-
-# ---- Core Functions ----
 
 # Fetch your existing channel playlists and map them to categories if titles match
 def fetch_and_map_existing_playlists(youtube, niche, config):
@@ -179,12 +202,40 @@ def fetch_and_map_existing_playlists(youtube, niche, config):
 
 
 def load_upload_history():
-    """Load video upload history"""
+    """
+    Load video upload history with series metadata fallback
+    ✅ FIX: Also checks content_history.json if series is missing
+    """
     if os.path.exists(UPLOAD_LOG):
         try:
             with open(UPLOAD_LOG, 'r') as f:
-                return json.load(f)
-        except:
+                history = json.load(f)
+            
+            # ✅ FIX: Parse series from title if missing in metadata
+            for video in history:
+                if video.get("series") in [None, "none", ""]:
+                    title = video.get("title", "")
+                    
+                    # Extract series from title patterns
+                    import re
+                    
+                    if "Tool Teardown Tuesday" in title or "Tool Teardown Thursday" in title:
+                        match = re.match(r'^(Tool Teardown (?:Tuesday|Thursday))', title)
+                        if match:
+                            video["series"] = match.group(1)
+                            print(f"   🔧 Extracted series from title: {video['series']}")
+                    
+                    elif "SECRET PROMPTS" in title:
+                        video["series"] = "SECRET PROMPTS"
+                        print(f"   🔧 Extracted series from title: SECRET PROMPTS")
+                    
+                    elif "AI Weekend Roundup" in title:
+                        video["series"] = "AI Weekend Roundup"
+                        print(f"   🔧 Extracted series from title: AI Weekend Roundup")
+            
+            return history
+        except Exception as e:
+            print(f"⚠️ Error loading upload history: {e}")
             return []
     return []
 
@@ -281,45 +332,83 @@ def categorize_video(video_metadata, niche):
 def add_video_to_playlist(youtube, video_id, playlist_id):
     """
     Add video to playlist only if it's not already there.
+    
+    ✅ FIX: Added retry logic for 404 errors (playlist propagation delays)
     """
-    # Get existing videos in playlist
+    import time
+    from googleapiclient.errors import HttpError
+    
+    # ✅ FIX: Retry logic for fetching playlist items (handles 404)
+    max_retries = 3
+    retry_delay = 2
+    
     existing_videos = set()
-    nextPageToken = None
-    while True:
-        request = youtube.playlistItems().list(
-            part="snippet",
-            playlistId=playlist_id,
-            maxResults=50,
-            pageToken=nextPageToken
-        )
-        response = request.execute()
-        for item in response.get("items", []):
-            existing_videos.add(item["snippet"]["resourceId"]["videoId"])
-        nextPageToken = response.get("nextPageToken")
-        if not nextPageToken:
+    
+    for attempt in range(max_retries):
+        try:
+            nextPageToken = None
+            while True:
+                request = youtube.playlistItems().list(
+                    part="snippet",
+                    playlistId=playlist_id,
+                    maxResults=50,
+                    pageToken=nextPageToken
+                )
+                response = request.execute()
+                for item in response.get("items", []):
+                    existing_videos.add(item["snippet"]["resourceId"]["videoId"])
+                nextPageToken = response.get("nextPageToken")
+                if not nextPageToken:
+                    break
+            
+            # Success - break retry loop
             break
+            
+        except HttpError as e:
+            if e.resp.status == 404 and attempt < max_retries - 1:
+                print(f"      ⚠️ Playlist not found (attempt {attempt + 1}/{max_retries}), retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+                continue
+            else:
+                print(f"      ❌ Failed to fetch playlist items: {e}")
+                return False
+        except Exception as e:
+            print(f"      ❌ Unexpected error fetching playlist: {e}")
+            return False
 
     if video_id in existing_videos:
         print("      ℹ️ Video already in playlist, skipping")
         return False
 
-    # Add video
-    try:
-        youtube.playlistItems().insert(
-            part="snippet",
-            body={
-                "snippet": {
-                    "playlistId": playlist_id,
-                    "resourceId": {"kind": "youtube#video", "videoId": video_id}
+    # Add video with retry logic
+    for attempt in range(max_retries):
+        try:
+            youtube.playlistItems().insert(
+                part="snippet",
+                body={
+                    "snippet": {
+                        "playlistId": playlist_id,
+                        "resourceId": {"kind": "youtube#video", "videoId": video_id}
+                    }
                 }
-            }
-        ).execute()
-        print("      ✅ Added to playlist")
-        return True
+            ).execute()
+            print("      ✅ Added to playlist")
+            return True
 
-    except Exception as e:
-        print(f"      ❌ Failed to add video: {e}")
-        return False
+        except HttpError as e:
+            if e.resp.status == 404 and attempt < max_retries - 1:
+                print(f"      ⚠️ Playlist not found when adding video (attempt {attempt + 1}/{max_retries}), retrying...")
+                time.sleep(2)
+                continue
+            else:
+                print(f"      ❌ Failed to add video: {e}")
+                return False
+        except Exception as e:
+            print(f"      ❌ Unexpected error adding video: {e}")
+            return False
+    
+    return False
 
 def organize_playlists(youtube, history, config, niche):
     """Main function to organize videos into BOTH topic AND series playlists"""

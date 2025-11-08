@@ -347,6 +347,28 @@ def check_day_schedule_with_windows(now, day_slots, day_name):
                 slot['type'] = adjusted_type
                 slot['series'] = adjusted_series
             # ===== END AUTO-ADJUSTMENT =====
+
+            # ===== SERIES SYNC FIX: Ensure content_type and series always match =====
+            # Prevents playlist mismatch when auto-adjustment changes content type
+            
+            series_map = {
+                'tool_teardown_tuesday': 'Tool Teardown Tuesday',
+                'tool_teardown_thursday': 'Tool Teardown Tuesday',
+                'secret_prompts_thursday': 'SECRET PROMPTS',
+                'ai_news_roundup': 'AI Weekend Roundup',
+                'viral_ai_saturday': 'Viral AI Saturday',
+                'manual_dispatch': 'none'
+            }
+            
+            expected_series = series_map.get(slot['type'], 'none')
+            
+            if slot.get('series', 'none') != expected_series:
+                print(f"   🔄 SERIES SYNC FIX:")
+                print(f"      Content Type: {slot['type']}")
+                print(f"      Series (before): {slot.get('series', 'none')}")
+                print(f"      Series (after): {expected_series}")
+                slot['series'] = expected_series
+            # ===== END SERIES SYNC FIX =====
             
             print(f"   ✅ Within posting window!")
             print(f"   -> Window: {window_start_str} - {window_end_str} UTC ({day_name})")
@@ -356,6 +378,7 @@ def check_day_schedule_with_windows(now, day_slots, day_name):
             print(f"   -> Content Type: {slot['type']}")
             print(f"   -> Priority: {slot['priority']}")
             print(f"   -> Target Completion: {slot.get('target_completion', 'N/A')}")
+            print(f"   -> Series/Type Synced: ✅")  # ✅ NEW LINE
             return slot
     
     return None

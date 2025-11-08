@@ -82,6 +82,15 @@ jobs:
           restore-keys: |
             episode-tracking-
 
+      - name: Restore next episode promise (CTA Continuity)
+        if: steps.schedule_check.outputs.should_post == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/next_episode.json
+          key: next-episode-promise-${{ github.run_number }}
+          restore-keys: |
+            next-episode-promise-
+
       - name: Restore performance data (Package 4)
         uses: actions/cache/restore@v4
         with:
@@ -391,6 +400,13 @@ jobs:
           path: tmp/episode_tracking.json
           key: episode-tracking-${{ github.run_number }}
 
+      - name: Save next episode promise (CTA Continuity)
+        uses: actions/cache/save@v4
+        if: always() && steps.schedule_check.outputs.should_post == 'true'
+        with:
+          path: tmp/next_episode.json
+          key: next-episode-promise-${{ github.run_number }}
+
       - name: Save performance data (Package 4)
         uses: actions/cache/save@v4
         if: always() && steps.schedule_check.outputs.should_post == 'true'
@@ -437,6 +453,7 @@ jobs:
             tmp/platform_config.json
             tmp/upload_history.json
             tmp/episode_tracking.json
+            tmp/next_episode.json
             tmp/content_performance.json
             tmp/delay_log.json
             tmp/retry_queue.json
