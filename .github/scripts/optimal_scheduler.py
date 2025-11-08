@@ -8,7 +8,7 @@ import pytz
 ENABLE_PRIORITY_RETRY = os.getenv("ENABLE_PRIORITY_RETRY", "true").lower() == "true"
 ENABLE_DELAY_TRACKING = os.getenv("ENABLE_DELAY_TRACKING", "true").lower() == "true"
 ENABLE_COMPLETION_PREDICTION = os.getenv("ENABLE_COMPLETION_PREDICTION", "true").lower() == "true"
-ENABLE_AUTO_ADJUSTMENT = os.getenv("ENABLE_AUTO_ADJUSTMENT", "true").lower() == "true"  # Disabled by default until 4+ weeks data
+ENABLE_AUTO_ADJUSTMENT = os.getenv("ENABLE_AUTO_ADJUSTMENT", "false").lower() == "true"  # Manual activation required
 
 print(f"🔧 Package 4 Features:")
 print(f"   Priority Retry: {ENABLE_PRIORITY_RETRY}")
@@ -16,13 +16,122 @@ print(f"   Delay Tracking: {ENABLE_DELAY_TRACKING}")
 print(f"   Completion Prediction: {ENABLE_COMPLETION_PREDICTION}")
 print(f"   Auto Schedule Adjustment: {ENABLE_AUTO_ADJUSTMENT}")
 
+# ===== AUTO-ADJUSTMENT: CONTENT TYPE SELECTION =====
+
+def auto_select_content_type(scheduled_content_type, series_name):
+    """
+    AUTO-SELECT content type based on YOUR performance data.
+    Only active when ENABLE_AUTO_ADJUSTMENT=true.
+    
+    Strategy: Override scheduled type ONLY if data shows significantly better alternative
+    
+    Returns: (content_type, series_name, reason)
+    """
+    
+    if not ENABLE_AUTO_ADJUSTMENT:
+        return scheduled_content_type, series_name, "auto-adjustment disabled"
+    
+    performance_file = 'tmp/content_performance.json'
+    
+    if not os.path.exists(performance_file):
+        return scheduled_content_type, series_name, "no performance data yet"
+    
+    try:
+        with open(performance_file, 'r') as f:
+            performance = json.load(f)
+        
+        # Calculate performance scores for each content type
+        scores = {}
+        
+        for content_type, data in performance.items():
+            # Only consider types with analytics data
+            uploads_with_data = [
+                u for u in data['uploads'] 
+                if u.get('completion_rate_24h') is not None and u.get('views_24h') is not None
+            ]
+            
+            if len(uploads_with_data) < 3:
+                continue  # Need at least 3 videos for confidence
+            
+            avg_completion = data.get('average_completion', 0)
+            avg_views = data.get('average_views', 0)
+            total_uploads = data.get('total_uploads', 0)
+            
+            # Performance score formula:
+            # - 70% weight on completion rate (primary metric)
+            # - 20% weight on views (normalized to 0-10 scale, 200 views = max)
+            # - 10% weight on sample size confidence (max at 10+ videos)
+            sample_confidence = min(total_uploads / 10, 1.0)
+            views_normalized = min(avg_views / 200, 1.0) * 10
+            
+            score = (avg_completion * 0.7) + (views_normalized * 0.2) + (sample_confidence * 10 * 0.1)
+            
+            scores[content_type] = {
+                'score': score,
+                'avg_completion': avg_completion,
+                'avg_views': avg_views,
+                'sample_size': total_uploads
+            }
+        
+        if not scores:
+            return scheduled_content_type, series_name, "insufficient data for auto-selection"
+        
+        # Find top performer
+        top_type = max(scores.items(), key=lambda x: x[1]['score'])[0]
+        top_stats = scores[top_type]
+        
+        # Only override if:
+        # 1. Top performer is SIGNIFICANTLY better (5+ point improvement)
+        # 2. Scheduled type has data to compare against
+        
+        if scheduled_content_type in scores:
+            scheduled_stats = scores[scheduled_content_type]
+            score_diff = top_stats['score'] - scheduled_stats['score']
+            
+            if score_diff < 5:
+                # Scheduled type is performing well enough - don't override
+                return scheduled_content_type, series_name, (
+                    f"scheduled type performing within 5pts of best "
+                    f"({scheduled_stats['score']:.1f} vs {top_stats['score']:.1f})"
+                )
+        
+        # Override with top performer
+        print(f"\n🤖 AUTO-ADJUSTMENT ACTIVATED:")
+        print(f"   Scheduled: {scheduled_content_type} ({series_name})")
+        print(f"   Override: {top_type}")
+        print(f"   Reason: {top_stats['avg_completion']:.1f}% completion vs "
+              f"{scores.get(scheduled_content_type, {}).get('avg_completion', 0):.1f}%")
+        print(f"   Score improvement: {top_stats['score'] - scores.get(scheduled_content_type, {}).get('score', 0):.1f} points")
+        
+        # Map content type to series name
+        series_map = {
+            'tool_teardown_tuesday': 'Tool Teardown Tuesday',
+            'tool_teardown_thursday': 'Tool Teardown Tuesday',
+            'secret_prompts_thursday': 'SECRET PROMPTS',
+            'ai_news_roundup': 'AI Weekend Roundup',
+            'viral_ai_saturday': 'Viral AI Saturday'
+        }
+        
+        new_series = series_map.get(top_type, 'none')
+        
+        return top_type, new_series, (
+            f"auto-selected based on {top_stats['avg_completion']:.1f}% avg completion "
+            f"({top_stats['sample_size']} videos)"
+        )
+        
+    except Exception as e:
+        print(f"⚠️ Auto-selection error: {e}")
+        return scheduled_content_type, series_name, f"error: {str(e)[:50]}"
+
+# ===== END AUTO-ADJUSTMENT =====
+
 def check_schedule():
     """
     PACKAGE 4 ENHANCED SCHEDULER with:
     - Feature 1: Priority-based retry logic
     - Feature 2: Delay tracking and reporting
     - Feature 3: Completion rate prediction
-    - Feature 4: Auto schedule adjustment recommendations (manual approval required)
+    - Feature 4: Auto schedule adjustment (content type + posting time)
     """
     schedule_file = 'config/posting_schedule.json'
     
@@ -106,7 +215,7 @@ def check_schedule():
             # Load episode tracking
             episode_number = get_next_episode_number(match.get('series', 'none'))
             
-            # FEATURE 3: Predict completion rate based on YOUR 83-video data
+            # FEATURE 3: Predict completion rate
             predicted_completion = 'N/A'
             if ENABLE_COMPLETION_PREDICTION:
                 predicted_completion = predict_completion_rate(
@@ -196,7 +305,10 @@ def check_schedule():
 
 
 def check_day_schedule_with_windows(now, day_slots, day_name):
-    """Check if current time falls within posting window (3-hour windows)"""
+    """
+    Check if current time falls within posting window (3-hour windows).
+    AUTO-ADJUSTMENT: Overrides content type if ENABLE_AUTO_ADJUSTMENT=true
+    """
     for slot in day_slots:
         window_start_str = slot.get('window_start', slot['time'])
         window_end_str = slot.get('window_end', slot['time'])
@@ -218,6 +330,24 @@ def check_day_schedule_with_windows(now, day_slots, day_name):
         )
         
         if window_start <= now <= window_end:
+            # ===== AUTO-ADJUSTMENT: Override content type if enabled =====
+            original_type = slot['type']
+            original_series = slot.get('series', 'none')
+            
+            adjusted_type, adjusted_series, reason = auto_select_content_type(original_type, original_series)
+            
+            if adjusted_type != original_type:
+                print(f"   🤖 AUTO-ADJUSTED:")
+                print(f"      Scheduled: {original_type} ({original_series})")
+                print(f"      Selected: {adjusted_type} ({adjusted_series})")
+                print(f"      Reason: {reason}")
+                
+                # Create adjusted slot (don't modify original)
+                slot = slot.copy()
+                slot['type'] = adjusted_type
+                slot['series'] = adjusted_series
+            # ===== END AUTO-ADJUSTMENT =====
+            
             print(f"   ✅ Within posting window!")
             print(f"   -> Window: {window_start_str} - {window_end_str} UTC ({day_name})")
             print(f"   -> Scheduled time: {slot['time']} UTC")
@@ -255,36 +385,6 @@ def get_next_episode_number(series_name):
     except Exception as e:
         print(f"⚠️ Episode tracking error: {e}, defaulting to Episode 1")
         return 1
-
-
-def increment_episode_number(series_name):
-    """
-    Increment episode counter after successful post.
-    Called by workflow AFTER upload succeeds.
-    """
-    if series_name == 'none':
-        return
-    
-    tracking_file = 'tmp/episode_tracking.json'
-    
-    try:
-        os.makedirs('tmp', exist_ok=True)
-        
-        if os.path.exists(tracking_file):
-            with open(tracking_file, 'r') as f:
-                tracking = json.load(f)
-        else:
-            tracking = {}
-        
-        current = tracking.get(series_name, 0)
-        tracking[series_name] = current + 1
-        
-        with open(tracking_file, 'w') as f:
-            json.dump(tracking, f, indent=2)
-            
-        print(f"📝 Episode tracking updated: {series_name} -> Episode {tracking[series_name]}")
-    except Exception as e:
-        print(f"⚠️ Could not update episode tracking: {e}")
 
 
 # ===== FEATURE 1: PRIORITY RETRY SYSTEM =====
@@ -469,33 +569,29 @@ def track_delay(slot, delay_minutes, actual_time):
         print(f"⚠️ Could not track delay: {e}")
 
 
-# ===== FEATURE 3: COMPLETION RATE PREDICTION (Based on YOUR 83 videos) =====
+# ===== FEATURE 3: COMPLETION RATE PREDICTION =====
 
 def predict_completion_rate(content_type, series_name):
     """
-    Predict completion rate based on YOUR historical data from 83 videos.
-    
-    YOUR PROVEN AVERAGES:
-    - tool_teardown_tuesday: 64.6% (24 videos)
-    - viral_ai_saturday: ~60% estimated (entertainment)
-    - ai_news_roundup: 30.5% (KILLED)
-    - secret_prompts_thursday: 14.7% (KILLED)
+    Predict completion rate based on YOUR historical data.
+    Uses YOUR proven averages from 78 videos.
     """
     performance_file = 'tmp/content_performance.json'
     
-    # Use YOUR proven data as baseline
+    # YOUR proven baselines from backfill
     proven_baselines = {
         'tool_teardown_tuesday': 64.6,
-        'tool_teardown_thursday': 64.6,  # Same format as Tuesday
-        'viral_ai_saturday': 60.0,  # Based on Rizzbot (80.7%), Adobe (91.1%), AWS (77.9%)
-        'ai_tools': 64.6,  # Tool teardown average
-        'entertainment': 60.0  # Viral average
+        'tool_teardown_thursday': 64.6,
+        'secret_prompts_thursday': 14.7,
+        'ai_news_roundup': 32.2,
+        'viral_ai_saturday': 60.0,
+        'general': 41.4
     }
     
-    # If no performance file yet, use YOUR proven baselines
+    # If no performance file yet, use proven baselines
     if not os.path.exists(performance_file):
         baseline = proven_baselines.get(content_type, 50.0)
-        return f"{baseline:.1f}% (proven avg from 83 videos)"
+        return f"{baseline:.1f}% (proven baseline)"
     
     try:
         with open(performance_file, 'r') as f:
@@ -506,7 +602,7 @@ def predict_completion_rate(content_type, series_name):
             avg_completion = type_data.get('average_completion', 0)
             
             if avg_completion > 0:
-                # Adjust based on series performance if available
+                # Check series performance
                 if series_name != 'none' and 'series_performance' in type_data:
                     series_data = type_data['series_performance'].get(series_name, {})
                     if series_data.get('average_completion', 0) > 0:
@@ -514,7 +610,7 @@ def predict_completion_rate(content_type, series_name):
                 
                 return f"{avg_completion:.1f}% (type avg)"
         
-        # Fallback to YOUR proven baseline
+        # Fallback to proven baseline
         baseline = proven_baselines.get(content_type, 50.0)
         return f"{baseline:.1f}% (proven baseline)"
         
@@ -524,7 +620,7 @@ def predict_completion_rate(content_type, series_name):
         return f"{baseline:.1f}% (baseline)"
 
 
-# ===== FEATURE 4: AUTO SCHEDULE ADJUSTMENT =====
+# ===== FEATURE 4: CHECK SCHEDULE RECOMMENDATIONS =====
 
 def check_schedule_recommendations():
     """Check if there are schedule adjustment recommendations"""

@@ -174,6 +174,13 @@ def generate_recommendations():
         'completed_recommendations': []
     }
     
+    # Load existing recommendations to preserve them
+    if os.path.exists(RECOMMENDATIONS_FILE):
+        with open(RECOMMENDATIONS_FILE, 'r') as f:
+            existing = json.load(f)
+            recommendations['pending_recommendations'] = existing.get('pending_recommendations', [])
+            recommendations['completed_recommendations'] = existing.get('completed_recommendations', [])
+    
     # YOUR proven targets from 83-video analysis
     proven_targets = {
         'tool_teardown_tuesday': {
@@ -184,14 +191,14 @@ def generate_recommendations():
         },
         'tool_teardown_thursday': {
             'target_completion': 65,
-            'proven_average': 64.6,  # Same format as Tuesday
-            'sample_size': 0,  # New series
+            'proven_average': 64.6,
+            'sample_size': 0,
             'grade': 'A (predicted based on Tuesday data)'
         },
         'viral_ai_saturday': {
             'target_completion': 50,
-            'proven_average': 60.0,  # Estimated from entertainment videos
-            'sample_size': 5,  # Rizzbot, Adobe, AWS, etc.
+            'proven_average': 60.0,
+            'sample_size': 5,
             'grade': 'B+ (entertainment/shock value)'
         }
     }
@@ -231,8 +238,14 @@ def generate_recommendations():
         baseline_delta = avg_completion - proven_average
         target_delta = avg_completion - target_completion
         
+        # Check if recommendation already exists for this content type
+        existing_rec = any(
+            rec.get('content_type') == content_type and rec.get('type') in ['UNDERPERFORMING_VS_BASELINE', 'OUTPERFORMING_BASELINE']
+            for rec in recommendations['pending_recommendations']
+        )
+        
         # Generate recommendation if significantly different from baseline
-        if baseline_delta < -10:  # Performing 10% worse than YOUR proven average
+        if baseline_delta < -10 and not existing_rec:
             recommendation = {
                 'type': 'UNDERPERFORMING_VS_BASELINE',
                 'content_type': content_type,
@@ -254,7 +267,7 @@ def generate_recommendations():
             recommendations['pending_recommendations'].append(recommendation)
             print(f"      ⚠️ RECOMMENDATION: {recommendation['suggested_action']}")
         
-        elif baseline_delta > 10:  # Performing 10% better than YOUR proven average
+        elif baseline_delta > 10 and not existing_rec:
             recommendation = {
                 'type': 'OUTPERFORMING_BASELINE',
                 'content_type': content_type,
@@ -291,6 +304,97 @@ def generate_recommendations():
         print(f"\n✅ No new recommendations - performance consistent with YOUR proven baselines")
 
 
+def generate_cron_recommendations():
+    """
+    Generate cron schedule change recommendations based on posting time analysis.
+    Called by daily_analytics to populate schedule_recommendations.json with timing insights.
+    """
+    
+    performance = load_performance_data()
+    
+    if not performance:
+        return
+    
+    # Analyze which days/times get best performance
+    day_performance = {}
+    time_performance = {}
+    
+    for content_type, data in performance.items():
+        for upload in data['uploads']:
+            upload_date = upload.get('upload_date')
+            completion = upload.get('completion_rate_24h')
+            
+            if not upload_date or completion is None:
+                continue
+            
+            try:
+                upload_time = datetime.fromisoformat(upload_date.replace('Z', '+00:00'))
+                day_name = upload_time.strftime('%A')
+                hour = upload_time.hour
+                
+                if day_name not in day_performance:
+                    day_performance[day_name] = []
+                day_performance[day_name].append(completion)
+                
+                if hour not in time_performance:
+                    time_performance[hour] = []
+                time_performance[hour].append(completion)
+                
+            except:
+                continue
+    
+    # Calculate averages
+    day_averages = {
+        day: sum(completions) / len(completions)
+        for day, completions in day_performance.items()
+        if len(completions) >= 2
+    }
+    
+    time_averages = {
+        hour: sum(completions) / len(completions)
+        for hour, completions in time_performance.items()
+        if len(completions) >= 2
+    }
+    
+    if not day_averages or not time_averages:
+        print("   Not enough data for schedule recommendations")
+        return
+    
+    # Find best days and times
+    best_days = sorted(day_averages.items(), key=lambda x: x[1], reverse=True)[:3]
+    best_times = sorted(time_averages.items(), key=lambda x: x[1], reverse=True)[:3]
+    
+    print(f"\n📅 SCHEDULE INSIGHTS:")
+    print(f"   Best days: {', '.join([f'{day} ({avg:.1f}%)' for day, avg in best_days])}")
+    print(f"   Best times: {', '.join([f'{hour:02d}:00 ({avg:.1f}%)' for hour, avg in best_times])}")
+    
+    # Load existing recommendations
+    if os.path.exists(RECOMMENDATIONS_FILE):
+        with open(RECOMMENDATIONS_FILE, 'r') as f:
+            recommendations = json.load(f)
+    else:
+        recommendations = {
+            'generated_at': datetime.now(pytz.UTC).isoformat(),
+            'baseline_reference': 'Based on YOUR actual performance data',
+            'pending_recommendations': [],
+            'completed_recommendations': []
+        }
+    
+    # Add schedule insights to recommendations file
+    recommendations['schedule_insights'] = {
+        'best_days': [{'day': day, 'avg_completion': avg} for day, avg in best_days],
+        'best_times_utc': [{'hour': hour, 'avg_completion': avg} for hour, avg in best_times],
+        'sample_size': sum(len(completions) for completions in day_performance.values()),
+        'generated_at': datetime.now(pytz.UTC).isoformat()
+    }
+    
+    # Update timestamp
+    recommendations['generated_at'] = datetime.now(pytz.UTC).isoformat()
+    
+    with open(RECOMMENDATIONS_FILE, 'w') as f:
+        json.dump(recommendations, f, indent=2)
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("📊 PERFORMANCE TRACKING & RECOMMENDATIONS")
@@ -301,6 +405,9 @@ if __name__ == "__main__":
     
     # Generate recommendations if enough data
     generate_recommendations()
+    
+    # Generate cron schedule recommendations
+    generate_cron_recommendations()
     
     print("\n" + "=" * 60)
     print("✅ Performance tracking complete")

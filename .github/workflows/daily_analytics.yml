@@ -51,10 +51,6 @@ jobs:
         if: steps.cache-restore.outputs.cache-hit != 'true'
         run: |
           echo "⚠️ Cache not found, checking for migration artifact..."
-          
-          # Download the migrated artifact from the successful migration run
-          # Run ID: 19185207383 (your successful migration)
-          
           echo "📥 Attempting to download migration artifact..."
         continue-on-error: true
 
@@ -75,7 +71,6 @@ jobs:
             echo "Source: $(if [ -n "${{ steps.cache-restore.outputs.cache-hit }}" ]; then echo "Cache"; else echo "Migration artifact"; fi)"
             echo "Size: $(wc -c < tmp/content_performance.json) bytes"
             
-            # Quick structure check
             if grep -q "completion_rate_24h" tmp/content_performance.json; then
               echo "✅ Unified structure verified"
             else
@@ -96,6 +91,9 @@ jobs:
 
       - name: Generate recommendations
         run: python .github/scripts/track_performance.py
+
+      - name: Analyze optimal posting times
+        run: python .github/scripts/analyze_optimal_times.py
 
       - name: Save performance data
         uses: actions/cache/save@v4
@@ -154,5 +152,14 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "### 💡 $RECS Schedule Recommendations" >> $GITHUB_STEP_SUMMARY
               echo "Review in artifacts: \`analytics-report-${{ github.run_number }}\`" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            if [ -f tmp/schedule_recommendations.json ]; then
+              if jq -e '.schedule_insights' tmp/schedule_recommendations.json > /dev/null 2>&1; then
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "### 🕐 Posting Time Insights" >> $GITHUB_STEP_SUMMARY
+                echo "Smart time analyzer has identified YOUR best posting times." >> $GITHUB_STEP_SUMMARY
+                echo "Review full analysis in artifacts." >> $GITHUB_STEP_SUMMARY
+              fi
             fi
           fi
