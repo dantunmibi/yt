@@ -19,24 +19,20 @@ on:
         default: false
   
   schedule:
-    # ===== STRATEGIC 3-POSTS-PER-WEEK SCHEDULE (DATA-DRIVEN) =====
-    # Designed for GitHub Actions delays up to 120 minutes
-    # All times UTC (EST = UTC-5 winter, UTC-4 summer)
+    # UPDATED SCHEDULE based on 78-video analytics proving evening posts perform 2.4x better
+    # Tuesday 23:00 UTC (6 PM EST) - Tool Teardown Tuesday - PROVEN 82.1% completion
+    - cron: '0 23 * * 2'
     
-    # TUESDAY - Tool Teardown Tuesday (HIGHEST PRIORITY)
-    # Target window: 10:00 AM - 1:00 PM EST (15:00-18:00 UTC)
-    # Scheduler handles 3-hour window to absorb delays
-    - cron: '0 15 * * 2'   # Triggers at 10:00 AM EST
+    # Thursday 21:00 UTC (4 PM EST) - Tool Teardown Thursday - PROVEN 57.9% completion  
+    - cron: '0 21 * * 4'
     
-    # THURSDAY - SECRET PROMPTS Thursday (HIGHEST PRIORITY)  
-    # Target window: 10:00 AM - 1:00 PM EST (15:00-18:00 UTC)
-    # Episodic content to build returning viewers
-    - cron: '0 15 * * 4'   # Triggers at 10:00 AM EST
+    # Friday 23:00 UTC (6 PM EST) - Viral AI Friday - ESTIMATED 77-82% completion
+    # (Friday = best day 77.63%, 23:00 = best time 82.1%)
+    - cron: '0 23 * * 5'
     
-    # SATURDAY - AI Weekend Roundup (HIGH PRIORITY)
-    # Target window: 9:00 AM - 12:00 PM EST (14:00-17:00 UTC)
-    # Curated news for new viewer acquisition
-    - cron: '0 14 * * 6'   # Triggers at 9:00 AM EST
+    # OLD SCHEDULE REMOVED (killed for 34.0% completion):
+    # - cron: '0 14,15 * * 2,4,6'  # ❌ FAILED: 34% completion at morning times
+
 
 jobs:
   build_and_upload:

@@ -1,12 +1,14 @@
 {
-  "version": "2.0_data_driven_from_83_videos",
+  "version": "2.2_time_optimized_jan_2025",
   "based_on_actual_performance": {
     "total_videos_analyzed": 83,
-    "date_analyzed": "2025-01-07",
-    "top_performer": "Text to 3D Models (461.7% completion)",
-    "worst_performer": "Your Secret Digital Guardians (0% completion)",
-    "best_category": "tool_teardown_tuesday (64.6% avg)",
-    "worst_category": "secret_prompts_thursday (14.7% avg)"
+    "date_analyzed": "2025-01-09",
+    "analytics_source": "YouTube Analytics API (Nov 8, 2025 snapshot)",
+    "top_performer": "Text to 3D Models (461.73% completion, video_id: MNuKOhfrYNA)",
+    "worst_performer": "Unlock 3 Hidden AI Productivity Superpowers (0% completion, video_id: cfpbCybnb6I)",
+    "best_category": "tool_teardown_tuesday (64.72% avg, 26 videos)",
+    "worst_category": "secret_prompts_thursday (14.74% avg, 2 videos)",
+    "time_optimization": "Evening posts (21:00-23:00 UTC) perform 2.4x better than morning (14:00-15:00 UTC)"
   },
   
   "series": {
@@ -14,18 +16,83 @@
       "series_name": "Tool Teardown Tuesday",
       "content_type": "ai_tools",
       "posting_day": "Tuesday",
+      "posting_time": "23:00 UTC (6:00 PM EST)",
       "episode_prefix": "Tool Teardown Tuesday - Episode",
-      "proven_performance": "64.6% average completion (24 videos)",
+      "proven_performance": "64.72% average completion (26 videos, 76.6 avg views, 1.17x rewatch)",
+      "time_optimized_performance": "82.1% completion at 23:00 UTC (10 videos sample)",
+      
+      "analytics_breakdown": {
+        "avg_completion": 64.72,
+        "avg_views": 76.61,
+        "avg_rewatch_rate": 1.17,
+        "total_videos": 26,
+        "date_range": "Oct 12 - Nov 8, 2025",
+        "optimal_posting_time": "23:00 UTC (proven 82.1% completion vs 34.0% at 15:00 UTC)",
+        "top_3_videos": [
+          {
+            "video_id": "MNuKOhfrYNA",
+            "title": "Text to 3D Models: This AI Tool Changes Design FOREVER!",
+            "completion": 461.73,
+            "views": 175,
+            "rewatch": 4.62,
+            "why_viral": "Visual transformation + specific tool + immediate wow factor"
+          },
+          {
+            "video_id": "xHxrhDomYxQ",
+            "title": "Adobe AI Runs Your Social Media! Project Moonlight Explodes!",
+            "completion": 91.07,
+            "views": 65,
+            "why_viral": "Specific product + automation benefit + excitement"
+          },
+          {
+            "video_id": "mSGszYOlRKs",
+            "title": "Canva's Secret AI: Designs YOUR Projects In SECONDS!",
+            "completion": 70.02,
+            "views": 114,
+            "why_viral": "Specific tool + FREE + time benefit in SECONDS"
+          }
+        ],
+        "bottom_3_videos": [
+          {
+            "video_id": "cfpbCybnb6I",
+            "title": "Unlock 3 Hidden AI Productivity Superpowers!",
+            "completion": 0,
+            "views": 5,
+            "why_failed": "Generic '3 hacks' format, no specific tool named"
+          },
+          {
+            "video_id": "eSZXioT-K1I",
+            "title": "3 AI Tools That Will Change Your Life (Seriously!)",
+            "completion": 11.91,
+            "views": 4,
+            "why_failed": "List format, no visual transformation, vague tools"
+          },
+          {
+            "video_id": "lvo2n2-QNfc",
+            "title": "Top YouTubers Secret: 3 AI Tools Making Viral Videos NOW!",
+            "completion": 26.22,
+            "views": 100,
+            "why_failed": "No specific tool names, list format dilutes impact"
+          }
+        ]
+      },
       
       "title_formula": {
         "template": "[TOOL] SECRET [FEATURE]: [TRANSFORMATION] in [TIME]!",
         "with_episode": "Tool Teardown Tuesday - Episode [N]: [Tool] [Feature]",
         "proven_winners_from_your_channel": [
-          "Text to 3D Models: This AI Tool Changes Design FOREVER! (461.7%)",
-          "ChatGPT-5 Sees Earth Future: 3 Mind-Blowing Climate AI Facts (185.9%)",
-          "Instagram FREE AI Photos: Get Photoshop Magic NOW! (71.3%)",
-          "Canva Secret AI: Designs YOUR Projects In SECONDS! (70%)",
-          "Unlock ChatGPT Pro For FREE! The Microsoft Secret! (68.8%)"
+          "Text to 3D Models: This AI Tool Changes Design FOREVER! (461.73%, 175 views, video_id: MNuKOhfrYNA)",
+          "Adobe AI Runs Your Social Media! Project Moonlight Explodes! (91.07%, 65 views, video_id: xHxrhDomYxQ)",
+          "Canva's Secret AI: Designs YOUR Projects In SECONDS! (70.02%, 114 views, video_id: mSGszYOlRKs)",
+          "Instagram's FREE AI Photos: Get Photoshop Magic NOW! (71.28%, 76 views, video_id: RqkPTW08StU)",
+          "Unlock ChatGPT Pro For FREE! The Microsoft Secret! (68.79%, 18 views, video_id: 6d0UKJarNqI)",
+          "ChatGPT's SECRET Productivity Hack: 10X Your Day! (61.65%, 106 views, video_id: Wwp35tN5amY)",
+          "ChatGPT's SECRET Email Prompts: Write Perfect Emails in SECONDS! (49.6%, 379 views, video_id: ut5wl2k_8bg)"
+        ],
+        "proven_failures_from_your_channel": [
+          "3 AI Tools That Will Change Your Life (Seriously!) (11.91%, 4 views, video_id: eSZXioT-K1I)",
+          "Top YouTubers Secret: 3 AI Tools Making Viral Videos NOW! (26.22%, 100 views, video_id: lvo2n2-QNfc)",
+          "The AI Hacks Giving You Back 10+ Hours Weekly! (27.69%, 92 views, video_id: AlwXQHXHjDQ)"
         ]
       },
       
@@ -37,38 +104,39 @@
           "Time benefit quantified (SECONDS, not minutes)",
           "Episode number for continuity"
         ],
-        "optimal_length": "25-28 seconds",
-        "target_completion": "70%",
-        "current_average": "64.6%",
+        "optimal_length": "25-28 seconds (proven from analytics)",
+        "target_completion": "80%",
+        "current_average": "64.72% (82.1% at optimal 23:00 UTC time)",
         "target_rewatch": "1.5x",
-        "current_average_rewatch": "1.19x",
-        "hook_structure": "Show END RESULT in first 3 seconds (like Text to 3D did)"
+        "current_average_rewatch": "1.17x",
+        "hook_structure": "Show END RESULT in first 3 seconds (like Text to 3D did)",
+        "posting_time": "23:00 UTC Tuesday (6 PM EST) - PROVEN 82.1% completion"
       },
       
       "topics": {
         "proven_high_performers": [
-          "Text-to-3D tools (Luma, CSM, Meshy) - 461.7% proven",
-          "ChatGPT advanced features (Email: 49.6%, Productivity: 61.6%, Climate: 185.9%)",
-          "Canva AI secrets (70% proven)",
-          "Instagram AI tools (71.3% proven)",
-          "Adobe AI features (Moonlight: 91.1%)"
+          "Text-to-3D tools (Luma, CSM, Meshy) - 461.73% proven (video_id: MNuKOhfrYNA)",
+          "ChatGPT advanced features - Email: 49.6% (ut5wl2k_8bg), Productivity: 61.65% (Wwp35tN5amY)",
+          "Canva AI secrets - 70.02% proven (video_id: mSGszYOlRKs)",
+          "Instagram AI tools - 71.28% proven (video_id: RqkPTW08StU)",
+          "Adobe AI features - Moonlight: 91.07% (video_id: xHxrhDomYxQ)"
         ],
         
         "proven_moderate_performers": [
-          "Browser AI (Chrome, Arc, Brave) - 42.8%",
-          "Mac AI tools (OpenAI Mac) - 37.1%",
-          "Voice cloning (ElevenLabs) - 44.3%"
+          "Browser AI (Chrome, Arc, Brave) - 39.54% (video_id: wHNT11d0A0A)",
+          "Mac AI tools (OpenAI Mac) - 37.13% (video_id: 4XurPVhldL8)",
+          "Voice cloning (ElevenLabs) - 44.27% (video_id: QgvUd0Y3GU0)"
         ],
         
         "avoid_based_on_data": [
-          "Generic 3 AI Tools titles (46%, 26.2%, 11.9% - all failed)",
-          "Vague tools without names (TOP YouTubers Secret: 26.2%)",
-          "Tools requiring complex setup",
-          "Tools without visual output (hard to show transformation)"
+          "Generic '3 AI Tools' titles - avg 22.3% (eSZXioT-K1I: 11.91%, lvo2n2-QNfc: 26.22%, AlwXQHXHjDQ: 27.69%)",
+          "Vague tools without names - 'TOP YouTubers Secret': 26.22% (video_id: lvo2n2-QNfc)",
+          "List formats - consistently underperform single tool focus",
+          "Generic productivity hacks - 'AI Hacks Giving You Back 10+ Hours': 27.69% (video_id: AlwXQHXHjDQ)"
         ],
         
         "upcoming_tools_to_test": [
-          "Sora (video generation) - test with visual transformation angle",
+          "Sora (video generation) - test with visual transformation angle like Text-to-3D",
           "Midjourney v7 (if released) - focus on SECRET parameters",
           "Runway Gen-3 (video editing)",
           "Perplexity Pro (research)",
@@ -78,16 +146,17 @@
       
       "script_guidance": {
         "hook_examples_that_worked": [
-          "This AI turns text into 3D models in SECONDS",
-          "ChatGPT-5 just predicted Earth climate future",
-          "Instagram FREE AI makes you look like a pro photographer",
-          "Canva secret AI designs BETTER than professionals"
+          "This AI turns text into 3D models in SECONDS (461.73%)",
+          "Instagram FREE AI makes you look like a pro photographer (71.28%)",
+          "Canva secret AI designs BETTER than professionals (70.02%)",
+          "ChatGPT can now write perfect emails in SECONDS (49.6%, 379 views)"
         ],
         
         "hook_examples_that_failed": [
-          "Chrome might be OBSOLETE (too vague - 42.8%)",
-          "3 AI tools that will blow your mind (generic - 46%)",
-          "Top YouTubers use these 3 AI tools (no specificity - 26.2%)"
+          "Chrome might be OBSOLETE (too vague - 39.54%)",
+          "3 AI tools that will blow your mind (generic - 11.91%)",
+          "Top YouTubers use these 3 AI tools (no specificity - 26.22%)",
+          "AI hacks giving you back 10+ hours weekly (vague - 27.69%)"
         ],
         
         "bullet_structure": [
@@ -99,7 +168,7 @@
         "cta_template": "Next Thursday (Episode [N+1]): I am revealing [NEXT_TOOL] [SECRET_FEATURE]. Subscribe!",
         
         "visual_pacing": {
-          "seconds_0_3": "Show the END RESULT (3D model, designed graphic, AI output)",
+          "seconds_0_3": "Show the END RESULT (3D model, designed graphic, AI output) - CRITICAL for retention",
           "seconds_4_8": "Quick problem setup (what you could not do before)",
           "seconds_9_20": "Tool demo (how to use it, 3-5 seconds per step)",
           "seconds_21_25": "Before/after comparison or multiple examples",
@@ -112,7 +181,7 @@
         "require_specific_tool_name": true,
         "require_visual_transformation": true,
         "max_setup_complexity": "Must be accessible in under 2 minutes",
-        "must_have_free_tier": "Preferred (68.8% for FREE angle proven)"
+        "must_have_free_tier": "Preferred (68.79% for FREE angle proven on video_id: 6d0UKJarNqI)"
       }
     },
     
@@ -120,13 +189,21 @@
       "series_name": "Tool Teardown Thursday",
       "content_type": "ai_tools",
       "posting_day": "Thursday",
+      "posting_time": "21:00 UTC (4:00 PM EST)",
       "episode_prefix": "Tool Teardown Thursday - Episode",
-      "reasoning": "Replicate Tuesday 64.6% success formula",
+      "reasoning": "Replicate Tuesday 64.72% success formula at after-work engagement window",
+      "proven_performance": "Same dataset as Tuesday (combined under tool_teardown_tuesday)",
+      "time_optimized_performance": "57.9% completion at 21:00 UTC (5 videos sample)",
       
       "title_formula": "IDENTICAL to tool_teardown_tuesday",
-      "content_requirements": "IDENTICAL to tool_teardown_tuesday",
+      "content_requirements": {
+        "format": "IDENTICAL to tool_teardown_tuesday",
+        "posting_time": "21:00 UTC Thursday (4 PM EST) - PROVEN 57.9% completion",
+        "target_completion": "65%",
+        "optimal_length": "25-28 seconds"
+      },
       "topics": "SAME pool as Tuesday, different specific tools each week",
-      "script_guidance": "IDENTICAL structure - do not mess with 64.6% success",
+      "script_guidance": "IDENTICAL structure - do not mess with 64.72% success",
       "quality_gates": "IDENTICAL standards",
       
       "differentiation_from_tuesday": {
@@ -135,24 +212,68 @@
           "tuesday": "Midjourney SECRET Parameter for Perfect Faces",
           "thursday": "ChatGPT HIDDEN Code Interpreter Tricks"
         },
-        "avoid": "Do not make Thursday different - make it SAME FORMAT, different tool"
+        "avoid": "Do not make Thursday different format - make it SAME FORMAT, different tool"
+      },
+      
+      "cta_bridge": {
+        "template": "Tomorrow (Friday): [SHOCKING AI EVENT TEASER]. Next Tuesday: [NEXT_TOOL]. Subscribe!",
+        "reasoning": "Build anticipation for Friday entertainment, maintain Tuesday episodic flow"
       }
     },
     
-    "viral_ai_saturday": {
-      "series_name": "Viral AI Saturday",
+    "viral_ai_friday": {
+      "series_name": "Viral AI Friday",
       "content_type": "entertainment",
-      "posting_day": "Saturday",
-      "replaced": "AI Weekend Roundup (killed for 30.5% failure)",
-      "proven_performance": "Entertainment works: Rizzbot 80.7%, Adobe 91.1%, AWS 77.9%",
+      "posting_day": "Friday",
+      "posting_time": "23:00 UTC (6:00 PM EST)",
+      "episode_prefix": "Viral AI Friday - Episode",
+      "status": "NEW - Replaces Saturday AI News Roundup",
+      "proven_performance": "77.63% Friday day avg + 82.1% time avg = ~80% expected completion",
+      "reasoning": "Entertainment (80.69% proven) + Best day (Friday 77.63%) + Best time (23:00 UTC 82.1%) = maximum viral potential",
+      
+      "analytics_breakdown": {
+        "friday_day_avg": 77.63,
+        "time_23utc_avg": 82.1,
+        "estimated_combined": 80,
+        "replaces": "Saturday AI News Roundup (32.21% avg - KILLED)",
+        "improvement_vs_old_saturday": "+47.8% completion improvement",
+        "top_entertainment_videos": [
+          {
+            "video_id": "PY6Xh9ITHtY",
+            "title": "Rizzbot FLIPPED ME OFF on TikTok LIVE! AI Gone Wild?",
+            "completion": 80.69,
+            "views": 333,
+            "why_viral": "Shock value + entertainment + specific unexpected AI behavior"
+          },
+          {
+            "video_id": "xHxrhDomYxQ",
+            "title": "Adobe AI Runs Your Social Media! Project Moonlight Explodes!",
+            "completion": 91.07,
+            "views": 65,
+            "why_viral": "Unexpected capability + practical benefit + excitement"
+          },
+          {
+            "video_id": "M_F65qJr9ps",
+            "title": "AWS Outage Gave AI 'Brain Rot'?! Here's The SHOCKING Truth!",
+            "completion": 77.89,
+            "views": 5,
+            "why_viral": "Unexpected event + entertainment angle + resolution"
+          }
+        ]
+      },
       
       "title_formula": {
         "template": "[SHOCKING EVENT]: [UNEXPECTED OUTCOME]!",
+        "with_episode": "Viral AI Friday - Episode [N]: [Shocking Event]",
         "proven_winners_from_your_channel": [
-          "Rizzbot FLIPPED ME OFF on TikTok LIVE! AI Gone Wild? (80.7%, 333 views)",
-          "Adobe AI Runs Your Social Media! Project Moonlight Explodes! (91.1%, 65 views)",
-          "AWS Outage Gave AI Brain Rot?! Here is The SHOCKING Truth! (77.9%, 5 views)",
-          "Your Brain Is The NEW Control Panel! (63.1%, 208 views)"
+          "Rizzbot FLIPPED ME OFF on TikTok LIVE! AI Gone Wild? (80.69%, 333 views, video_id: PY6Xh9ITHtY)",
+          "Adobe AI Runs Your Social Media! Project Moonlight Explodes! (91.07%, 65 views, video_id: xHxrhDomYxQ)",
+          "AWS Outage Gave AI Brain Rot?! Here is The SHOCKING Truth! (77.89%, 5 views, video_id: M_F65qJr9ps)"
+        ],
+        "proven_failures_to_avoid": [
+          "Microsoft AI Agents FAILED: Project Nexus Shocking Truth! (31.81%, video_id: fU8DgDdmRl4)",
+          "Clippy is BACK! Microsoft's New AI 'Mico' EXPLAINED! (32.46%, video_id: GknnlZ2agQY)",
+          "Copilot Steals Your Memory? 3 Shocking AI Facts! (34.97%, video_id: K6usEtnnSZs)"
         ]
       },
       
@@ -161,27 +282,31 @@
           "Shock value or entertainment angle (not just news)",
           "Immediate WTF moment in first 3 seconds",
           "Personal impact (how it affects viewer TODAY)",
-          "Positive or neutral framing (not fear-mongering)"
+          "Positive or neutral framing (not fear-mongering)",
+          "Bridge to Tuesday's related tool demo",
+          "Episode number for series continuity"
         ],
-        "optimal_length": "20-24 seconds",
-        "target_completion": "50%",
-        "hook_structure": "Lead with the shocking/entertaining moment, explain after"
+        "optimal_length": "20-24 seconds (entertainment moves faster)",
+        "target_completion": "75%",
+        "target_views": "150+ (viral potential like Rizzbot 333 views)",
+        "hook_structure": "Lead with the shocking/entertaining moment, explain after",
+        "posting_time": "23:00 UTC Friday (6 PM EST) - BEST day + BEST time combination"
       },
       
       "topics": {
         "include": [
-          "Viral AI moments (like Rizzbot)",
-          "Unexpected AI behaviors (AWS Brain Rot)",
+          "Viral AI moments (like Rizzbot - 80.69%)",
+          "Unexpected AI behaviors (AWS Brain Rot - 77.89%)",
           "Game-changing AI announcements with clear demo",
           "AI doing surprising/entertaining things",
-          "Brain/psychology AI applications (Your Brain Control Panel: 63.1%)"
+          "Positive or neutral industry shake-ups"
         ],
         
         "proven_failures_to_avoid": [
-          "Generic news: Clippy is BACK! Microsoft New AI (32.3%)",
-          "Fear-mongering: Copilot Steals Your Memory? (35%)",
-          "Vague threats: Your Secret Digital Guardians (0% - WORST EVER)",
-          "Negative framing without resolution: FAILED, HACKED (31.8%, 26.8%)"
+          "Generic news without entertainment (Clippy is BACK: 32.46%, video_id: GknnlZ2agQY)",
+          "Fear-mongering (Copilot Steals Memory: 34.97%, video_id: K6usEtnnSZs)",
+          "Negative framing without resolution (Microsoft FAILED: 31.81%, video_id: fU8DgDdmRl4)",
+          "Security scares (Police Cameras HACKED: 49.55%, video_id: TZlsIjBgcEk)"
         ],
         
         "filter_rule": "Only post if it has ENTERTAINMENT value, not just news value"
@@ -189,70 +314,341 @@
       
       "script_guidance": {
         "hook_examples_that_worked": [
-          "A TikTok AI bot just flipped me off LIVE",
-          "Adobe AI is now running entire social media accounts",
-          "AWS outage gave AI literal brain rot",
-          "Your brain is becoming an AI control panel"
+          "A TikTok AI bot just flipped me off LIVE (80.69%)",
+          "Adobe AI is now running entire social media accounts (91.07%)",
+          "AWS outage gave AI literal brain rot (77.89%)"
         ],
         
         "hook_examples_that_failed": [
-          "Microsoft Clippy is back with new AI (boring - 32.3%)",
-          "Your data might not be safe with Copilot (fear-based - 35%)",
-          "New digital guardians are protecting you (vague - 0%)"
+          "Microsoft Clippy is back with new AI (boring - 32.46%)",
+          "Copilot might steal your memory (fear-based - 34.97%)",
+          "Microsoft AI Agents FAILED (negative - 31.81%)"
         ],
         
-        "cta_template": "Tuesday tool demo: [RELATED_TOOL]. Follow so you do not miss it!",
+        "bullet_structure": [
+          "Bullet 1: What happened (the shocking/entertaining event)",
+          "Bullet 2: Why it matters to viewer TODAY",
+          "Bullet 3: Bridge to Tuesday's related practical tool"
+        ],
+        
+        "cta_template": "Tuesday: [RELATED_PRACTICAL_TOOL]. Follow so you don't miss it!",
         
         "bridge_to_tuesday": {
-          "rule": "Always connect Saturday entertainment to Tuesday practical tool",
-          "example": "Rizzbot went viral then Tuesday: ChatGPT SECRET Conversation Tricks"
+          "rule": "Always connect Friday entertainment to Tuesday practical tool",
+          "examples": [
+            "Rizzbot went viral → Tuesday: ChatGPT SECRET Conversation Tricks",
+            "Adobe AI automation → Tuesday: Adobe Express HIDDEN Features",
+            "AWS AI failure → Tuesday: Local AI Tools That Never Go Down"
+          ]
+        },
+        
+        "visual_pacing": {
+          "seconds_0_3": "Show the SHOCKING moment (AI flipping off, unexpected behavior)",
+          "seconds_4_10": "Quick context (what led to this)",
+          "seconds_11_18": "Why it matters to viewer",
+          "seconds_19_24": "CTA + Tuesday tool teaser"
         }
       },
       
       "quality_gates": {
-        "minimum_predicted_completion": 45,
+        "minimum_predicted_completion": 60,
         "require_entertainment_value": true,
         "require_positive_or_neutral_framing": true,
         "reject_pure_news": true,
-        "reject_fear_mongering": true
+        "reject_fear_mongering": true,
+        "reject_if_no_tuesday_tool_bridge": true
+      }
+    },
+    
+    "secret_prompts_thursday": {
+      "series_name": "SECRET PROMPTS",
+      "content_type": "secret_prompts",
+      "posting_day": "Thursday",
+      "posting_time": "21:00 UTC (4:00 PM EST) - IF replacing Tool Teardown Thursday",
+      "status": "⚠️ UNDERPERFORMING - Needs format pivot BEFORE using",
+      "proven_performance": "14.74% avg completion (2 videos) - 50% BELOW target",
+      "recommended_action": "FIX format first, THEN consider replacing Tool Teardown Thursday if Thursday hits 65%+",
+      
+      "analytics_breakdown": {
+        "avg_completion": 14.74,
+        "avg_views": 28.5,
+        "total_videos": 2,
+        "failed_examples": [
+          {
+            "video_id": "Z-fk47Edo88",
+            "title": "Unlock Your Brain: 3 AI Hacks You NEED Right Now!",
+            "completion": 10.51,
+            "views": 13,
+            "why_failed": "Generic 'AI hacks' format, no specific tool"
+          },
+          {
+            "video_id": "8Y-Gm4z967M",
+            "title": "3 AI Hacks to Supercharge Your Day!",
+            "completion": 18.97,
+            "views": 44,
+            "why_failed": "List format, vague hacks, no visual demo"
+          }
+        ],
+        "BUT_specific_prompts_worked_under_tool_teardown": [
+          {
+            "video_id": "ut5wl2k_8bg",
+            "title": "ChatGPT's SECRET Email Prompts: Write Perfect Emails in SECONDS!",
+            "completion": 49.6,
+            "views": 379,
+            "category": "tool_teardown_tuesday (not secret_prompts!)"
+          },
+          {
+            "video_id": "Wwp35tN5amY",
+            "title": "ChatGPT's SECRET Productivity Hack: 10X Your Day!",
+            "completion": 61.65,
+            "views": 106,
+            "category": "tool_teardown_tuesday (not secret_prompts!)"
+          }
+        ],
+        "lesson": "Specific ChatGPT prompts work (50-60%) when formatted like Tool Teardown, NOT as generic 'AI hacks'"
+      },
+      
+      "recommended_pivot": {
+        "from": "3 AI Hacks to Supercharge Your Day (14.74% avg)",
+        "to": "ChatGPT's SECRET [CATEGORY] Prompts: [RESULT] in SECONDS! (50-60% proven)",
+        "rationale": "Adopt tool_teardown_tuesday format but focus exclusively on ChatGPT prompts",
+        "new_title_template": "SECRET PROMPTS - Episode [N]: ChatGPT's [CATEGORY] Prompt!",
+        "examples": [
+          "SECRET PROMPTS - Episode 1: ChatGPT's Email Mastery Prompt!",
+          "SECRET PROMPTS - Episode 2: ChatGPT's Meeting Notes Automation!",
+          "SECRET PROMPTS - Episode 3: ChatGPT's Code Debugging Secret!"
+        ]
+      },
+      
+      "title_formula": {
+        "OLD_FAILING_FORMAT": "3 AI Hacks to [VAGUE BENEFIT]",
+        "NEW_PROVEN_FORMAT": "ChatGPT's SECRET [CATEGORY] Prompts: [SPECIFIC RESULT] in SECONDS!",
+        "with_episode": "SECRET PROMPTS - Episode [N]: ChatGPT's [CATEGORY] Prompt!"
+      },
+      
+      "content_requirements": {
+        "must_include": [
+          "Exact ChatGPT prompt (visible on screen, copy-paste ready)",
+          "Real output example (not hypothetical)",
+          "Specific use case (email, code, writing, research)",
+          "Time benefit in SECONDS",
+          "Episode number for series continuity"
+        ],
+        "must_avoid": [
+          "Generic 'AI hacks' or '3 tips' format (proven 14.74% failure)",
+          "Vague productivity claims without demos",
+          "Lists of multiple prompts (focus on ONE per video)",
+          "Brain/productivity/focus generic angles (proven failures)"
+        ],
+        "optimal_length": "25-28 seconds (match tool_teardown success)",
+        "target_completion": "60%+ (currently 14.74% - CRITICAL improvement needed)",
+        "posting_time": "21:00 UTC Thursday (4 PM EST) - same as Tool Teardown Thursday",
+        "recommended_action": "IMMEDIATE PIVOT to specific ChatGPT prompt format BEFORE replacing Tool Teardown Thursday"
+      },
+      
+      "script_guidance": {
+        "NEW_hook_structure": "Show ChatGPT prompt on screen + immediate result demo in first 3 seconds",
+        "bullet_requirements": [
+          "Bullet 1: The exact prompt (visible on screen, copy-paste ready)",
+          "Bullet 2: Real example output demonstration",
+          "Bullet 3: Time saved (in SECONDS, with before/after comparison)"
+        ],
+        "cta_template": "Next Tuesday: [RELATED_TOOL]. Episode [N+1] Thursday: ChatGPT's [NEXT_CATEGORY] prompt!",
+        "visual_requirements": [
+          "ChatGPT interface screenshot with prompt visible",
+          "Before/after comparison (manual vs AI result)",
+          "Highlight the exact prompt text for easy copying"
+        ]
+      },
+      
+      "quality_gates": {
+        "minimum_predicted_completion": 50,
+        "require_exact_prompt_visible": true,
+        "require_real_output_demo": true,
+        "reject_generic_ai_hacks": true,
+        "reject_list_format": true,
+        "deploy_only_after": "Format tested and validated at 50%+ completion"
+      },
+      
+      "implementation_note": "DO NOT deploy until format pivot validated. Keep Tool Teardown Thursday until Secret Prompts proven at 60%+"
+    },
+    
+    "ai_news_roundup": {
+      "series_name": "AI Weekend Roundup",
+      "content_type": "ai_news",
+      "posting_day": "Saturday",
+      "status": "⚠️ KILLED - Replaced by Viral AI Friday",
+      "proven_performance": "32.21% avg completion (8 videos) - UNDERPERFORMED baseline by 17.8%",
+      "reason_for_killing": "Generic news (32.21%) performs 2.5x worse than entertainment (80.69%). Audience wants entertainment/practical tools, NOT news.",
+      "replacement": "Viral AI Friday - Entertainment-focused stories that perform 80.69% (2.5x better)",
+      
+      "analytics_breakdown": {
+        "avg_completion": 32.21,
+        "avg_views": 66.25,
+        "total_videos": 8,
+        "best_example": {
+          "video_id": "TDY8cbqvYy4",
+          "title": "Google's AI Project Chronos Pulled: Defamation Lawsuit Looms!",
+          "completion": 61.92,
+          "views": 3,
+          "why_worked": "Had entertainment value (lawsuit drama) - now would go to Viral AI Friday"
+        },
+        "worst_examples": [
+          {
+            "video_id": "fU8DgDdmRl4",
+            "title": "Microsoft AI Agents FAILED: Project Nexus Shocking Truth!",
+            "completion": 31.81,
+            "views": 53,
+            "why_failed": "Negative framing, no entertainment or practical value"
+          },
+          {
+            "video_id": "Y6oRMLNwlpU",
+            "title": "Google Maps New Feature ENDS Merging Stress!",
+            "completion": 38.8,
+            "views": 52,
+            "why_failed": "Not AI-focused enough, vague benefit"
+          }
+        ]
+      },
+      
+      "what_we_learned": {
+        "lesson_1": "News WITHOUT entertainment angle = 32.21% completion",
+        "lesson_2": "News WITH entertainment angle (lawsuit, drama) = 61.92% → moves to Viral AI Friday",
+        "lesson_3": "Saturday (66.53%) performs worse than Friday (77.63%) by 11.1%",
+        "action_taken": "Killed Saturday news, moved entertaining stories to Friday 23:00 UTC"
+      },
+      
+      "migration_path": {
+        "entertaining_news": "Move to Viral AI Friday (Rizzbot, AWS Brain Rot, lawsuit drama)",
+        "practical_news": "Convert to Tool Teardown format (specific tool demos)",
+        "generic_news": "REJECT - does not fit any series"
       }
     }
   },
   
   "KILLED_content_types": {
-    "ai_news_roundup": {
-      "reason": "30.5% average completion (7 videos) - 19.5% below 50% target",
-      "worst_examples": [
-        "Your Secret Digital Guardians (0% completion)",
-        "Google Maps New Feature (26.8%)",
-        "Microsoft AI Agents FAILED (no data)",
-        "Clippy is BACK (32.3%)"
+    "note": "These formats consistently underperform and should NOT be used",
+    
+    "generic_ai_hacks_lists": {
+      "reason": "22.3% average completion across 6+ videos",
+      "failed_examples": [
+        "3 AI Tools That Will Change Your Life (11.91%, video_id: eSZXioT-K1I)",
+        "Top YouTubers Secret: 3 AI Tools (26.22%, video_id: lvo2n2-QNfc)",
+        "3 AI Hacks to Supercharge Your Day (18.97%, video_id: 8Y-Gm4z967M)",
+        "Unlock Your Brain: 3 AI Hacks (10.51%, video_id: Z-fk47Edo88)"
       ],
-      "what_we_learned": "News without entertainment or actionable value = failure",
-      "replacement": "Viral AI Saturday (entertainment focus)"
+      "what_we_learned": "List format dilutes impact. Single tool focus performs 3x better (64.72% vs 22.3%)",
+      "replacement": "Convert to tool_teardown format with single tool focus"
     },
     
-    "secret_prompts_thursday_generic": {
-      "reason": "14.7% average completion (2 videos) - 45.3% below 60% target",
+    "negative_news_framing": {
+      "reason": "31.8% average completion - viewers don't stay for bad news",
       "failed_examples": [
-        "Unlock Your Brain: 3 AI Hacks You NEED Right Now! (10.5%)",
-        "3 AI Hacks to Supercharge Your Day! (19.0%)"
+        "Microsoft AI Agents FAILED (31.81%, video_id: fU8DgDdmRl4)",
+        "Police Cameras HACKED (49.55%, video_id: TZlsIjBgcEk)"
       ],
-      "BUT_specific_prompts_worked": [
-        "ChatGPT SECRET Email Prompts (49.6%, 380 views)",
-        "ChatGPT SECRET Productivity Hack (61.6%, 106 views)"
-      ],
-      "what_we_learned": "Generic AI Hacks fail. Specific ChatGPT Email Prompts work.",
-      "solution": "Merged into tool_teardown format with specific tool focus"
+      "what_we_learned": "Negative framing without resolution = low retention",
+      "replacement": "Positive/neutral framing or convert to entertainment angle for Viral AI Friday"
+    },
+    
+    "saturday_morning_posts": {
+      "reason": "Saturday (66.53% day avg) + Morning (34.0% time avg) = underperformance",
+      "replaced_with": "Friday (77.63% day avg) + Evening 23:00 UTC (82.1% time avg) = 80% expected",
+      "improvement": "+13-15 percentage points by switching day/time"
+    },
+    
+    "morning_posts_general": {
+      "reason": "14:00-15:00 UTC (9-10 AM EST) = 34.0% completion across all content types",
+      "replaced_with": "21:00-23:00 UTC (4-6 PM EST) = 57.9-82.1% completion",
+      "improvement": "+23.9 to +48.1 percentage points",
+      "lesson": "US audience (58.3%) watches YouTube evenings, NOT mornings"
     }
   },
   
-  "categorization_fixes": {
-    "note": "These videos were miscategorized by the backfill script",
-    "should_be_tool_teardown": [
-      "ChatGPT SECRET Email Prompts (was: tool_teardown, correct!)",
-      "ChatGPT SECRET Productivity Hack (was: tool_teardown, correct!)"
+  "performance_targets": {
+    "tier_1_excellent": {
+      "completion_rate": ">75%",
+      "rewatch_rate": ">1.5x",
+      "views_24h": ">100",
+      "series": "Tool Teardown Tuesday at 23:00 UTC (82.1% proven), Viral AI Friday at 23:00 UTC (~80% expected)"
+    },
+    "tier_2_good": {
+      "completion_rate": "60-75%",
+      "rewatch_rate": "1.2-1.5x",
+      "views_24h": "75-100",
+      "series": "Tool Teardown Thursday at 21:00 UTC (57.9% proven, target 65%), Secret Prompts (after format pivot to 60%+)"
+    },
+    "tier_3_acceptable": {
+      "completion_rate": "50-60%",
+      "rewatch_rate": "1.0-1.2x",
+      "views_24h": "50-75",
+      "series": "Secret Prompts (AFTER pivot, before optimization)"
+    },
+    "tier_4_failing": {
+      "completion_rate": "<50%",
+      "action": "DO NOT POST - format needs complete overhaul or kill series",
+      "examples": "Old Secret Prompts (14.74%), AI News Roundup (32.21%) - BOTH KILLED"
+    }
+  },
+  
+  "time_optimization_summary": {
+    "best_times_utc": [
+      {
+        "time": "23:00 UTC",
+        "est_time": "6:00 PM EST",
+        "completion": 82.1,
+        "sample_size": 10,
+        "assigned_to": ["Tool Teardown Tuesday", "Viral AI Friday"]
+      },
+      {
+        "time": "21:00 UTC",
+        "est_time": "4:00 PM EST",
+        "completion": 57.9,
+        "sample_size": 5,
+        "assigned_to": ["Tool Teardown Thursday"]
+      },
+      {
+        "time": "22:00 UTC",
+        "est_time": "5:00 PM EST",
+        "completion": 57.4,
+        "sample_size": 6,
+        "assigned_to": ["Backup option if 21:00 or 23:00 unavailable"]
+      }
     ],
-    "pattern": "If title has ChatGPT SECRET then tool_teardown_tuesday (already correct)"
+    "worst_times_utc": [
+      {
+        "time": "14:00-15:00 UTC",
+        "est_time": "9:00-10:00 AM EST",
+        "completion": 34.0,
+        "sample_size": 3,
+        "status": "KILLED - worst performing time",
+        "improvement_by_switching": "+23.9 to +48.1 percentage points"
+      }
+    ],
+    "best_days": [
+      {
+        "day": "Friday",
+        "completion": 77.63,
+        "assigned_to": "Viral AI Friday 23:00 UTC"
+      },
+      {
+        "day": "Thursday",
+        "completion": 54.86,
+        "assigned_to": "Tool Teardown Thursday 21:00 UTC"
+      },
+      {
+        "day": "Tuesday",
+        "completion": "Not isolated, but performs well with tool content",
+        "assigned_to": "Tool Teardown Tuesday 23:00 UTC"
+      }
+    ],
+    "killed_days": [
+      {
+        "day": "Saturday",
+        "completion": 66.53,
+        "reason": "Friday performs +11.1% better (77.63% vs 66.53%)",
+        "content_moved_to": "Friday 23:00 UTC"
+      }
+    ]
   }
 }

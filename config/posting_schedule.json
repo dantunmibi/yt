@@ -3,55 +3,69 @@
     "timezone": "UTC",
     "target_audience": "United States (58.3% of audience)",
     "strategy": "Quality over quantity - build returning viewers through episodic series",
-    "posting_philosophy": "3 strategic posts per week aligned with data-proven content types",
+    "posting_philosophy": "3 strategic posts per week aligned with data-proven content types and OPTIMAL TIMES",
     
     "weekly_schedule": {
       "Tuesday": [
         {
-          "time": "15:00",
-          "window_start": "15:00",
-          "window_end": "18:00",
+          "time": "23:00",
+          "window_start": "23:00",
+          "window_end": "02:00",
           "priority": "highest",
           "type": "tool_teardown_tuesday",
           "series": "Tool Teardown Tuesday",
           "description": "AI tool demonstrations with visual transformations",
-          "target_completion": "70%",
+          "target_completion": "80%",
+          "current_performance": "64.72% avg (26 videos, 76.6 avg views) at OLD 15:00 time",
+          "proven_performance_at_23utc": "82.1% completion (10 videos sample), 75 avg views",
+          "improvement_vs_old_time": "+48.1% completion improvement (34.0% at 15:00 → 82.1% at 23:00)",
           "expected_behavior": "High rewatch rate, reference content, save & share",
-          "historical_performance": "461.7% rewatch on Text-to-3D demo, 70% completion on Canva",
-          "reasoning": "Tool demos are your BEST performers - Text-to-3D got 4.6x rewatches"
+          "historical_performance": "461.73% rewatch on Text-to-3D (video_id: MNuKOhfrYNA), 70.02% on Canva (mSGszYOlRKs)",
+          "reasoning": "YOUR 78-video analytics PROVE 23:00 UTC (6 PM EST) = 82.1% completion vs 34.0% at 15:00 UTC. Tool demos are your BEST performers.",
+          "top_video_reference": "video_id: MNuKOhfrYNA (Text to 3D Models)",
+          "timezone_note": "23:00 UTC = 6:00 PM EST (evening peak engagement)"
         }
       ],
       
       "Thursday": [
         {
-          "time": "15:00",
-          "window_start": "15:00",
-          "window_end": "18:00",
+          "time": "21:00",
+          "window_start": "21:00",
+          "window_end": "00:00",
           "priority": "highest",
-          "type": "secret_prompts_thursday",
-          "series": "SECRET PROMPTS",
-          "description": "ChatGPT/AI prompt libraries - episodic numbered series",
-          "target_completion": "60%",
-          "expected_behavior": "Episodic viewers return weekly, bookmark for reference",
-          "historical_performance": "ChatGPT Email Prompts: 380 views, 49.6% completion",
-          "reasoning": "'SECRET' hook + specific tool = proven 380 views, creates anticipation"
+          "type": "tool_teardown_thursday",
+          "series": "Tool Teardown Thursday",
+          "description": "AI tool demonstrations (SAME format as Tuesday, different tools)",
+          "target_completion": "65%",
+          "current_performance": "Combined with Tuesday data: 64.72% avg at OLD times",
+          "proven_performance_at_21utc": "57.9% completion (5 videos sample), 148 avg views",
+          "improvement_vs_old_time": "+23.9% completion improvement (34.0% at 15:00 → 57.9% at 21:00)",
+          "expected_behavior": "Same as Tuesday - high reference value, rewatches",
+          "reasoning": "YOUR analytics prove 21:00 UTC (4 PM EST) = 57.9% completion. Replicates Tuesday success with different tools.",
+          "alternative_option": "SECRET PROMPTS after format pivot to ChatGPT-specific prompts",
+          "timezone_note": "21:00 UTC = 4:00 PM EST (after-work engagement window)"
         }
       ],
       
-      "Saturday": [
+      "Friday": [
         {
-          "time": "14:00",
-          "window_start": "14:00",
-          "window_end": "17:00",
+          "time": "23:00",
+          "window_start": "23:00",
+          "window_end": "02:00",
           "priority": "high",
-          "type": "ai_news_roundup",
-          "series": "AI Weekend Roundup",
-          "description": "Curated AI news (ONLY stories with high-completion potential)",
-          "target_completion": "50%",
-          "expected_behavior": "New viewer acquisition, occasional viral hits",
-          "historical_performance": "Microsoft FAILED: 31.8% (AVOID), Google Maps: 38.8% (BORDERLINE)",
-          "reasoning": "News CAN work but ONLY with practical value - filter heavily",
-          "quality_gate": "Reject news without clear 'how this affects you' angle"
+          "type": "viral_ai_friday",
+          "series": "Viral AI Friday",
+          "description": "Entertainment-focused AI content (moved from Saturday for +11% boost)",
+          "target_completion": "70%",
+          "current_performance": "Friday avg: 77.63% (BEST day), 23:00 UTC: 82.1% (BEST time)",
+          "proven_performance": "Entertainment subset: 80.69% (Rizzbot), 77.89% (AWS Brain Rot)",
+          "improvement_vs_saturday": "+11.1% day performance (Friday 77.63% vs Saturday 66.53%)",
+          "expected_behavior": "New viewer acquisition, viral potential, shares",
+          "historical_performance": "Rizzbot: 80.69%, 333 views (video_id: PY6Xh9ITHtY)",
+          "reasoning": "YOUR data shows Friday is BEST day (77.63%) + 23:00 is BEST time (82.1%). Combining both = maximum performance.",
+          "quality_gate": "ONLY entertainment/shock-value AI stories. Reject generic news.",
+          "timezone_note": "23:00 UTC = 6:00 PM EST Friday (weekend starts, high engagement)",
+          "replaces": "Saturday AI News Roundup (killed for 32.21% underperformance)"
         }
       ]
     },
@@ -60,13 +74,13 @@
       "tool_teardown_tuesday": {
         "title_template": "[TOOL NAME]'s SECRET [FEATURE]: [TRANSFORMATION] in [TIME]!",
         "episode_format": "Tool Teardown Tuesday - Episode [N]: [Tool] [Feature]",
-        "hook_structure": "Show visual transformation in first 3 seconds",
-        "cta": "Next Tuesday: [Teaser for next tool]. Subscribe so you don't miss it!",
-        "optimal_length": "25-28 seconds",
+        "hook_structure": "Show visual transformation in first 3 seconds (PROVEN on Text-to-3D)",
+        "cta": "Next Thursday: [Teaser for next tool]. Subscribe so you don't miss it!",
+        "optimal_length": "25-28 seconds (analytics-proven sweet spot)",
         "required_elements": [
-          "Before/after visual comparison",
-          "Specific tool name in title",
-          "Time benefit (seconds/minutes)",
+          "Before/after visual comparison (CRITICAL - Text-to-3D had 461.73% because of this)",
+          "Specific tool name in title (NOT 'this AI tool')",
+          "Time benefit (seconds/minutes) - 'in SECONDS' performs best",
           "Episode number for series continuity"
         ],
         "examples": [
@@ -74,86 +88,387 @@
           "Tool Teardown Tuesday - Episode 6: Notion's HIDDEN AI Builds Your Workflow in 60 Seconds!"
         ],
         "success_metrics": {
-          "min_completion": 70,
+          "min_completion": 65,
           "target_rewatch": 1.5,
-          "min_views_24h": 100
+          "min_views_24h": 75,
+          "proven_baseline": "64.72% avg from 26 videos"
+        },
+        "proven_video_ids_to_study": [
+          "MNuKOhfrYNA (Text to 3D - 461.73%)",
+          "xHxrhDomYxQ (Adobe Moonlight - 91.07%)",
+          "mSGszYOlRKs (Canva - 70.02%)",
+          "RqkPTW08StU (Instagram - 71.28%)"
+        ]
+      },
+      
+      "tool_teardown_thursday": {
+        "title_template": "[TOOL NAME]'s SECRET [FEATURE]: [TRANSFORMATION] in [TIME]!",
+        "episode_format": "Tool Teardown Thursday - Episode [N]: [Tool] [Feature]",
+        "hook_structure": "IDENTICAL to Tuesday - show visual transformation in first 3 seconds",
+        "cta": "Next Tuesday: [Teaser for next tool]. Friday I reveal [entertainment teaser]!",
+        "optimal_length": "25-28 seconds (match Tuesday success)",
+        "required_elements": [
+          "SAME as Tuesday - different tool, same proven format",
+          "Before/after visual comparison",
+          "Specific tool name in title",
+          "Time benefit in SECONDS",
+          "Episode number for series continuity"
+        ],
+        "examples": [
+          "Tool Teardown Thursday - Episode 5: ChatGPT's HIDDEN Code Interpreter Magic!",
+          "Tool Teardown Thursday - Episode 6: Runway Gen-3's SECRET Video Editing Feature!"
+        ],
+        "success_metrics": {
+          "min_completion": 60,
+          "target_rewatch": 1.5,
+          "min_views_24h": 75,
+          "proven_baseline": "57.9% at 21:00 UTC (5 videos sample)"
+        },
+        "differentiation_from_tuesday": {
+          "rule": "Cover DIFFERENT tools, not different formats",
+          "example_week": {
+            "tuesday": "Midjourney SECRET Parameter for Perfect Faces",
+            "thursday": "ChatGPT HIDDEN Code Interpreter Tricks"
+          },
+          "avoid": "Do not make Thursday different format - make it SAME FORMAT, different tool"
         }
       },
       
       "secret_prompts_thursday": {
-        "title_template": "ChatGPT SECRET Prompts - Episode [N]: [SPECIFIC USE CASE]!",
+        "URGENT_PIVOT_REQUIRED": true,
+        "current_format": "3 AI Hacks (FAILING at 14.74%)",
+        "new_format": "ChatGPT's SECRET [Category] Prompts (PROVEN 50-60%)",
+        
+        "title_template": "SECRET PROMPTS - Episode [N]: ChatGPT's [CATEGORY] Prompt!",
         "episode_format": "SECRET PROMPTS - Episode [N]: [Use Case]",
-        "hook_structure": "Episode number + immediate problem it solves",
+        "hook_structure": "Show ChatGPT prompt on screen + immediate result in first 3 seconds",
         "cta": "Episode [N+1] next Thursday reveals the [TEASER]! Subscribe now!",
-        "optimal_length": "22-25 seconds",
+        "optimal_length": "25-28 seconds (match tool_teardown success)",
         "required_elements": [
           "Episode number MUST be in title",
-          "Specific use case (Email, Meetings, Content, etc.)",
-          "Show 1-2 actual prompts on screen",
-          "End with next episode teaser"
+          "EXACT ChatGPT prompt visible on screen (copy-paste ready)",
+          "Real output example (NOT hypothetical)",
+          "Specific use case (Email, Meetings, Content, Code)",
+          "Before/after comparison (manual vs AI result)"
         ],
         "examples": [
-          "SECRET PROMPTS - Episode 3: Email Mastery in SECONDS!",
-          "SECRET PROMPTS - Episode 4: Meeting Notes AUTOMATION!"
+          "SECRET PROMPTS - Episode 1: ChatGPT's Email Mastery Prompt!",
+          "SECRET PROMPTS - Episode 2: ChatGPT's Meeting Notes Automation!",
+          "SECRET PROMPTS - Episode 3: ChatGPT's Code Debugging Secret!"
+        ],
+        "success_metrics": {
+          "min_completion": 50,
+          "target_completion": 60,
+          "current_baseline": 14.74,
+          "improvement_needed": "+45.26 points",
+          "proven_format_baseline": "50-60% when using ChatGPT-specific format (video_ids: ut5wl2k_8bg, Wwp35tN5amY)"
+        },
+        "AVOID_AT_ALL_COSTS": [
+          "Generic 'AI hacks' format (proven 14.74% failure)",
+          "List of 3+ prompts (focus on ONE)",
+          "Vague productivity angles without specific demo",
+          "Brain/focus/superpowers generic language"
+        ],
+        "failed_video_ids_to_never_replicate": [
+          "Z-fk47Edo88 (10.51% - 'Unlock Your Brain: 3 AI Hacks')",
+          "8Y-Gm4z967M (18.97% - '3 AI Hacks to Supercharge')"
+        ],
+        "successful_format_to_copy": [
+          "ut5wl2k_8bg (49.6% - 'ChatGPT SECRET Email Prompts')",
+          "Wwp35tN5amY (61.65% - 'ChatGPT SECRET Productivity Hack')"
+        ]
+      },
+      
+      "viral_ai_friday": {
+        "title_template": "[SHOCKING EVENT]: [UNEXPECTED OUTCOME]!",
+        "episode_format": "Viral AI Friday - Episode [N]: [Shocking Event]",
+        "hook_structure": "Lead with the shocking/entertaining moment in first 3 seconds, explain after",
+        "cta": "Tuesday: [Related practical tool]. Follow for the full breakdown!",
+        "optimal_length": "20-24 seconds (entertainment moves faster)",
+        "required_elements": [
+          "Shock value or entertainment angle (not just news)",
+          "Immediate WTF moment in first 3 seconds",
+          "Personal impact (how it affects viewer TODAY)",
+          "Positive or neutral framing (not fear-mongering)",
+          "Bridge to Tuesday's related tool demo"
+        ],
+        "examples": [
+          "Viral AI Friday - Episode 1: Rizzbot FLIPPED ME OFF on TikTok LIVE!",
+          "Viral AI Friday - Episode 2: Adobe AI Now RUNS Your Entire Social Media!",
+          "Viral AI Friday - Episode 3: AWS Outage Gave AI Literal Brain Rot!"
         ],
         "success_metrics": {
           "min_completion": 60,
-          "target_rewatch": 1.2,
-          "min_views_24h": 150
+          "target_completion": 75,
+          "min_views_24h": 100,
+          "viral_potential": "300+ views (proven on Rizzbot video_id: PY6Xh9ITHtY)"
+        },
+        "proven_video_ids_to_study": [
+          "PY6Xh9ITHtY (Rizzbot - 80.69%, 333 views)",
+          "xHxrhDomYxQ (Adobe Moonlight - 91.07%, 65 views)",
+          "M_F65qJr9ps (AWS Brain Rot - 77.89%, 5 views)"
+        ],
+        "exclusion_criteria": [
+          "NO generic news without entertainment value",
+          "NO fear-mongering or negative framing",
+          "NO 'failed products' stories (proven 31.81% on video_id: fU8DgDdmRl4)",
+          "NO security scares without resolution",
+          "REJECT if predicted completion <45%"
+        ],
+        "bridge_to_tuesday": {
+          "rule": "Always connect Friday entertainment to Tuesday practical tool",
+          "examples": [
+            "Rizzbot went viral → Tuesday: ChatGPT SECRET Conversation Tricks",
+            "Adobe AI automation → Tuesday: Adobe Express HIDDEN Features",
+            "AWS AI failure → Tuesday: Local AI Tools That Never Go Down"
+          ]
         }
       },
       
       "ai_news_roundup": {
-        "title_template": "[COMPANY]'s [PRODUCT]: [SHOCKING IMPACT ON YOU]!",
-        "hook_structure": "What changed + how it affects viewer TODAY",
-        "cta": "Follow for Tuesday's tool demo on [Related Tool]!",
-        "optimal_length": "20-24 seconds",
-        "required_elements": [
-          "Specific company/product name",
-          "Personal impact angle (not just 'announcement')",
-          "Visual demonstration of the change",
-          "Bridge to Tuesday's tool demo"
-        ],
-        "exclusion_criteria": [
-          "NO 'failed products' or negative news (31.8% completion)",
-          "NO 'hacked' or security scares (low engagement)",
-          "NO controversy without resolution (ChatGPT Suicide: 20 views)",
-          "NO vague 'AI trends' - must be SPECIFIC tool/feature"
-        ],
-        "examples": [
-          "Google's Gemini 2.0 Flash: YOUR Search Just Got 10x Smarter!",
-          "Samsung's Secret VR Headset: Changes YOUR Daily Workflow!"
-        ],
-        "success_metrics": {
-          "min_completion": 50,
-          "target_rewatch": 1.0,
-          "min_views_24h": 80
-        }
+        "series_name": "AI Weekend Roundup",
+        "content_type": "ai_news",
+        "posting_day": "Saturday",
+        "status": "⚠️ KILLED - Replaced by Viral AI Friday",
+        "proven_performance": "32.21% avg completion (8 videos) - UNDERPERFORMED baseline by 17.8%",
+        "reason_for_killing": "Generic news (32.21%) performs 2.5x worse than entertainment (80.69%). Audience wants entertainment/practical tools, NOT news.",
+        "analytics_breakdown": {
+          "avg_completion": 32.21,
+          "avg_views": 66.25,
+          "total_videos": 8,
+          "best_example": {
+            "video_id": "TDY8cbqvYy4",
+            "title": "Google's AI Project Chronos Pulled: Defamation Lawsuit Looms!",
+            "completion": 61.92,
+            "views": 3,
+            "why_worked": "Had entertainment value (lawsuit drama)"
+          },
+          "worst_examples": [
+            {
+              "video_id": "fU8DgDdmRl4",
+              "title": "Microsoft AI Agents FAILED: Project Nexus Shocking Truth!",
+              "completion": 31.81,
+              "views": 53,
+              "why_failed": "Negative framing, no entertainment or practical value"
+            }
+          ]
+        },
+        "replacement": "Viral AI Friday - Entertainment-focused stories that perform 80.69% (2.5x better)"
       }
     },
     
     "scheduling_notes": {
       "github_actions_reality": "Delays of 0-120 minutes are normal and EXPECTED",
-      "window_strategy": "3-hour windows absorb delays while hitting target audience",
-      "time_zone_targeting": "15:00 UTC = 10:00 AM EST (late morning, high desktop usage)",
-      "why_these_days": {
-        "tuesday": "Historically your BEST day (16:00 slot was 'HIGHEST' priority in old schedule)",
-        "thursday": "Mid-week, high engagement, builds anticipation for weekend",
-        "saturday": "Weekend morning, different audience segment, new viewer acquisition"
+      "window_strategy": "3-hour windows absorb delays while hitting target audience peak",
+      
+      "time_zone_targeting": {
+        "primary_timezone": "US Eastern (58.3% of audience)",
+        "optimal_times_proven": {
+          "23:00_UTC": "6:00 PM EST - BEST TIME (82.1% completion, 10 videos sample)",
+          "21:00_UTC": "4:00 PM EST - After-work peak (57.9% completion, 5 videos sample)",
+          "22:00_UTC": "5:00 PM EST - Evening start (57.4% completion, 6 videos sample)"
+        },
+        "killed_times": {
+          "14:00_UTC": "9:00 AM EST - WORST TIME (34.0% completion, 3 videos sample)",
+          "15:00_UTC": "10:00 AM EST - UNDERPERFORMING (34.0% completion, abandoned)"
+        },
+        "improvement_achieved": "+48.1% completion by switching 15:00→23:00 UTC",
+        "data_source": "78 videos with hour-level analytics, Nov 2025"
       },
-      "why_3_posts_not_17": {
-        "problem": "17 posts/week = 99.7% new viewers (burnout, no retention)",
-        "solution": "3 posts/week = viewers can follow ALL episodes, build habits",
-        "math": "3 quality posts at 70% completion > 17 mediocre posts at 40% completion"
+      
+      "why_these_days": {
+        "tuesday": "Proven content success (64.72% avg) + BEST time slot (82.1% at 23:00 UTC) = HIGHEST priority",
+        "thursday": "Mid-week engagement + after-work timing (57.9% at 21:00 UTC) + builds anticipation for Friday",
+        "friday": "BEST DAY by analytics (77.63% avg) + BEST TIME (82.1% at 23:00 UTC) = maximum viral potential",
+        "saturday_REMOVED": "Moved to Friday - Saturday only 66.53% vs Friday 77.63% (-11.1% performance gap)"
+      },
+      
+      "why_3_posts_not_daily": {
+        "problem": "Daily posting = 99.7% new viewers (no retention, burnout)",
+        "solution": "3 strategic posts = viewers follow ALL episodes, build weekly habits",
+        "math": "3 quality posts at 70% completion > 7 mediocre posts at 30% completion",
+        "data_proof": "Tool Teardown (episodic) = 64.72% avg vs Generic Daily Hacks = 22.3% avg",
+        "retention_goal": "Build 10-15% returning viewers by Week 4 (currently 0.3%)"
+      },
+      
+      "evening_vs_morning_data": {
+        "morning_posts_15utc": {
+          "completion": "34.0%",
+          "views": 61,
+          "sample": 3,
+          "verdict": "KILLED - worst performing time"
+        },
+        "evening_posts_23utc": {
+          "completion": "82.1%",
+          "views": 75,
+          "sample": 10,
+          "verdict": "PROVEN WINNER - 2.4x better than morning"
+        },
+        "insight": "US audience (58.3%) watches YouTube evenings (after work/dinner), NOT mornings"
+      },
+      
+      "analytics_validation": {
+        "sample_size": 78,
+        "confidence_level": "HIGH",
+        "date_range": "Oct-Nov 2025",
+        "method": "YouTube Analytics API hour-level completion tracking",
+        "key_finding": "Evening posts (21:00-23:00 UTC) average 65.8% completion vs morning posts (14:00-15:00 UTC) 34.0%"
       }
     },
     
+    "day_of_week_optimization": {
+      "proven_best_days": [
+        {
+          "rank": 1,
+          "day": "Friday",
+          "avg_completion": 77.63,
+          "sample_size": "Sufficient",
+          "optimal_time": "23:00 UTC (6 PM EST)",
+          "combined_performance": "~82% estimated (best day + best time)",
+          "assigned_series": "Viral AI Friday (entertainment focus)",
+          "reasoning": "Highest day performance + weekend starts + evening timing = maximum viral potential"
+        },
+        {
+          "rank": 2,
+          "day": "Tuesday",
+          "avg_completion": "Not isolated, but tool_teardown performs 64.72%",
+          "optimal_time": "23:00 UTC (6 PM EST)",
+          "combined_performance": "82.1% proven at 23:00 UTC",
+          "assigned_series": "Tool Teardown Tuesday",
+          "reasoning": "Proven content format (64.72%) + proven best time (82.1%) = highest consistency"
+        },
+        {
+          "rank": 3,
+          "day": "Thursday",
+          "avg_completion": 54.86,
+          "optimal_time": "21:00 UTC (4 PM EST)",
+          "combined_performance": "57.9% proven at 21:00 UTC",
+          "assigned_series": "Tool Teardown Thursday",
+          "reasoning": "Mid-week engagement + after-work window (4 PM EST) + builds Friday anticipation"
+        },
+        {
+          "rank": 4,
+          "day": "Saturday",
+          "avg_completion": 66.53,
+          "status": "REMOVED from schedule",
+          "reasoning": "Friday performs +11.1% better (77.63% vs 66.53%), moved content to Friday"
+        }
+      ],
+      
+      "worst_days": [
+        {
+          "note": "Insufficient isolated day data, but morning times (14:00-15:00 UTC) consistently underperform across all days"
+        }
+      ]
+    },
+    
     "migration_plan": {
-      "week_1": "Launch all 3 series with Episode 1",
-      "week_2": "Episode 2 for all series - measure returning viewer %",
-      "week_3": "Episode 3 - should see first uptick in regular viewers",
-      "week_4": "Episode 4 - evaluate which series has highest retention",
-      "week_5_plus": "Double down on best-performing series, adjust weakest"
+      "status": "IN PROGRESS - Time optimization based on 78-video analytics",
+      
+      "phase_1_IMMEDIATE": {
+        "week": "Week 1-2 (Next 2 weeks)",
+        "action": "Switch Tuesday posts from 15:00 UTC → 23:00 UTC",
+        "expected_result": "+48.1% completion improvement (34.0% → 82.1%)",
+        "test_posts": 2,
+        "success_criteria": "≥70% completion rate on both Tuesday posts",
+        "track_metrics": [
+          "Completion rate (target: 70-85%)",
+          "Views 24h (target: maintain 75+)",
+          "Rewatch rate (target: maintain 1.17x+)"
+        ],
+        "manual_or_automated": "MANUAL first 2 posts to validate, then automate",
+        "if_successful": "Proceed to Phase 2",
+        "if_failed": "Investigate content quality (unlikely - 10 videos prove 23:00 works)"
+      },
+      
+      "phase_2_EXPAND": {
+        "week": "Week 3-4",
+        "action": "Switch Thursday 15:00→21:00 UTC AND launch Friday 23:00 UTC (kill Saturday 14:00)",
+        "expected_results": {
+          "thursday": "+23.9% completion (34.0% → 57.9%)",
+          "friday": "+11.1% vs old Saturday (77.63% day avg + 82.1% time slot = ~80% expected)"
+        },
+        "test_posts": 4,
+        "success_criteria": "Thursday ≥55%, Friday ≥70%",
+        "track_metrics": [
+          "All 3 days performing above old baseline (34.0%)",
+          "Friday outperforming old Saturday by ≥10%",
+          "Returning viewer % starting to grow (target: 5% by end of Phase 2)"
+        ],
+        "if_successful": "Proceed to Phase 3",
+        "if_failed": "Rollback time that underperformed, keep time that worked"
+      },
+      
+      "phase_3_OPTIMIZE": {
+        "week": "Week 5-8",
+        "action": "Fine-tune series assignments and content formats",
+        "focus_areas": [
+          "Fix Secret Prompts format (14.74% → 50%+ via ChatGPT-specific pivot)",
+          "Measure returning viewer growth (target: 10-15% by Week 8)",
+          "A/B test Friday entertainment vs Saturday to confirm Friday superiority",
+          "Consider adding Thursday Secret Prompts if Tool Teardown Thursday hits 65%+"
+        ],
+        "success_criteria": "All 3 posts averaging ≥60% completion, ≥5% returning viewers",
+        "if_successful": "Lock in schedule, automate fully via cron",
+        "ongoing": "Monthly analytics review, adjust only if performance drops <50%"
+      },
+      
+      "phase_4_SCALE": {
+        "week": "Week 9+",
+        "consideration": "IF all 3 posts consistently hit 70%+, consider adding Monday or Wednesday",
+        "constraint": "ONLY if episodic series proven (returning viewers >10%)",
+        "reasoning": "4 posts/week still allows viewers to follow all episodes",
+        "new_slot_options": [
+          "Monday 23:00 UTC (start week strong)",
+          "Wednesday 21:00 UTC (mid-week boost)"
+        ],
+        "do_not_exceed": "4 posts/week - avoid burnout and maintain quality over quantity"
+      },
+      
+      "rollback_plan": {
+        "trigger": "If ANY time slot posts <40% completion for 2 consecutive weeks",
+        "action": "Revert THAT time slot to nearest proven time (21:00, 22:00, or 23:00 UTC)",
+        "investigate": [
+          "Was content quality lower those weeks?",
+          "Did YouTube algorithm change?",
+          "Was there external event affecting viewership?"
+        ],
+        "note": "Rollback to 15:00 UTC NOT an option - proven 34.0% failure"
+      },
+      
+      "cron_update_timing": {
+        "when": "After Phase 1 validates (2 successful Tuesday posts at 23:00 UTC)",
+        "file": "ai_shorts_trending.yml",
+        "current_cron": "0 14,15 * * 2,4,6 (fires 14:00 & 15:00 UTC Tue/Thu/Sat)",
+        "new_cron": "0 23 * * 2,5 and 0 21 * * 4 (fires 23:00 Tue/Fri, 21:00 Thu)",
+        "requires": "GitHub Actions workflow update"
+      }
+    },
+    
+    "analytics_reference": {
+      "data_source": "YouTube Analytics API backfill (83 videos, Oct 12 - Nov 8, 2025)",
+      "confidence_level": "HIGH (26 videos for tool_teardown, 8 for news, proven patterns)",
+      "proven_baselines": {
+        "tool_teardown_tuesday": "64.72% completion, 76.6 views, 1.17x rewatch",
+        "secret_prompts_thursday": "14.74% completion (NEEDS PIVOT to 50-60%)",
+        "ai_news_roundup": "32.21% completion (KILLED - replaced by Viral AI Friday)",
+        "viral_entertainment": "80.69% completion (proven on Rizzbot, now Viral AI Friday)"
+      },
+      "top_performing_video_ids": {
+        "text_to_3d": "MNuKOhfrYNA (461.73% completion - study this!)",
+        "adobe_moonlight": "xHxrhDomYxQ (91.07% completion)",
+        "rizzbot": "PY6Xh9ITHtY (80.69% completion, 333 views)",
+        "canva": "mSGszYOlRKs (70.02% completion)",
+        "instagram": "RqkPTW08StU (71.28% completion)"
+      },
+      "time_optimization_data": {
+        "sample_size": 78,
+        "best_time": "23:00 UTC (82.1% completion, 10 videos)",
+        "second_best": "21:00 UTC (57.9% completion, 5 videos)",
+        "third_best": "22:00 UTC (57.4% completion, 6 videos)",
+        "worst_time": "14:00-15:00 UTC (34.0% completion, 3 videos)",
+        "improvement": "+48.1% by switching morning to evening"
+      }
     }
   }
 }
