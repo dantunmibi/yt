@@ -36,7 +36,8 @@ jobs:
           mkdir -p tmp
           chmod -R 777 tmp
 
-      - name: Restore performance data
+      - name: Restore performance data from cache
+        id: cache-restore
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -46,6 +47,46 @@ jobs:
           key: performance-data-${{ github.run_number }}
           restore-keys: |
             performance-data-
+
+      - name: Fallback to migration artifact if cache empty
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        run: |
+          echo "⚠️ Cache not found, checking for migration artifact..."
+          
+          # Download the migrated artifact from the successful migration run
+          # Run ID: 19158882393 (your successful migration)
+          
+          echo "📥 Attempting to download migration artifact..."
+        continue-on-error: true
+
+      - name: Download migration artifact (fallback)
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: migrated-performance-data-4
+          run-id: 19158882393
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: tmp/
+
+      - name: Verify we have performance data
+        run: |
+          if [ -f tmp/content_performance.json ]; then
+            echo "✅ Performance data found"
+            echo "Source: $(if [ -n "${{ steps.cache-restore.outputs.cache-hit }}" ]; then echo "Cache"; else echo "Migration artifact"; fi)"
+            echo "Size: $(wc -c < tmp/content_performance.json) bytes"
+            
+            # Quick structure check
+            if grep -q "completion_rate_24h" tmp/content_performance.json; then
+              echo "✅ Unified structure verified"
+            else
+              echo "⚠️ Data structure may need verification"
+            fi
+          else
+            echo "⚠️ No performance data available"
+            echo "This is normal for first-time setup"
+            echo "Future uploads will populate this data"
+          fi
 
       - name: Fetch YouTube Analytics
         env:
@@ -85,21 +126,34 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ -f tmp/content_performance.json ]; then
-            echo "### Performance Data Updated" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Performance Data Loaded" >> $GITHUB_STEP_SUMMARY
+            
+            if [ -n "${{ steps.cache-restore.outputs.cache-hit }}" ]; then
+              echo "**Source:** Cache (key: \`${{ steps.cache-restore.outputs.cache-matched-key }}\`)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Source:** Migration artifact (first-time load)" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Performance by Content Type:" >> $GITHUB_STEP_SUMMARY
+            
             if command -v jq &> /dev/null; then
-              for type in $(jq -r 'keys[]' tmp/content_performance.json); do
+              for type in $(jq -r 'keys[]' tmp/content_performance.json 2>/dev/null || echo ""); do
                 AVG=$(jq -r ".[\"$type\"].average_completion // 0" tmp/content_performance.json)
                 TOTAL=$(jq -r ".[\"$type\"].total_uploads // 0" tmp/content_performance.json)
                 echo "- **$type**: ${AVG}% avg completion ($TOTAL uploads)" >> $GITHUB_STEP_SUMMARY
               done
             fi
+          else
+            echo "### ⚠️ No Performance Data Yet" >> $GITHUB_STEP_SUMMARY
+            echo "Performance tracking will begin with the next upload." >> $GITHUB_STEP_SUMMARY
           fi
           
           if [ -f tmp/schedule_recommendations.json ]; then
-            RECS=$(jq -r '.pending_recommendations | length' tmp/schedule_recommendations.json)
-            if [ "$RECS" != "0" ]; then
+            RECS=$(jq -r '.pending_recommendations | length' tmp/schedule_recommendations.json 2>/dev/null || echo "0")
+            if [ "$RECS" != "0" ] && [ "$RECS" != "null" ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "### 💡 $RECS Schedule Recommendations" >> $GITHUB_STEP_SUMMARY
-              echo "Review in artifacts or tmp/schedule_recommendations.json" >> $GITHUB_STEP_SUMMARY
+              echo "Review in artifacts: \`analytics-report-${{ github.run_number }}\`" >> $GITHUB_STEP_SUMMARY
             fi
           fi
