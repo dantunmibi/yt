@@ -98,7 +98,7 @@ jobs:
         id: schedule_check
         env:
           IGNORE_SCHEDULE: ${{ github.event.inputs.ignore_schedule }}
-          ENABLE_AUTO_ADJUSTMENT: ${{ vars.ENABLE_AUTO_ADJUSTMENT || 'false' }}
+          ENABLE_AUTO_ADJUSTMENT: ${{ vars.ENABLE_AUTO_ADJUSTMENT || 'true' }}
         run: python .github/scripts/optimal_scheduler.py
             
       - name: Load episode tracking (Package 3)
