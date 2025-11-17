@@ -355,11 +355,11 @@ def check_day_schedule_with_windows(now, day_slots, day_name):
                 'tool_teardown_tuesday': 'Tool Teardown Tuesday',
                 'tool_teardown_thursday': 'Tool Teardown Tuesday',
                 'secret_prompts_thursday': 'SECRET PROMPTS',
-                'ai_news_roundup': 'AI Weekend Roundup',
-                'viral_ai_saturday': 'Viral AI Saturday',
+                'viral_ai_friday': 'Viral AI Friday',              # ✅ ADD THIS
                 'manual_dispatch': 'none'
+                # ai_news_roundup REMOVED - killed for 32.21% performance
+                # viral_ai_saturday REMOVED - replaced by viral_ai_friday
             }
-            
             expected_series = series_map.get(slot['type'], 'none')
             
             if slot.get('series', 'none') != expected_series:
