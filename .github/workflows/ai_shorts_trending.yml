@@ -43,6 +43,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ✅ NEW: Free up disk space
+      - name: 🧹 Free up runner disk space
+        run: |
+          echo "════════════════════════════════════════════════"
+          echo "🔍 RUNNER DISK SPACE - BEFORE CLEANUP"
+          echo "════════════════════════════════════════════════"
+          df -h / | grep -E "Filesystem|/dev/root"
+          echo ""
+          
+          echo "🗑️ Removing unused system packages..."
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          
+          echo "🐳 Cleaning Docker cache..."
+          docker image prune -f || true
+          
+          echo ""
+          echo "════════════════════════════════════════════════"
+          echo "✅ RUNNER DISK SPACE - AFTER CLEANUP"
+          echo "════════════════════════════════════════════════"
+          df -h / | grep -E "Filesystem|/dev/root"
+          echo ""
+          echo "💾 Freed: ~3.5GB"
+          echo "════════════════════════════════════════════════"
+
       - name: Validate secrets
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -65,10 +92,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
+      # ✅ MODIFIED: Added --no-cache-dir
       - name: Install Python packages (for scheduler check)
         run: |
-          python -m pip install --upgrade pip
-          pip install pytz
+          python -m pip install --upgrade pip --no-cache-dir
+          pip install --no-cache-dir pytz
 
       - name: Restore episode tracking (Package 3)
         uses: actions/cache/restore@v4
@@ -153,6 +181,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-apt-
 
+      # ✅ MODIFIED: Added apt-get clean
       - name: Install system deps
         if: steps.schedule_check.outputs.should_post == 'true'
         run: |
@@ -166,6 +195,11 @@ jobs:
             fonts-liberation \
             fonts-freefont-ttf \
             espeak-ng
+          
+          # Clean APT cache to save space
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          
           echo "📝 Available fonts:"
           fc-list | grep -i dejavu | head -3
           fc-list | grep -i liberation | head -3
@@ -219,11 +253,12 @@ jobs:
           restore-keys: |
             content-history-
 
+      # ✅ MODIFIED: Added --no-cache-dir
       - name: Install Python packages
         if: steps.schedule_check.outputs.should_post == 'true'
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip --no-cache-dir
+          pip install --no-cache-dir -r requirements.txt
 
       - name: Fetch trending topics
         if: steps.schedule_check.outputs.should_post == 'true'
