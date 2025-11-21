@@ -103,11 +103,15 @@ def auto_select_content_type(scheduled_content_type, series_name):
               f"{scores.get(scheduled_content_type, {}).get('avg_completion', 0):.1f}%")
         print(f"   Score improvement: {top_stats['score'] - scores.get(scheduled_content_type, {}).get('score', 0):.1f} points")
         
-        # Map content type to series name
+        # Map content type to series name (UPDATED FOR NEW SCHEDULE)
         series_map = {
             'tool_teardown_tuesday': 'Tool Teardown Tuesday',
-            'tool_teardown_thursday': 'Tool Teardown Tuesday',
+            'tool_teardown_wednesday': 'Tool Teardown Wednesday', # ✅ NEW
+            'tool_teardown_thursday': 'Tool Teardown Thursday',
             'secret_prompts_thursday': 'SECRET PROMPTS',
+            'viral_ai_friday': 'Viral AI Friday',
+            'sunday_prep': 'Weekly Prep',                         # ✅ NEW
+            'experimental_sunday': 'Sunday Experiments',          # ✅ NEW
             'ai_news_roundup': 'AI Weekend Roundup',
             'viral_ai_saturday': 'Viral AI Saturday'
         }
@@ -353,16 +357,17 @@ def check_day_schedule_with_windows(now, day_slots, day_name):
             
             series_map = {
                 'tool_teardown_tuesday': 'Tool Teardown Tuesday',
-                'tool_teardown_thursday': 'Tool Teardown Tuesday',
+                'tool_teardown_wednesday': 'Tool Teardown Wednesday', # ✅ NEW
+                'tool_teardown_thursday': 'Tool Teardown Thursday',
                 'secret_prompts_thursday': 'SECRET PROMPTS',
-                'viral_ai_friday': 'Viral AI Friday',              # ✅ ADD THIS
+                'viral_ai_friday': 'Viral AI Friday',                 # ✅ CONFIRMED
+                'sunday_prep': 'Weekly Prep',                         # ✅ NEW
+                'experimental_sunday': 'Sunday Experiments',          # ✅ NEW
                 'manual_dispatch': 'none'
-                # ai_news_roundup REMOVED - killed for 32.21% performance
-                # viral_ai_saturday REMOVED - replaced by viral_ai_friday
             }
             expected_series = series_map.get(slot['type'], 'none')
             
-            if slot.get('series', 'none') != expected_series:
+            if slot.get('series', 'none') != expected_series and expected_series != 'none':
                 print(f"   🔄 SERIES SYNC FIX:")
                 print(f"      Content Type: {slot['type']}")
                 print(f"      Series (before): {slot.get('series', 'none')}")
@@ -378,7 +383,7 @@ def check_day_schedule_with_windows(now, day_slots, day_name):
             print(f"   -> Content Type: {slot['type']}")
             print(f"   -> Priority: {slot['priority']}")
             print(f"   -> Target Completion: {slot.get('target_completion', 'N/A')}")
-            print(f"   -> Series/Type Synced: ✅")  # ✅ NEW LINE
+            print(f"   -> Series/Type Synced: ✅")
             return slot
     
     return None
@@ -604,10 +609,13 @@ def predict_completion_rate(content_type, series_name):
     # YOUR proven baselines from backfill
     proven_baselines = {
         'tool_teardown_tuesday': 64.6,
+        'tool_teardown_wednesday': 64.6,   # ✅ Inherit Tuesday's baseline
         'tool_teardown_thursday': 64.6,
         'secret_prompts_thursday': 14.7,
         'ai_news_roundup': 32.2,
-        'viral_ai_saturday': 60.0,
+        'viral_ai_friday': 80.7,           # ✅ Based on Rizzbot data
+        'sunday_prep': 60.0,               # ✅ New estimate
+        'experimental_sunday': 50.0,       # ✅ New estimate
         'general': 41.4
     }
     

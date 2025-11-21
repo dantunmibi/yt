@@ -233,10 +233,15 @@ def load_series_guidance():
             # Map content_type to series
             content_type_mapping = {
                 'tool_teardown_tuesday': 'tool_teardown_tuesday',
+                'tool_teardown_wednesday': 'tool_teardown_wednesday', # ✅ ADDED
                 'tool_teardown_thursday': 'tool_teardown_thursday',
-                'viral_ai_saturday': 'viral_ai_saturday',
-                'ai_tools': 'tool_teardown_tuesday',  # Fallback
-                'entertainment': 'viral_ai_saturday'  # Fallback
+                'viral_ai_friday': 'viral_ai_friday',                 # ✅ ADDED
+                'sunday_prep': 'sunday_prep',                         # ✅ ADDED
+                'experimental_sunday': 'experimental_sunday',         # ✅ ADDED
+                'secret_prompts_thursday': 'secret_prompts_thursday',
+                'ai_tools': 'tool_teardown_wednesday',  # ✅ Updated Fallback
+                'entertainment': 'viral_ai_friday',     # ✅ Updated Fallback
+                'productivity': 'sunday_prep'           # ✅ New Fallback
             }
             
             series_key = content_type_mapping.get(CONTENT_TYPE, 'tool_teardown_tuesday')

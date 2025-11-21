@@ -19,19 +19,20 @@ on:
         default: false
   
   schedule:
-    # UPDATED SCHEDULE based on 78-video analytics proving evening posts perform 2.4x better
-    # Tuesday 23:00 UTC (6 PM EST) - Tool Teardown Tuesday - PROVEN 82.1% completion
-    - cron: '0 23 * * 2'
-    
-    # Thursday 21:00 UTC (4 PM EST) - Tool Teardown Thursday - PROVEN 57.9% completion  
-    - cron: '0 21 * * 4'
-    
-    # Friday 23:00 UTC (6 PM EST) - Viral AI Friday - ESTIMATED 77-82% completion
-    # (Friday = best day 77.63%, 23:00 = best time 82.1%)
+    # 1. The Viral Slot (Friday 23:00 UTC)
     - cron: '0 23 * * 5'
     
-    # OLD SCHEDULE REMOVED (killed for 34.0% completion):
-    # - cron: '0 14,15 * * 2,4,6'  # ❌ FAILED: 34% completion at morning times
+    # 2. The Sunday Prep Slot (Sunday 21:00 UTC)
+    - cron: '0 21 * * 0'
+    
+    # 3. The Mid-Week High (Thursday 22:00 UTC)
+    - cron: '0 22 * * 4'
+    
+    # 4. The Consistency Slot (Wednesday 23:00 UTC)
+    - cron: '0 23 * * 3'
+    
+    # 5. The Early Weekend Slot (Sunday 18:00 UTC)
+    - cron: '0 18 * * 0'
 
 
 jobs:
