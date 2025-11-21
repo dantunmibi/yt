@@ -13,6 +13,7 @@ TTS
 pydub
 mutagen
 numpy
+edge-tts
 
 facebook-sdk
 cloudinary

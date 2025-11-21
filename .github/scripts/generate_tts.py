@@ -1,349 +1,145 @@
 import os
 import json
 import re
+import asyncio
+import edge_tts
 from tenacity import retry, stop_after_attempt, wait_exponential
-from TTS.api import TTS
-from pydub import AudioSegment
-from pydub.silence import split_on_silence
-import numpy as np
 
+# Configuration
 TMP = os.getenv("GITHUB_WORKSPACE", ".") + "/tmp"
 os.makedirs(TMP, exist_ok=True)
-FULL_AUDIO_PATH = os.path.join(TMP, "voice.mp3")
+SCRIPT_FILE = os.path.join(TMP, "script.json")
+OUTPUT_FILE = os.path.join(TMP, "voice.mp3")
+METADATA_FILE = os.path.join(TMP, "audio_metadata.json")
 
-print("✅ Using VCTK TTS model with speaker p226")
+# 🎙️ VOICE SELECTION
+# "en-US-ChristopherNeural" -> Best for Tech/Tutorials (Calm, authoritative)
+# "en-US-GuyNeural" -> Best for High Energy/Viral (Fast, punchy)
+# "en-US-EricNeural" -> Best for News (Serious)
+VOICE = "en-US-ChristopherNeural" 
 
-def clean_text_for_tts(text):
+print(f"✅ Selected Neural Voice: {VOICE}")
+
+def intelligent_cleaner(text):
     """
-    Enhanced text preprocessing for natural TTS pronunciation
-    FIXED: No longer creates pauses for periods mid-sentence
+    Advanced cleaner designed specifically for Neural TTS engines.
+    Fixes pronunciation anomalies while preserving flow.
     """
+    if not text: return ""
+
+    # 1. NUCLEAR EMOJI REMOVAL
+    # Removes emojis that cause the engine to say "Red Heart", "Exploding Head"
+    text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
     
-    # Step 1: Protect common abbreviations/brand names that have periods
-    protected_patterns = {
-        r'\bDr\.': 'Doctor',
-        r'\bMr\.': 'Mister',
-        r'\bMrs\.': 'Misses',
-        r'\bMs\.': 'Miss',
-        r'\bProf\.': 'Professor',
-        r'\betc\.': 'etcetera',
-        r'\be\.g\.': 'for example',
-        r'\bi\.e\.': 'that is',
-        r'\bvs\.': 'versus',
-        r'\bInc\.': 'Incorporated',
-        r'\bCo\.': 'Company',
-        r'\bLtd\.': 'Limited',
-    }
+    # 2. Fix "AI" pronunciation
+    # Neural engines sometimes say "Ay" instead of "A.I."
+    text = re.sub(r'\bAI\b', 'A.I.', text)
+    text = re.sub(r'\bai\b', 'A.I.', text)
     
-    for pattern, replacement in protected_patterns.items():
-        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+    # 3. Fix "TOP" / "NOW" / "WOW" being read as acronyms
+    # We lowercase them in the context of a sentence to force word pronunciation
+    # but keep the emphasis by surrounding with subtle pauses if needed.
     
-    # Step 2: CRITICAL FIX - Only treat period as pause if followed by space + capital letter
-    # This preserves "Instagram Stories." at end without creating mid-sentence pause
-    text = re.sub(r'\.(\s+[A-Z])', r' SENTENCE_END\1', text)
+    def replace_caps(match):
+        word = match.group(0)
+        # List of words that should NEVER be spelled out as letters
+        if word in ["TOP", "NOW", "WOW", "HOW", "FREE", "NEW", "HOT"]:
+            return word.capitalize() # "Top" is read as a word, "TOP" sometimes as T-O-P
+        return word
+
+    text = re.sub(r'\b[A-Z]{3,4}\b', replace_caps, text)
     
-    # Step 3: Remove remaining periods (these are mid-sentence or end-of-text)
-    text = text.replace('.', '')
-    
-    # Step 4: Restore sentence-ending markers as periods (these will create natural pauses)
-    text = text.replace('SENTENCE_END', '.')
-    
-    # Step 5: Handle special characters
-    text = text.replace('%', ' percent')
-    text = text.replace('&', ' and ')
-    text = text.replace('+', ' plus ')
-    text = text.replace('@', ' at ')
-    text = text.replace('$', ' dollars ')
-    text = text.replace('€', ' euros ')
-    text = text.replace('£', ' pounds ')
-    text = text.replace('#', ' hashtag ')
-    
-    # Step 6: Handle common acronyms with NATURAL spellings
-    acronym_replacements = {
-        # AI/ML terms
-        r'\bML\b': 'M L',
-        r'\bGPT\b': 'G P T',
-        r'\bLLM\b': 'L L M',
-        r'\bNLP\b': 'N L P',
-        
-        # ChatGPT and variants
+    # 4. Fix Tech Acronyms (Force letter pronunciation)
+    # Neural engines are usually good at this, but we ensure consistency
+    replacements = {
         r'\bChatGPT\b': 'Chat G P T',
-        r'\bchatgpt\b': 'chat G P T',
-        r'\bCHATGPT\b': 'Chat G P T',
-        
-        # Tech companies/terms
-        r'\bAPI\b': 'A P I',
-        r'\bUI\b': 'U I',
-        r'\bUX\b': 'U X',
-        r'\bCEO\b': 'C E O',
-        r'\bCTO\b': 'C T O',
-        
-        # Computer hardware
-        r'\bCPU\b': 'C P U',
-        r'\bGPU\b': 'G P U',
-        r'\bRAM\b': 'ram',
-        r'\bSSD\b': 'S S D',
-        r'\bUSB\b': 'U S B',
-        
-        # Web/Internet
-        r'\bHTTP\b': 'H T T P',
-        r'\bHTTPS\b': 'H T T P S',
-        r'\bURL\b': 'U R L',
-        r'\bHTML\b': 'H T M L',
-        r'\bCSS\b': 'C S S',
-        r'\bJSON\b': 'J son',
-        r'\bSQL\b': 'S Q L',
-        r'\bXML\b': 'X M L',
-        
-        # Organizations
-        r'\bNASA\b': 'nasa',
-        r'\bFBI\b': 'F B I',
-        r'\bCIA\b': 'C I A',
-        r'\bUSA\b': 'U S A',
-        r'\bUK\b': 'U K',
-        r'\bUN\b': 'U N',
-        r'\bEU\b': 'E U',
-
-        # Units
-        r'\bGB\b': 'gigabytes',
-        r'\bMB\b': 'megabytes',
-        r'\bKB\b': 'kilobytes',
-        r'\bTB\b': 'terabytes',
-        r'\bFPS\b': 'F P S',
-        
-        # Tech/Gaming
-        r'\bVR\b': 'V R',
-        r'\bAR\b': 'A R',
-        r'\bMR\b': 'M R',
-        r'\bDIY\b': 'D I Y',
-        r'\bOK\b': 'okay',
-        
-        # Social Media
-        r'\bDM\b': 'D M',
-        r'\bPM\b': 'P M',
-        r'\bFAQ\b': 'F A Q',
-        r'\bFYI\b': 'F Y I',
+        r'\bLLM\b': 'L L M',
+        r'\bSEO\b': 'S E O',
+        r'\bROI\b': 'R O I',
     }
-    
-    # Apply all replacements
-    for pattern, replacement in acronym_replacements.items():
+    for pattern, replacement in replacements.items():
         text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+        
+    # 5. Fix Markdown artifacts
+    text = text.replace('*', '').replace('#', '').replace('_', '')
+    text = re.sub(r'\[.*?\]', '', text) # Remove [Visual Cues]
     
-    # Step 7: Handle numbers with context
-    text = re.sub(r'\b(\d+)K\b', r'\1 K', text)
-    text = re.sub(r'\b(\d+)x\b', r'\1 times', text)
+    # 6. Cleanup whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
     
-    # Step 8: Remove emojis
-    emoji_pattern = re.compile("["
-        "\U0001F600-\U0001F64F"  # emoticons
-        "\U0001F300-\U0001F5FF"  # symbols & pictographs
-        "\U0001F680-\U0001F6FF"  # transport & map symbols
-        "\U0001F1E0-\U0001F1FF"  # flags
-        "\U00002702-\U000027B0"
-        "\U000024C2-\U0001F251"
-        "]+", flags=re.UNICODE)
-    text = emoji_pattern.sub('', text)
-    
-    # Step 9: Clean up extra whitespace
-    text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'\s([,!?])', r'\1', text)  # Remove space before punctuation
-    
-    # Step 10: Ensure sentences end properly for natural pauses
-    # Only add period at end if it doesn't already have sentence-ending punctuation
-    if text and not text.rstrip()[-1:] in '.!?':
-        text = text.rstrip() + '.'
-    
-    return text.strip()
+    return text
 
-def clean_text_for_coqui(text):
-    """Wrapper function to use the main cleaning function"""
-    return clean_text_for_tts(text)
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+async def generate_neural_voice(text, output_file):
+    """
+    Generates audio using Microsoft Edge's Neural TTS API.
+    """
+    print(f"🌊 Generating Neural Audio ({len(text)} chars)...")
+    
+    # Rate adjustment: +10% speed is standard for Shorts retention
+    communicate = edge_tts.Communicate(text, VOICE, rate="+10%")
+    
+    await communicate.save(output_file)
+    
+    if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+        print(f"✅ Saved to {output_file} ({os.path.getsize(output_file)} bytes)")
+    else:
+        raise Exception("Generated audio file is empty")
 
-def generate_tts_fallback(text, out_path):
-    """Fallback TTS using gTTS"""
+def main():
+    if not os.path.exists(SCRIPT_FILE):
+        print(f"❌ Script file not found: {SCRIPT_FILE}")
+        return
+
     try:
-        print("🔄 Using gTTS fallback...")
-        from gtts import gTTS
-
-        tts = gTTS(text=text, lang='en', slow=False)
-        tts.save(out_path)
-
-        print(f"✅ gTTS fallback saved to {out_path}")
-        return out_path
-
-    except Exception as e:
-        print(f"⚠️ gTTS fallback failed: {e}")
-        return generate_silent_audio_fallback(text, out_path)
-
-def generate_silent_audio_fallback(text, out_path):
-    """Generate silent audio as last resort fallback using pydub"""
-    try:
-        from pydub import AudioSegment
+        # 1. Load Script
+        with open(SCRIPT_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
         
-        words = len(text.split())
-        # Calculate duration in milliseconds (15s min, 60s max)
-        duration_ms = max(15000, min(60000, (words / 150) * 60000))
-        duration_s = duration_ms / 1000.0
-
-        silent_audio = AudioSegment.silent(duration=duration_ms, frame_rate=22050)
-        silent_audio.export(out_path, format="mp3")
-
-        print(f"✅ Silent audio fallback created ({duration_s:.1f}s)")
-        return out_path
-    
-    except Exception as e:
-        print(f"❌ All TTS methods failed: {e}")
-        raise Exception("All TTS generation methods failed")
-
-# --- Core Execution ---
-
-script_path = os.path.join(TMP, "script.json")
-if not os.path.exists(script_path):
-    print(f"❌ Script file not found: {script_path}")
-    raise SystemExit(1)
-
-with open(script_path, "r", encoding="utf-8") as f:
-    data = json.load(f)
-
-hook = data.get("hook", "")
-bullets = data.get("bullets", [])
-cta = data.get("cta", "")
-
-spoken_parts = [hook]
-for bullet in bullets:
-    spoken_parts.append(bullet)
-spoken_parts.append(cta)
-spoken = ". ".join([p.strip() for p in spoken_parts if p.strip()]) # Rebuild spoken text safely
-
-print(f"🎙️ Generating voice for text ({len(spoken)} chars)")
-print(f"   Preview: {spoken[:100]}...")
-
-# --- Sectional TTS Generation (Primary Strategy) ---
-
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
-def generate_sectional_tts():
-    """Generates individual TTS files for precise timing and combines them using VCTK model."""
-    section_paths = []
-    sections = [("hook", hook)] + [(f"bullet_{i}", b) for i, b in enumerate(bullets)] + [("cta", cta)]
-    
-    try:
-        print("🔊 Initializing VCTK TTS model with speaker p226...")
-        # Use VCTK model with speaker p226
-        tts = TTS(model_name="tts_models/en/vctk/vits", progress_bar=False)
-
-        for name, text in sections:
-            if not text.strip():
-                continue
+        # 2. Assemble Text
+        # We combine them naturally because Neural TTS handles sentence pauses perfectly
+        hook = data.get("hook", "")
+        bullets = " ".join(data.get("bullets", []))
+        cta = data.get("cta", "")
+        
+        full_text = f"{hook} {bullets} {cta}"
+        
+        # 3. Clean Text
+        clean_text = intelligent_cleaner(full_text)
+        print(f"📝 Cleaned Text: {clean_text[:100]}...")
+        
+        # 4. Generate
+        asyncio.run(generate_neural_voice(clean_text, OUTPUT_FILE))
+        
+        # 5. Generate Metadata (For Package 4 tracking)
+        # Use pydub to get exact duration if available, otherwise estimate
+        duration_sec = 0
+        try:
+            from pydub import AudioSegment
+            audio = AudioSegment.from_file(OUTPUT_FILE)
+            duration_sec = len(audio) / 1000.0
+        except ImportError:
+            print("⚠️ pydub not installed, estimating duration")
+            duration_sec = len(clean_text.split()) / 2.5 # Rough estimate
             
-            clean = clean_text_for_coqui(text)
-            out_path = os.path.join(TMP, f"{name}.mp3")
-            print(f"🎧 Generating section: {name} (Text: {clean[:40]}...)")
-            
-            # Generate TTS with VCTK speaker p226
-            tts.tts_to_file(text=clean, file_path=out_path, speaker="p226")
-            
-            if os.path.exists(out_path) and os.path.getsize(out_path) > 1024:
-                section_paths.append(out_path)
-            else:
-                raise Exception(f"VCTK section generation failed for {name}")
-
-    except Exception as e:
-        print(f"⚠️ Sectional VCTK TTS failed: {e}")
-        print("🔄 Falling back to gTTS with section splitting...")
-        
-        # ✅ FIX: Generate full audio, then split it into sections
-        fallback_path = generate_tts_fallback(spoken, FULL_AUDIO_PATH)
-        
-        if not os.path.exists(fallback_path) or os.path.getsize(fallback_path) < 1000:
-            raise Exception("Fallback audio generation failed")
-        
-        # Split the full audio into sections based on word count proportions
-        print("🔪 Splitting full audio into sections for timing...")
-        full_audio = AudioSegment.from_file(fallback_path)
-        total_duration_ms = len(full_audio)
-        
-        # Calculate proportions based on word count
-        section_texts = [(name, text) for name, text in sections if text.strip()]
-        total_words = sum(len(text.split()) for _, text in section_texts)
-        
-        current_pos = 0
-        section_paths = []
-        
-        for name, text in section_texts:
-            words = len(text.split())
-            proportion = words / total_words if total_words > 0 else 1.0 / len(section_texts)
-            section_duration_ms = int(total_duration_ms * proportion)
-            
-            # Extract section
-            section_audio = full_audio[current_pos:current_pos + section_duration_ms]
-            section_path = os.path.join(TMP, f"{name}.mp3")
-            section_audio.export(section_path, format="mp3")
-            
-            section_paths.append(section_path)
-            current_pos += section_duration_ms
-            
-            print(f"   ✅ {name}: {section_duration_ms/1000:.2f}s")
-        
-        print("✅ Sections created from fallback audio")
-        return section_paths
-
-    # Combine sections (original logic continues)
-    combined_audio = AudioSegment.silent(duration=0)
-    for path in section_paths:
-        part = AudioSegment.from_file(path)
-        combined_audio += part + AudioSegment.silent(duration=150)
-        
-    combined_audio.export(FULL_AUDIO_PATH, format="mp3")
-    print(f"✅ Combined TTS saved to {FULL_AUDIO_PATH}")
-    
-    return section_paths
-
-try:
-    # 1. Execute the generation process
-    section_paths = generate_sectional_tts()
-
-    # 2. Verify the final combined audio (or the single fallback file) using pydub
-    final_audio_path = FULL_AUDIO_PATH
-    
-    audio_check = AudioSegment.from_file(final_audio_path)
-    actual_duration = audio_check.duration_seconds # Duration in seconds
-    
-    file_size = os.path.getsize(final_audio_path) / 1024
-    print(f"🎵 Actual audio duration: {actual_duration:.2f} seconds")
-
-    if actual_duration > 120:
-        print(f"⚠️ Audio duration too long ({actual_duration:.1f}s), forcing gTTS fallback...")
-        generate_tts_fallback(spoken, FULL_AUDIO_PATH) # Overwrite with gTTS
-        
-        audio_check = AudioSegment.from_file(FULL_AUDIO_PATH)
-        actual_duration = audio_check.duration_seconds
-        print(f"🎵 Fixed audio duration: {actual_duration:.2f} seconds")
-
-    words = len(spoken.split())
-    estimated_duration = (words / 150) * 60
-
-    print(f"📊 Text stats: {words} words, estimated: {estimated_duration:.1f}s, actual: {actual_duration:.1f}s")
-
-    metadata = {
-        "text": spoken,
-        "words": words,
-        "estimated_duration": estimated_duration,
-        "actual_duration": actual_duration,
-        "file_size_kb": file_size,
-        # Determine final provider
-        "tts_provider": "vctk_sectional" if len(section_paths) > 1 else "gtts_fallback_full",
-        "model_info": {
-            "model": "tts_models/en/vctk/vits",
-            "speaker": "p226",
-            "description": "VCTK multi-speaker English TTS model"
+        metadata = {
+            "text_length": len(clean_text),
+            "duration_seconds": duration_sec,
+            "voice_model": VOICE,
+            "engine": "Edge-TTS (Neural)",
+            "status": "success"
         }
-    }
+        
+        with open(METADATA_FILE, "w") as f:
+            json.dump(metadata, f, indent=2)
+            
+        print(f"📊 Duration: {duration_sec:.2f}s")
+        
+    except Exception as e:
+        print(f"❌ TTS Generation Failed: {e}")
+        # Optional: Add your gTTS fallback here if you really want it, 
+        # but Edge-TTS is extremely reliable.
+        exit(1)
 
-    with open(os.path.join(TMP, "audio_metadata.json"), "w") as f:
-        json.dump(metadata, f, indent=2)
-
-except Exception as e:
-    print(f"❌ TTS generation failed: {e}")
-    raise SystemExit(1)
-
-print("✅ TTS generation complete")
+if __name__ == "__main__":
+    main()
