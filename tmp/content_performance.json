@@ -138,11 +138,20 @@
         "completion_rate_24h": null,
         "views_24h": null,
         "status": "pending_analytics"
+      },
+      {
+        "upload_date": "2025-11-21T22:24:07.335533",
+        "video_id": "J9SBCZhcVeY",
+        "title": "AI Gadgets: 3 HIDDEN Future Tech You Need NOW!",
+        "content_type": "manual_dispatch",
+        "completion_rate_24h": null,
+        "views_24h": null,
+        "status": "pending_analytics"
       }
     ],
     "average_completion": 0,
     "average_rewatch": 0,
-    "total_uploads": 12,
+    "total_uploads": 13,
     "series_performance": {}
   },
   "ai_news_roundup": {
