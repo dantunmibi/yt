@@ -34,6 +34,10 @@ on:
     # 5. The Early Weekend Slot (Sunday 18:00 UTC)
     - cron: '0 18 * * 0'
 
+# ✅ ADD THIS BLOCK TO FIX THE 403 ERROR
+permissions:
+  contents: write
+
 
 jobs:
   build_and_upload:
