@@ -43,6 +43,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }} # Needed to push changes back
 
       # ✅ NEW: Free up disk space
       - name: 🧹 Free up runner disk space
@@ -500,7 +502,31 @@ jobs:
           name: error-logs-${{ github.run_number }}
           path: tmp/*.log
           retention-days: 7
-
+      
+      - name: 💾 Persist State (Commit to Repo)
+        if: always() && steps.schedule_check.outputs.should_post == 'true'
+        run: |
+          git config --global user.name 'GitHub Actions Scheduler'
+          git config --global user.email 'actions@github.com'
+          
+          # Create config directory if missing
+          mkdir -p tmp
+          
+          # Check if files exist and have changed
+          git add tmp/episode_tracking.json || true
+          git add tmp/next_episode.json || true
+          git add tmp/content_history.json || true
+          git add tmp/content_performance.json || true
+          
+          # Only commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to state files."
+          else
+            git commit -m "🤖 Update Episode Counters & CTA Promises [skip ci]"
+            git push
+            echo "✅ State preserved to repository"
+          fi   
+          
       - name: Post-run summary (Package 3 & 4 ENHANCED)
         if: always()
         run: |

@@ -144,80 +144,45 @@ def check_promise_match(promised_topic, trending_topic):
 
 def select_topic_with_promise_check(trending_data, promised_topic_data):
     """
-    ✅ CTA CONTINUITY: HYBRID topic selection
-    1. If promised topic exists, try to find it in trending
-    2. If found: USE IT (promise kept!)
-    3. If NOT found: Use top trending (graceful fallback)
-    4. If no promise: Standard trending selection
-    
-    Returns: (selected_topic, kept_promise: bool, fallback_reason: str)
+    ✅ CTA CONTINUITY: STRICT ENFORCEMENT
+    If a promise exists, WE HONOR IT. No excuses.
     """
     
     trending_topics = trending_data.get('topics', [])
     full_data = trending_data.get('full_data', [])
     
-    # No promise? Standard selection
+    # No promise? Standard trending selection
     if not promised_topic_data:
-        print("📊 CTA Continuity: No promise to honor, selecting top trending")
-        if full_data:
-            return full_data[0], False, None
-        elif trending_topics:
-            return {
-                'topic_title': trending_topics[0],
-                'summary': 'Trending topic',
-                'category': 'Trending'
-            }, False, None
-        else:
-            return None, False, "No trending data available"
-    
-    # Have a promise - try to honor it
-    promised_topic = promised_topic_data['promised_topic']
-    
-    print(f"🔍 CTA Continuity: Searching for promised topic in trending data...")
-    print(f"   Looking for: '{promised_topic}'")
-    
-    # Search in full_data first (has summaries)
-    for item in full_data:
-        topic_title = item.get('topic_title', '')
-        summary = item.get('summary', '')
-        combined = f"{topic_title} {summary}"
-        
-        if check_promise_match(promised_topic, combined):
-            print(f"✅ CTA CONTINUITY: PROMISE KEPT!")
-            print(f"   Promised: '{promised_topic}'")
-            print(f"   Matched: '{topic_title}'")
-            return item, True, None
-    
-    # Search in topics list
-    for topic in trending_topics:
-        if check_promise_match(promised_topic, topic):
-            print(f"✅ CTA CONTINUITY: PROMISE KEPT!")
-            print(f"   Promised: '{promised_topic}'")
-            print(f"   Matched: '{topic}'")
-            return {
-                'topic_title': topic,
-                'summary': 'Trending topic',
-                'category': 'Trending'
-            }, True, None
-    
-    # Promise not in trending - graceful fallback
-    print(f"⚠️ CTA CONTINUITY: Promise not in trending topics")
-    print(f"   Promised: '{promised_topic}'")
-    print(f"   Action: Using top trending as graceful fallback")
-    
-    fallback_reason = f"Promised '{promised_topic}' not trending, pivoted to breaking news"
-    
-    if full_data:
-        return full_data[0], False, fallback_reason
-    elif trending_topics:
-        return {
-            'topic_title': trending_topics[0],
-            'summary': 'Trending topic',
-            'category': 'Trending'
-        }, False, fallback_reason
-    else:
+        print("📊 CTA Continuity: No promise found. Using top trending topic.")
+        if full_data: return full_data[0], False, None
         return None, False, "No trending data available"
-
+    
+    # HAVE PROMISE -> ENFORCE IT
+    promised_topic = promised_topic_data['promised_topic']
+    print(f"🔒 CTA CONTINUITY: ENFORCING PROMISE: '{promised_topic}'")
+    
+    # Check if it happens to be trending (for metadata purposes)
+    is_trending = False
+    for t in trending_topics:
+        if check_promise_match(promised_topic, t):
+            is_trending = True
+            break
+            
+    # Construct a "Topic Object" based on the promise
+    # We use the promised topic as the title/keyword
+    forced_topic_data = {
+        'topic_title': promised_topic,
+        'summary': f"Fulfilled promise from previous episode: {promised_topic}",
+        'category': 'Series Continuity',
+        'url': 'https://google.com' # Placeholder
+    }
+    
+    if is_trending:
+        return forced_topic_data, True, None
+    else:
+        # It's not trending, but we do it anyway (The "Hybrid" approach)
+        # We will inject trending hashtags later to help it perform
+        return forced_topic_data, True, "Forced promise (Topic was not currently trending)"
 
 # ===== END CTA CONTINUITY SYSTEM =====
 

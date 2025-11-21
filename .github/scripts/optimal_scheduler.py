@@ -105,9 +105,9 @@ def auto_select_content_type(scheduled_content_type, series_name):
         
         # Map content type to series name (UPDATED FOR NEW SCHEDULE)
         series_map = {
-            'tool_teardown_tuesday': 'Tool Teardown Tuesday',
-            'tool_teardown_wednesday': 'Tool Teardown Wednesday', # ✅ NEW
-            'tool_teardown_thursday': 'Tool Teardown Thursday',
+            'tool_teardown_tuesday': 'Tool Teardown',
+            'tool_teardown_wednesday': 'Tool Teardown', # ✅ NEW
+            'tool_teardown_thursday': 'Tool Teardown',
             'secret_prompts_thursday': 'SECRET PROMPTS',
             'viral_ai_friday': 'Viral AI Friday',
             'sunday_prep': 'Weekly Prep',                         # ✅ NEW
