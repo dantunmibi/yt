@@ -156,11 +156,20 @@
         "completion_rate_24h": null,
         "views_24h": null,
         "status": "pending_analytics"
+      },
+      {
+        "upload_date": "2025-11-22T03:17:21.565454",
+        "video_id": "U0IOHOeNxA0",
+        "title": "AI Gadgets: Your SECRET Superpowers UNLOCKED NOW!",
+        "content_type": "manual_dispatch",
+        "completion_rate_24h": null,
+        "views_24h": null,
+        "status": "pending_analytics"
       }
     ],
     "average_completion": 0,
     "average_rewatch": 0,
-    "total_uploads": 14,
+    "total_uploads": 15,
     "series_performance": {}
   },
   "ai_news_roundup": {
