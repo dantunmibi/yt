@@ -9,15 +9,12 @@ python-dotenv
 tenacity
 pytrends
 gtts
-TTS
 pydub
 mutagen
 numpy
-edge-tts
-
+edge-tts>=6.1.9
 facebook-sdk
 cloudinary
 requests-toolbelt
-
 pytz
 urllib3>=1.26.18
