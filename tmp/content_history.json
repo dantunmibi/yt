@@ -71,6 +71,7 @@
       "series": "none",
       "episode": 0,
       "content_type": "manual_dispatch"
+<<<<<<< HEAD
     },
     {
       "topic": "ai_gadgets",
@@ -89,6 +90,8 @@
       "series": "none",
       "episode": 0,
       "content_type": "manual_dispatch"
+=======
+>>>>>>> parent of 7734c00 (🤖 Update Episode Counters & CTA Promises [skip ci])
     }
   ]
 }
