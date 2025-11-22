@@ -147,11 +147,20 @@
         "completion_rate_24h": null,
         "views_24h": null,
         "status": "pending_analytics"
+      },
+      {
+        "upload_date": "2025-11-21T23:50:02.181012",
+        "video_id": "LW3_EYJPRUE",
+        "title": "ChatGPT Login: The SECRET 3-Second Access Trick!",
+        "content_type": "manual_dispatch",
+        "completion_rate_24h": null,
+        "views_24h": null,
+        "status": "pending_analytics"
       }
     ],
     "average_completion": 0,
     "average_rewatch": 0,
-    "total_uploads": 13,
+    "total_uploads": 14,
     "series_performance": {}
   },
   "ai_news_roundup": {
