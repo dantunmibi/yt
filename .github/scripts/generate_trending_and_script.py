@@ -576,19 +576,47 @@ while attempt < max_attempts:
         
         data = json.loads(json_text)
 
-        # ==========================================
-        # 🛡️ SAFETY SCRUBBER: Force remove bad habits
-        # ==========================================
-        def scrub_text(text):
-            # Replace "Link in bio" with "Search [Tool]"
-            text = re.sub(r'(?i)link\s+in\s+bio', f"Search {data.get('topic', 'this tool')}", text)
-            text = re.sub(r'(?i)click\s+the\s+link', f"Search {data.get('topic', 'this tool')}", text)
-            # Ensure "Bio" isn't mentioned in CTA
-            text = re.sub(r'(?i)check\s+bio', "Subscribe for more", text)
-            return text
+        # Determine NEXT topic (Loop Killer Logic)
+        next_topic_title = ""
+        
+        # Strategy A: Find a DIFFERENT trending topic
+        if trending and trending.get('full_data'):
+            current_title = data.get('title', '').lower()
+            current_topic_val = selected_topic_data.get('topic_title', '').lower() if selected_topic_data else ''
+            current_words = set(current_title.split())
 
-        # Scrub Bullets
-        data['bullets'] = [scrub_text(b) for b in data['bullets']]
+            for item in trending['full_data']:
+                cand_title = item.get('topic_title', '')
+                cand_words = set(cand_title.lower().split())
+                
+                # 1. Strict String Check
+                if cand_title.lower() == current_topic_val: continue
+                if cand_title.lower() == current_title: continue
+                
+                # 2. Word Overlap Check (>2 words shared = skip)
+                # Prevents "AI Gadgets 2024" -> "Best AI Gadgets"
+                overlap = len(current_words.intersection(cand_words))
+                if overlap <= 2:
+                    next_topic_title = cand_title
+                    break
+        
+        # Strategy B: Hard Pivot (If list exhausted or too similar)
+        if not next_topic_title:
+            import random
+            pivots = [
+                "Midjourney v7 Secrets", "ChatGPT Coding Hacks", 
+                "Google Gemini Update", "Productivity Automation", 
+                "Secret AI Website", "Python Automation"
+            ]
+            # Pick a pivot that shares NO words with current title
+            valid_pivots = [p for p in pivots if not any(w in p.lower() for w in data.get('title','').lower().split())]
+            next_topic_title = random.choice(valid_pivots) if valid_pivots else "Next Big AI Reveal"
+
+        # Shorten for CTA readability
+        if len(next_topic_title) > 50:
+            words = next_topic_title.split()
+            if len(words) > 6: next_topic_title = ' '.join(words[:6]) + "..."
+        
         # Scrub CTA (Just in case)
         if 'cta' in data:
             data['cta'] = scrub_text(data['cta'])

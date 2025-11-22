@@ -15,23 +15,26 @@ METADATA_FILE = os.path.join(TMP, "audio_metadata.json")
 # Secrets
 HF_TOKEN = os.getenv("HUGGINGFACE_API_KEY")
 
-# 🛡️ MODEL LIST (Primary + Fallback)
-# 1. Facebook MMS (Best Quality, Natural)
-# 2. Facebook FastSpeech2 (Backup, Fast)
-# 3. Espnet (Last Resort)
-MODELS = [
-    "facebook/mms-tts-eng",
-    "facebook/fastspeech2-en-ljspeech", 
-    "espnet/kan-bayashi_ljspeech_vits"
-]
+# Model: Facebook MMS-TTS (English)
+# Using modern Router URL
+API_URL = "https://router.huggingface.co/hf-inference/models/facebook/mms-tts-eng"
 
 def intelligent_cleaner(text):
-    """Cleaning logic for Neural TTS"""
+    """
+    Cleaning logic for Neural TTS.
+    Fixes pronunciation and removes artifacts.
+    """
     if not text: return ""
-    text = re.sub(r'[\U00010000-\U0010ffff]', '', text) 
+    
+    # 1. Remove Emojis
+    text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
+    
+    # 2. Fix Pronunciation
     text = re.sub(r'\bAI\b', 'A.I.', text)
+    text = re.sub(r'\bai\b', 'A.I.', text)
     text = re.sub(r'\bChatGPT\b', 'Chat G P T', text)
     
+    # 3. Fix ALL CAPS words
     def replace_caps(match):
         word = match.group(0)
         if word in ["TOP", "NOW", "WOW", "HOW", "FREE", "NEW", "HOT"]:
@@ -39,55 +42,56 @@ def intelligent_cleaner(text):
         return word
     text = re.sub(r'\b[A-Z]{3,4}\b', replace_caps, text)
     
+    # 4. Cleanup
+    text = text.replace('*', '').replace('#', '').replace('_', '')
+    text = re.sub(r'\[.*?\]', '', text) 
+    
     return re.sub(r'\s+', ' ', text).strip()
 
-def try_generate_with_model(model_id, text):
-    """Helper to try a specific model"""
-    api_url = f"https://api-inference.huggingface.co/models/{model_id}"
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=10, max=40))
+def generate_hf_audio(text):
+    """
+    Generates audio using HuggingFace Inference Router.
+    Handles 'Model Loading' (503) errors automatically.
+    """
+    if not HF_TOKEN:
+        raise ValueError("❌ HUGGINGFACE_API_KEY is missing in Secrets!")
+
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
     payload = {"inputs": text}
 
-    print(f"🌊 Sending request to: {model_id}...")
-    response = requests.post(api_url, headers=headers, json=payload)
+    print(f"🌊 Sending request to HF Router ({len(text)} chars)...")
+    response = requests.post(API_URL, headers=headers, json=payload)
     
-    # Handle Loading (503)
+    # Case 1: Model is Loading (Free Tier Cold Start)
     if response.status_code == 503:
-        wait_time = response.json().get("estimated_time", 20)
-        print(f"⏳ Model {model_id} is loading. Waiting {wait_time}s...")
-        time.sleep(wait_time)
-        # Recursive retry for loading state
-        return try_generate_with_model(model_id, text)
+        estimated_time = response.json().get("estimated_time", 20)
+        print(f"⏳ Model is sleeping. Waking up... (Wait {estimated_time}s)")
+        time.sleep(estimated_time)
+        raise Exception("Model loading retry") # Triggers tenacity retry
 
+    # Case 2: Actual Error
     if response.status_code != 200:
-        print(f"⚠️ Model {model_id} failed: {response.status_code}")
-        return None
+        raise Exception(f"HF API Error {response.status_code}: {response.text}")
 
-    return response.content
-
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-def generate_hf_audio_robust(text):
-    """Iterates through models until one works"""
-    if not HF_TOKEN:
-        raise ValueError("❌ HUGGINGFACE_API_KEY is missing!")
-
-    for model_id in MODELS:
-        audio_content = try_generate_with_model(model_id, text)
-        if audio_content:
-            # Save raw audio
-            temp_path = os.path.join(TMP, "temp_audio.flac")
-            with open(temp_path, "wb") as f:
-                f.write(audio_content)
-            return temp_path, model_id
+    # Case 3: Success
+    # Save raw audio (MMS usually returns FLAC)
+    temp_path = os.path.join(TMP, "temp_audio.flac")
+    with open(temp_path, "wb") as f:
+        f.write(response.content)
     
-    raise Exception("❌ All HF Models failed.")
+    return temp_path
 
 def convert_to_mp3(input_path):
-    print("🔄 Converting to MP3...")
+    """
+    Converts raw FLAC to MP3 and speeds up slightly for Shorts retention.
+    """
+    print("🔄 Converting FLAC to MP3 and optimizing speed...")
     try:
         from pydub import AudioSegment
         audio = AudioSegment.from_file(input_path)
         
-        # Speed up slightly (1.1x)
+        # Speed up slightly (1.1x) for viral retention
         new_sample_rate = int(audio.frame_rate * 1.1)
         faster_audio = audio._spawn(audio.raw_data, overrides={'frame_rate': new_sample_rate})
         faster_audio = faster_audio.set_frame_rate(audio.frame_rate)
@@ -100,34 +104,36 @@ def convert_to_mp3(input_path):
 
 def main():
     if not os.path.exists(SCRIPT_FILE):
-        print(f"❌ Script file not found")
+        print(f"❌ Script file not found: {SCRIPT_FILE}")
         exit(1)
 
     try:
+        # 1. Load Script
         with open(SCRIPT_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         
         raw_text = f"{data.get('hook', '')} {' '.join(data.get('bullets', []))} {data.get('cta', '')}"
         clean_text = intelligent_cleaner(raw_text)
         
-        # Generate
-        raw_path, used_model = generate_hf_audio_robust(clean_text)
+        # 2. Generate (with Retry Logic)
+        raw_audio_path = generate_hf_audio(clean_text)
         
-        # Convert
-        if convert_to_mp3(raw_path):
+        # 3. Convert & Optimize
+        if convert_to_mp3(raw_audio_path):
+            # 4. Save Metadata
             if os.path.exists(OUTPUT_FILE) and os.path.getsize(OUTPUT_FILE) > 0:
-                print(f"✅ Audio Generated using: {used_model}")
+                print(f"✅ Neural Audio Generated Successfully")
                 metadata = {
-                    "engine": f"HuggingFace ({used_model})",
+                    "engine": "HuggingFace MMS-TTS",
                     "text_length": len(clean_text),
                     "file_size": os.path.getsize(OUTPUT_FILE)
                 }
                 with open(METADATA_FILE, "w") as f:
                     json.dump(metadata, f, indent=2)
             else:
-                raise Exception("Final MP3 empty")
+                raise Exception("Final MP3 file is empty")
         else:
-            raise Exception("Conversion failed")
+            raise Exception("Audio conversion failed")
 
     except Exception as e:
         print(f"❌ FATAL AUDIO ERROR: {e}")
