@@ -62,6 +62,15 @@
       "series": "none",
       "episode": 0,
       "content_type": "manual_dispatch"
+    },
+    {
+      "topic": "ai",
+      "title": "\ud83e\udd2b ChatGPT: The FREE Secret You Need NOW!",
+      "hash": "c98280c3bb5206a2f02eac8a1bce058a",
+      "date": "2025-11-22T02:24:39.400117",
+      "series": "none",
+      "episode": 0,
+      "content_type": "manual_dispatch"
     }
   ]
 }
