@@ -282,8 +282,10 @@ jobs:
           CONTENT_TYPE: ${{ steps.schedule_check.outputs.content_type }}
         run: python .github/scripts/generate_trending_and_script.py
 
-      - name: Generate TTS (Local Coqui)
+      - name: Generate TTS (HuggingFace Neural)
         if: steps.schedule_check.outputs.should_post == 'true'
+        env:
+          HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
         run: python .github/scripts/generate_tts.py
 
       - name: Create video
@@ -513,23 +515,23 @@ jobs:
           git config --global user.name 'GitHub Actions Scheduler'
           git config --global user.email 'actions@github.com'
           
-          # Create config directory if missing
-          mkdir -p tmp
+          # Pull latest changes to avoid conflict
+          git pull --rebase --autostash || true
           
-          # Check if files exist and have changed
-          git add tmp/episode_tracking.json || true
-          git add tmp/next_episode.json || true
-          git add tmp/content_history.json || true
-          git add tmp/content_performance.json || true
+          # Force add files (bypass .gitignore if tmp is ignored)
+          git add -f tmp/episode_tracking.json || true
+          git add -f tmp/next_episode.json || true
+          git add -f tmp/content_history.json || true
+          git add -f tmp/content_performance.json || true
           
-          # Only commit if there are changes
+          # Check if there is anything to commit
           if git diff --staged --quiet; then
-            echo "No changes to state files."
+            echo "✅ No changes to state files."
           else
             git commit -m "🤖 Update Episode Counters & CTA Promises [skip ci]"
             git push
             echo "✅ State preserved to repository"
-          fi   
+          fi
           
       - name: Post-run summary (Package 3 & 4 ENHANCED)
         if: always()
