@@ -335,22 +335,26 @@ def filter_and_rank_trends(trends: List[str], user_query: str) -> List[Dict[str,
     
     prompt = f"""You are a viral content strategist. Here are REAL trending topics from today:
 
-REAL TRENDING TOPICS (from Google Trends, Tech RSS, Reddit):
+REAL TRENDING TOPICS:
 {chr(10).join(f"{i+1}. {t}" for i, t in enumerate(trends[:25]))}
 
 TASK: Select the TOP 5 topics that would make the MOST VIRAL YouTube Shorts.
+
+CRITICAL INSTRUCTIONS:
+1. RETURN RAW JSON ONLY. NO MARKDOWN CODE BLOCKS.
+2. NO TRAILING COMMAS.
+3. ENSURE VALID JSON SYNTAX.
 
 SELECTION CRITERIA:
 ✅ Must be genuinely surprising or mind-blowing
 ✅ Must have visual potential for short-form video
 ✅ Must be currently trending (these are all real trends from today)
 ✅ Must relate to: AI, Tech, Psychology, Money, Health, Productivity, Science, Innovation
-✅ Must have "wow factor" - make viewers stop scrolling
-✅ Prefer specific tools, techniques, or discoveries over general news
+✅ Prefer specific tools over general news
 
 FOCUS AREAS: {user_query}
 
-OUTPUT FORMAT (JSON ONLY):
+OUTPUT FORMAT:
 {{
   "selected_topics": [
     {{
@@ -360,11 +364,6 @@ OUTPUT FORMAT (JSON ONLY):
     }}
   ]
 }}
-
-GOOD EXAMPLES:
-- "ChatGPT's Hidden Feature That Saves 2 Hours Daily"
-- "Scientists Discovered Why You Forget Names Instantly"
-- "This iPhone Setting Drains Your Battery 40% Faster"
 
 Select 5 topics, ranked by viral_score (highest first)."""
 
@@ -381,11 +380,12 @@ Select 5 topics, ranked by viral_score (highest first)."""
             
             result_text = response.text.strip()
             
-            # Extract JSON if wrapped
+            # ✅ FIX: Robust Cleaning before parsing
             import re
-            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', result_text, re.DOTALL)
-            if json_match:
-                result_text = json_match.group(1)
+            # Remove markdown code blocks if present
+            result_text = re.sub(r'```json\s*', '', result_text)
+            result_text = re.sub(r'```\s*', '', result_text)
+            result_text = result_text.strip()
             
             data = json.loads(result_text)
             
@@ -399,20 +399,23 @@ Select 5 topics, ranked by viral_score (highest first)."""
                     "viral_score": item.get('viral_score', 90)
                 })
             
+            if not trending_ideas:
+                raise ValueError("JSON parsed but no topics found")
+
             print(f"✅ Gemini ranked {len(trending_ideas)} viral topics from real trends")
             return trending_ideas
             
         except Exception as e:
-            print(f"❌ Attempt {attempt + 1} failed: {e}")
+            print(f"❌ Attempt {attempt + 1} ranking failed: {e}")
             if attempt < max_retries - 1:
                 time.sleep(2 ** attempt)
     
     # Fallback: Just use first 5 trends
-    print("⚠️ Gemini ranking failed, using raw trends...")
+    print("⚠️ Gemini ranking failed after retries, using raw trends...")
     return [
         {
             "topic_title": trend,
-            "summary": "Currently trending topic",
+            "summary": "Currently trending topic (Raw Data)",
             "category": "Trending"
         }
         for trend in trends[:5]

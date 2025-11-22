@@ -575,6 +575,24 @@ while attempt < max_attempts:
                 raise ValueError("No JSON found in response")
         
         data = json.loads(json_text)
+
+        # ==========================================
+        # 🛡️ SAFETY SCRUBBER: Force remove bad habits
+        # ==========================================
+        def scrub_text(text):
+            # Replace "Link in bio" with "Search [Tool]"
+            text = re.sub(r'(?i)link\s+in\s+bio', f"Search {data.get('topic', 'this tool')}", text)
+            text = re.sub(r'(?i)click\s+the\s+link', f"Search {data.get('topic', 'this tool')}", text)
+            # Ensure "Bio" isn't mentioned in CTA
+            text = re.sub(r'(?i)check\s+bio', "Subscribe for more", text)
+            return text
+
+        # Scrub Bullets
+        data['bullets'] = [scrub_text(b) for b in data['bullets']]
+        # Scrub CTA (Just in case)
+        if 'cta' in data:
+            data['cta'] = scrub_text(data['cta'])
+        # ==========================================
         
         # Validate required fields
         required_fields = ["title", "topic", "hook", "bullets"]
@@ -611,9 +629,13 @@ while attempt < max_attempts:
         next_topic_title = "next week's AI breakthrough"
         
         if trending and trending.get('full_data'):
+            # ✅ LOOP KILLER: Filter by TITLE STRING, not object identity
+            current_title = data.get('title', '').lower()
+            current_topic_val = selected_topic_data.get('topic_title', '').lower() if selected_topic_data else ''
+            
             remaining_topics = [
                 item for item in trending['full_data'] 
-                if item != selected_topic_data
+                if item.get('topic_title', '').lower() not in [current_title, current_topic_val]
             ]
             
             if remaining_topics:
