@@ -116,6 +116,15 @@
       "series": "Sunday Experiments",
       "episode": 1,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "ai_gadgets",
+      "title": "Weekly Prep - Episode 1: Mind-Blowing AI Gadgets You Can Buy TODAY!",
+      "hash": "8f46bcfde4f2089df80c118c933af251",
+      "date": "2025-11-23T21:14:50.684934",
+      "series": "Weekly Prep",
+      "episode": 1,
+      "content_type": "sunday_prep"
     }
   ]
 }

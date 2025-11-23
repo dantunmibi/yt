@@ -247,5 +247,19 @@
       }
     ],
     "total_uploads": 1
+  },
+  "sunday_prep": {
+    "uploads": [
+      {
+        "upload_date": "2025-11-23T21:18:58.813262",
+        "video_id": "xt9h5_rOuXQ",
+        "title": "Weekly Prep - Episode 1: Mind-Blowing AI Gadgets You Can Buy TODAY!",
+        "content_type": "sunday_prep",
+        "completion_rate_24h": null,
+        "views_24h": null,
+        "status": "pending_analytics"
+      }
+    ],
+    "total_uploads": 1
   }
 }
