@@ -233,5 +233,19 @@
         "total_episodes": 2
       }
     }
+  },
+  "experimental_sunday": {
+    "uploads": [
+      {
+        "upload_date": "2025-11-23T18:38:54.125924",
+        "video_id": "YFbNcOYYcBU",
+        "title": "Sunday Experiments Ep 1: ChatGPT's DARK SIDE: The HIDDEN AI Trigger You NEED To Know NOW!",
+        "content_type": "experimental_sunday",
+        "completion_rate_24h": null,
+        "views_24h": null,
+        "status": "pending_analytics"
+      }
+    ],
+    "total_uploads": 1
   }
 }
