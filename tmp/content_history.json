@@ -125,6 +125,15 @@
       "series": "Weekly Prep",
       "episode": 1,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_marketing",
+      "title": "AI's DARK SIDE: Google & OpenAI's Marketing Revolution EXPOSED!",
+      "hash": "cff3a8b5623e1672f478b1b6044d8941",
+      "date": "2025-11-29T01:08:30.436671",
+      "series": "none",
+      "episode": 0,
+      "content_type": "manual_dispatch"
     }
   ]
 }
