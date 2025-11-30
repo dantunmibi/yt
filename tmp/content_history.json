@@ -143,6 +143,15 @@
       "series": "Sunday Experiments",
       "episode": 2,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "aerospace_tech",
+      "title": "Weekly Prep - Episode 2: Airbus's SHOCKING Solar Radiation Fix!",
+      "hash": "5e01d284b52928ace61e88d81ff90db0",
+      "date": "2025-11-30T21:18:35.869105",
+      "series": "Weekly Prep",
+      "episode": 2,
+      "content_type": "sunday_prep"
     }
   ]
 }
