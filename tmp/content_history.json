@@ -134,6 +134,15 @@
       "series": "none",
       "episode": 0,
       "content_type": "manual_dispatch"
+    },
+    {
+      "topic": "ai_ethics",
+      "title": "Sunday Experiments Ep 2: ChatGPT's HIDDEN BIAS EXPOSED! It WON'T Admit It!",
+      "hash": "352ff19a4f876e4c8907226255da501a",
+      "date": "2025-11-30T18:40:59.856970",
+      "series": "Sunday Experiments",
+      "episode": 2,
+      "content_type": "experimental_sunday"
     }
   ]
 }
