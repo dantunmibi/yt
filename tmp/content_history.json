@@ -161,6 +161,15 @@
       "series": "Sunday Experiments",
       "episode": 2,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "art_tech_robotics",
+      "title": "Weekly Prep - Episode 2: Beeple's $100K Robot Dog & Elon's Face?!",
+      "hash": "451c74edf42e12d614dd6853c08ee491",
+      "date": "2025-12-07T21:18:18.451416",
+      "series": "Weekly Prep",
+      "episode": 2,
+      "content_type": "sunday_prep"
     }
   ]
 }
