@@ -152,6 +152,15 @@
       "series": "Weekly Prep",
       "episode": 2,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "art_tech_robotics",
+      "title": "Sunday Experiments Ep 2: Beeple's SECRET Robot Dog: $100K Face-Swap!",
+      "hash": "61203a23ba6d9ac6c32bea086922a91c",
+      "date": "2025-12-07T18:39:26.324849",
+      "series": "Sunday Experiments",
+      "episode": 2,
+      "content_type": "experimental_sunday"
     }
   ]
 }
