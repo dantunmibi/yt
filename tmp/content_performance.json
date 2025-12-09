@@ -174,11 +174,20 @@
         "completion_rate_24h": null,
         "views_24h": null,
         "status": "pending_analytics"
+      },
+      {
+        "upload_date": "2025-12-09T00:51:10.561519",
+        "video_id": "f93Cua9n8iE",
+        "title": "Google's Doppl: Try ON Clothes VIRTUALLY in SECONDS!",
+        "content_type": "manual_dispatch",
+        "completion_rate_24h": null,
+        "views_24h": null,
+        "status": "pending_analytics"
       }
     ],
     "average_completion": 0,
     "average_rewatch": 0,
-    "total_uploads": 16,
+    "total_uploads": 17,
     "series_performance": {}
   },
   "ai_news_roundup": {

@@ -170,6 +170,15 @@
       "series": "Weekly Prep",
       "episode": 2,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_shopping",
+      "title": "Google's Doppl: Try ON Clothes VIRTUALLY in SECONDS!",
+      "hash": "6b832d9e610106e5b6bbb397ec5ab893",
+      "date": "2025-12-09T00:44:45.468758",
+      "series": "none",
+      "episode": 0,
+      "content_type": "manual_dispatch"
     }
   ]
 }
