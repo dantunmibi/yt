@@ -179,6 +179,15 @@
       "series": "none",
       "episode": 0,
       "content_type": "manual_dispatch"
+    },
+    {
+      "topic": "apple_tech",
+      "title": "Sunday Experiments Ep 2: iOS 26.2's HIDDEN 'Liquid Glass' Screen!",
+      "hash": "318ee4638e03248a6dac9f48dcf97545",
+      "date": "2025-12-14T18:37:59.453576",
+      "series": "Sunday Experiments",
+      "episode": 2,
+      "content_type": "experimental_sunday"
     }
   ]
 }
