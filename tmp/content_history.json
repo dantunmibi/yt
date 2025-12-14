@@ -188,6 +188,15 @@
       "series": "Sunday Experiments",
       "episode": 2,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "aerospace_tech",
+      "title": "Weekly Prep - Episode 2: Rivian's Secret AI Self-Driving Weapon!",
+      "hash": "53ef26e625d4075fa614f82998757185",
+      "date": "2025-12-14T21:15:17.637499",
+      "series": "Weekly Prep",
+      "episode": 2,
+      "content_type": "sunday_prep"
     }
   ]
 }
