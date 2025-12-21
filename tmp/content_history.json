@@ -206,6 +206,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "ai_tools",
+      "title": "Weekly Prep - Episode 3: NEW ChatGPT EMOTION HACK! \ud83e\udd2f",
+      "hash": "6ea45588cbc554b2549e0713574116fa",
+      "date": "2025-12-21T21:22:42.545193",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
