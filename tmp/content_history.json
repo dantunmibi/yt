@@ -197,6 +197,15 @@
       "series": "Weekly Prep",
       "episode": 2,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_ethics",
+      "title": "NY's SECRET AI Law: YOUR Digital Future Just Changed! Ep 3!",
+      "hash": "ae9fcf95c1e4b60efcafefe7b6d3f946",
+      "date": "2025-12-21T18:41:11.422145",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
