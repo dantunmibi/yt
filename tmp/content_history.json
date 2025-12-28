@@ -215,6 +215,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_tools",
+      "title": "Sunday Experiments Ep 3: \ud83e\udd2b ChatGPT's HIDDEN FREE Hacks! Control Its EMOTIONS!",
+      "hash": "7c9baac1b28bb3cb767c8962ba50f525",
+      "date": "2025-12-28T18:42:57.019769",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
