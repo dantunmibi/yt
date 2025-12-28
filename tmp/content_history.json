@@ -224,6 +224,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "apple_tech",
+      "title": "Weekly Prep - Episode 3: Top 3 Apple Watch Apps for MAX Productivity!",
+      "hash": "973b21959d9288eef86083ddf1c19332",
+      "date": "2025-12-28T21:17:10.345481",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
