@@ -242,6 +242,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "ai_ethics",
+      "title": "Weekly Prep - Episode 3: Grok AI's SHOCKING Deepfake Scandal!",
+      "hash": "2e18043c2b0ad6025fe91ae90d674e9d",
+      "date": "2026-01-04T21:22:13.498629",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
