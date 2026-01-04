@@ -233,6 +233,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_gadgets",
+      "title": "Sunday Experiments Ep 3: \ud83e\udd2b OpenAI's HIDDEN Hand Behind the NEW AI Pin! Never Take Notes Again!",
+      "hash": "2267ca68a9024c3f8ae00748d3e80e8d",
+      "date": "2026-01-04T18:37:59.234689",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
