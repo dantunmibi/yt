@@ -251,6 +251,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_agents",
+      "title": "Sunday Experiments Ep 3: Google's SECRET AI Agents Shop FOR YOU! \ud83e\udd2f",
+      "hash": "e5b28cad530da1dd7ba2928b2689ed8e",
+      "date": "2026-01-11T18:38:29.925228",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
