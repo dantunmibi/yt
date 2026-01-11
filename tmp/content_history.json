@@ -260,6 +260,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "machine learning",
+      "title": "Weekly Prep - Episode 3: CES Robots: The Machine Learning Revolution!",
+      "hash": "7e27665b25320007b29e8d73e069c461",
+      "date": "2026-01-11T21:27:07.733516",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
