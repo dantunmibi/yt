@@ -278,6 +278,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "ai_ethics",
+      "title": "Weekly Prep - Episode 3: xAI Deepfake Scandal: Your Digital Reality!",
+      "hash": "0d544bb9b6d3b18d07f17bf93539745f",
+      "date": "2026-01-18T21:16:00.803907",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
