@@ -269,6 +269,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_privacy",
+      "title": "Sunday Experiments Ep 3: \ud83e\udd2b ChatGPT's PRIVATE Alternative is HERE! Guards Your SECRETS!",
+      "hash": "9ff55df7684982a9f645ede1bc916d54",
+      "date": "2026-01-18T18:37:18.824215",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
