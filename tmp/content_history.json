@@ -287,6 +287,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_tools",
+      "title": "Tool Teardown Tuesday - Episode 3: ChatGPT Vision's SECRET Image Analysis!",
+      "hash": "b481ccc770bfb270c29b39e79d465afe",
+      "date": "2026-01-25T18:45:17.341107",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
