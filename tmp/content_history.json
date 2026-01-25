@@ -296,6 +296,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "midjourney_secret_parameter",
+      "title": "Weekly Prep - Episode 3: Midjourney's SECRET Parameter Unlocked!",
+      "hash": "ae358f2a2f03701c53d8c77bd068c55b",
+      "date": "2026-01-25T21:15:46.924433",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
