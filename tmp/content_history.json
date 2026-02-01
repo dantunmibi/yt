@@ -305,6 +305,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "aerospace_tech",
+      "title": "SpaceX's MILLION Solar Satellites: The HIDDEN Data Future! Ep 3",
+      "hash": "31179a090bb6a85d0f978eb71ed60522",
+      "date": "2026-02-01T18:47:58.723866",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
