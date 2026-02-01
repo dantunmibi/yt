@@ -314,6 +314,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "aerospace_tech",
+      "title": "Weekly Prep - Episode 3: SpaceX's CRAZY Plan: Space Data Centers!",
+      "hash": "572b18f60fce38f9b0bfef76871b6e13",
+      "date": "2026-02-01T21:19:49.297931",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
