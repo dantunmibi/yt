@@ -332,6 +332,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "ai_marketing",
+      "title": "Weekly Prep - Episode 3: Super Bowl Ads HIJACKED by AI! \ud83e\udd2f",
+      "hash": "f5c62370aa15ae3c2772b9b21515856e",
+      "date": "2026-02-08T21:30:01.918403",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
