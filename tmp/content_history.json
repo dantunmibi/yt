@@ -323,6 +323,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_marketing",
+      "title": "Sunday Experiments Ep 3: AI Took OVER Super Bowl Ads! \ud83e\udd2f",
+      "hash": "43eb720a936f8cf221ca24da00fb06e6",
+      "date": "2026-02-08T18:47:01.854783",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
