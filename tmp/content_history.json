@@ -341,6 +341,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_artificial_intelligence",
+      "title": "Sunday Experiments Ep 3: \ud83e\udd2b The SECRET AI Behind Super Bowl LX Ads! \ud83e\udd2f",
+      "hash": "ca084119b73e6164ad2f4970d14ffb2e",
+      "date": "2026-02-15T18:56:38.911552",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
