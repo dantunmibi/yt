@@ -350,6 +350,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "ai_video_generation",
+      "title": "Weekly Prep - Episode 3: Seedance 2.0's Hollywood Shock!",
+      "hash": "7803d40a123721e201c97fd4297cc242",
+      "date": "2026-02-15T21:19:48.068532",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
