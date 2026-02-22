@@ -359,6 +359,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "brain_computer_interface",
+      "title": "Sunday Experiments Ep 3: China's BCI Race: Mind Control is REAL!",
+      "hash": "badb0d15c31917246b5cb798871b39cb",
+      "date": "2026-02-22T18:49:40.829594",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
