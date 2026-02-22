@@ -368,6 +368,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "ai_privacy",
+      "title": "Weekly Prep - Episode 3: OpenAI Called Police? Your AI Chats ARE Monitored!",
+      "hash": "2e2c0c71f5fa50f3ccd8436e4d8d07fa",
+      "date": "2026-02-22T21:23:59.693642",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
