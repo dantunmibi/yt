@@ -386,6 +386,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "robot_phone",
+      "title": "Weekly Prep - Episode 3: Robot Phone DANCES?! Smartphone Future ARRIVED!",
+      "hash": "de3caa7b06bfe80776c96b2df32b3d7a",
+      "date": "2026-03-01T21:20:57.776988",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
