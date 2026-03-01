@@ -377,6 +377,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "openai_pentagon_deal",
+      "title": "OpenAI & Pentagon's SECRET AI Deal! \ud83d\udea8 Episode 3: The Truth You NEED to Know!",
+      "hash": "2165c37c80b705573d94edc263385ea6",
+      "date": "2026-03-01T18:47:51.258591",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
