@@ -404,6 +404,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "artificial_intelligence_news",
+      "title": "Weekly Prep - Episode 3: ChatGPT's 'Adult Mode' Delay: The HIDDEN Reason!",
+      "hash": "74ce62a71cbc59ba1a66053b30110819",
+      "date": "2026-03-08T21:29:45.795591",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
