@@ -413,6 +413,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_integrations",
+      "title": "ChatGPT Orders Your Uber?! \ud83e\udd2f NEW Secret App Integrations! Ep 3",
+      "hash": "8b34383b925c61505604f20b9f07af97",
+      "date": "2026-03-15T18:56:23.354825",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
