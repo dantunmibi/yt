@@ -422,6 +422,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "ai_integrations",
+      "title": "Weekly Prep - Episode 3: ChatGPT Goes WILD! Uber, DoorDash & Spotify Integrations!",
+      "hash": "25923e14750d9cc5cc2dbdbebb55ba3f",
+      "date": "2026-03-15T21:23:34.826438",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
