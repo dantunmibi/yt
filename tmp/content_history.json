@@ -440,6 +440,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "artificial_intelligence_ai",
+      "title": "Weekly Prep - Episode 3: Elon Musk's xAI: The SECRET Plan Revealed!",
+      "hash": "956a4f0d2537ca4777c448467087feb3",
+      "date": "2026-03-22T21:32:11.260353",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
