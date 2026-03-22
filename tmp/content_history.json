@@ -431,6 +431,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "amazon_ai",
+      "title": "Sunday Experiments Ep 3: Amazon's SECRET Chip: Beats OpenAI & Apple!",
+      "hash": "a13be21416c96da82ac169e56b5b2cbb",
+      "date": "2026-03-22T18:51:23.524539",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
