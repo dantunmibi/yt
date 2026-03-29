@@ -458,6 +458,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "robotaxi_emergency",
+      "title": "Weekly Prep - Episode 3: Robotaxi Called 911?! AI's Safety Leap!",
+      "hash": "9afbadc3dc83ace5f8b94ccbf1f93bef",
+      "date": "2026-03-29T21:31:33.542897",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
