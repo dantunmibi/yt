@@ -476,6 +476,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "smartfarming",
+      "title": "Weekly Prep - Episode 3: Thiel's Solar Cow Collars: Future Farming?!",
+      "hash": "894a6213a22925fee5528ea08e4dc613",
+      "date": "2026-04-05T21:27:09.970519",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
