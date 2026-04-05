@@ -467,6 +467,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "cybersecurity_drones",
+      "title": "WARNING: NEVER Ask AI for THIS! \ud83e\udd2b Drone Warfare HACKED! | Sunday Experiments Ep 3",
+      "hash": "a5a08f6dd27abc6d39ad436b1a609816",
+      "date": "2026-04-05T18:55:41.481941",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
