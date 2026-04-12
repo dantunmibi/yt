@@ -494,6 +494,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "amc_tiktok_premiere",
+      "title": "Weekly Prep - Episode 3: AMC's TikTok Movie Premiere: Genius or Flop?",
+      "hash": "d108f454a3311b74292e3bc012f635b1",
+      "date": "2026-04-12T21:29:09.942369",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
