@@ -485,6 +485,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_hardware",
+      "title": "Japan's Robot Secret: Ep 3! UNWANTED Jobs Vanish with NVIDIA AI! \ud83e\udd2b",
+      "hash": "8a37cbd220bb9d5fc5c62cf5bcee70fe",
+      "date": "2026-04-12T19:00:34.759199",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
