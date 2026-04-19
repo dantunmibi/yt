@@ -512,6 +512,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "robots_marathon",
+      "title": "Weekly Prep - Episode 3: Robots Beat Humans in a Marathon!",
+      "hash": "c2d1e1834cf0885bc47f88e3dd4f1504",
+      "date": "2026-04-19T21:56:54.696595",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
