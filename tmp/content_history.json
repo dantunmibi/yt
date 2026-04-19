@@ -503,6 +503,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_chips",
+      "title": "SECRET AI Chip Company Just Went PUBLIC! Nvidia-Backed SiFive SHOCKS Tech! | Ep 3",
+      "hash": "a3aac2cf5bffc9a1d48544dc8825609f",
+      "date": "2026-04-19T19:11:17.536445",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
