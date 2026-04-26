@@ -521,6 +521,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_agents_marketplace",
+      "title": "Robots Beat Humans in TRADING?! AI Agents Win! | Sunday Experiments Ep 3",
+      "hash": "3363d435599b824e315a90b45828f64d",
+      "date": "2026-04-26T19:09:36.003560",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
