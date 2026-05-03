@@ -539,6 +539,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "artificial_intelligence_ai",
+      "title": "Midjourney's SECRET --cohesion Parameter: Unleash AI Art! | Sunday Experiments Ep 3",
+      "hash": "58898dfd74c280d1d4fe8333d0122d8b",
+      "date": "2026-05-03T19:22:20.529586",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
