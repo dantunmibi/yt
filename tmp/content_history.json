@@ -557,6 +557,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "creativity_machine",
+      "title": "Unlock Your Hidden Creativity: This $99 Machine is a Game-Changer! | Sunday Experiments Ep 3",
+      "hash": "180e53abbfac6628af9351e98658809d",
+      "date": "2026-05-10T19:18:50.592069",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
