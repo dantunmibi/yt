@@ -566,6 +566,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "ai_investment",
+      "title": "Weekly Prep - Episode 3: NVIDIA's $40B AI Bet: Future Jobs Revealed!",
+      "hash": "6077361762a6615f869c5b19580aec7c",
+      "date": "2026-05-10T21:43:07.420640",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
