@@ -575,6 +575,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_chip_company_struggle",
+      "title": "Sunday Experiments Ep 3: THIS $60B AI Chip Giant Almost DIED! \ud83e\udd2f",
+      "hash": "040213cf06137e115ebea283e90eb7e8",
+      "date": "2026-05-17T19:18:30.414708",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
