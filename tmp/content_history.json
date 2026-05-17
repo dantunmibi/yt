@@ -584,6 +584,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "posture_gadget",
+      "title": "Weekly Prep - Episode 3: THIS Gadget FIXED My Posture in 1 Day!",
+      "hash": "13a008813c6afd171f6a8349a8efb165",
+      "date": "2026-05-17T21:50:18.313146",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
