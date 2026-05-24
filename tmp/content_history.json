@@ -602,6 +602,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "smartglasses_ai",
+      "title": "Weekly Prep - Episode 3: Google & Xreal UNLOCK AI Smartglasses Future!",
+      "hash": "561d84c9106c04400ab07b473296e371",
+      "date": "2026-05-24T21:50:46.572710",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
