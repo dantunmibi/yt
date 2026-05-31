@@ -611,6 +611,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_tools_experiment",
+      "title": "I Used Google Gemini Spark 24/7: My SHOCKING Results! | Sunday Experiments Ep 3",
+      "hash": "b2818b349f73bce8887a823d7bac9f66",
+      "date": "2026-05-31T19:30:15.296354",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
