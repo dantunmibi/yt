@@ -629,6 +629,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "apple_ai_revolution",
+      "title": "Apple's SECRET AI Brain: Siri's WWDC Upgrade! | Sunday Experiments Ep 3",
+      "hash": "79b86f0c148e1c2fc4015ac9268f6a77",
+      "date": "2026-06-07T19:42:19.776703",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
