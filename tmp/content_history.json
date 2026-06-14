@@ -647,6 +647,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "government_ai_shutdown",
+      "title": "Sunday Exp. 3: Anthropic AI SHUT DOWN by Gov! \ud83e\udd2f What Was It HIDING?",
+      "hash": "8aaa08cce23022c16cba10142e29da3e",
+      "date": "2026-06-14T19:56:41.024177",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
