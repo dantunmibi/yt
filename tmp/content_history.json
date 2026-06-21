@@ -665,6 +665,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "mcdonalds_ai",
+      "title": "McDonald's Secret AI: ArchiQ Changes Your Order FOREVER! | Sunday Experiments Ep 3",
+      "hash": "06f35ed4cfc19474a991ac1fcaf442bc",
+      "date": "2026-06-21T19:57:25.638776",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
