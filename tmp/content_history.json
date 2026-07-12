@@ -719,6 +719,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "apple_ai_revolution",
+      "title": "Sunday Exp. 3: Apple Car FLOP Gave Us SECRET AI Superchip?! \ud83e\udd2f",
+      "hash": "210b70f282371b512dd28999b7cd6ef9",
+      "date": "2026-07-12T19:14:23.551293",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
