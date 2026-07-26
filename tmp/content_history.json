@@ -755,6 +755,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "best_artificial_intelligence",
+      "title": "RealityEngine X: This AI Creates WORLDS in SECONDS! | Sunday Experiments Ep 3",
+      "hash": "55bca2532cc2b48f67432ada1a41146c",
+      "date": "2026-07-26T19:31:23.515860",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
