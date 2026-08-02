@@ -773,6 +773,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_parenting",
+      "title": "Sunday Exp. 3: Sam Altman: Let ChatGPT Parent Your Kids?! \ud83e\udd2f",
+      "hash": "09911aa2aa5d3d256d0950c35f72af85",
+      "date": "2026-08-02T19:23:09.267767",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
