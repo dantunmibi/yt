@@ -791,6 +791,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "invisible_cloak",
+      "title": "Sunday Exp. 3: Invisible Cloak Hides You From ALL Cameras?! \ud83e\udd2f",
+      "hash": "55dec36b9eae4669d04aa5a4d854b3ec",
+      "date": "2026-08-09T18:54:25.607661",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
