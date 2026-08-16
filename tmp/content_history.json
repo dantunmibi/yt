@@ -818,6 +818,15 @@
       "series": "Sunday Experiments",
       "episode": 3,
       "content_type": "experimental_sunday"
+    },
+    {
+      "topic": "ai_productivity",
+      "title": "Weekly Prep - Episode 3: NEVER Hit Snooze Again! This NEW AI App Forces You to Wake Up & BE PRODUCTIVE!",
+      "hash": "b7c27a5d42d08a2aaa07a943ec4d561b",
+      "date": "2026-08-16T21:16:22.796060",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
     }
   ]
 }
