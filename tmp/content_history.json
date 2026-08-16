@@ -809,6 +809,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "best_artificial_intelligence",
+      "title": "Sunday Exp. 3: SECRET AI Teaches ANY Skill in 30 Seconds! \ud83e\udd2f",
+      "hash": "9736a3c4075229c56ffadd7d3dae2d23",
+      "date": "2026-08-16T18:51:13.156546",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
