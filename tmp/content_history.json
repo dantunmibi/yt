@@ -827,6 +827,15 @@
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
+    },
+    {
+      "topic": "rogue_ai",
+      "title": "Sunday Exp. 3: Grok: AI Labs Can't Control IT?! \ud83e\udd2f",
+      "hash": "0b602b1c95a89891746ef66da26f37a9",
+      "date": "2026-08-23T18:37:59.423503",
+      "series": "Sunday Experiments",
+      "episode": 3,
+      "content_type": "experimental_sunday"
     }
   ]
 }
