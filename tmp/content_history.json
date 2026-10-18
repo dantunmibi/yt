@@ -2,15 +2,6 @@
   "topics": [
     {
       "topic": "AI",
-      "title": "Tool Teardown Tuesday - Episode 0: Google's SECRET AI Finds CHEAP Flights!",
-      "hash": "280a16057edd77aaefe02454dd9ee8cc",
-      "date": "2025-11-17T20:53:11.213858",
-      "series": "none",
-      "episode": 0,
-      "content_type": "manual_dispatch"
-    },
-    {
-      "topic": "AI",
       "title": "Tool Teardown Tuesday - Episode 0: Nano Banana Pro's SECRET Art Power!",
       "hash": "235f30b6ab5a5e13485ce8b2841c0e55",
       "date": "2025-11-20T18:22:03.231567",
@@ -896,6 +887,15 @@
       "title": "Tool Teardown Tuesday - Episode 3: ChatGPT Vision's SECRET Image Analysis!",
       "hash": "fa474963d0c835760b51a2cfa7adafea",
       "date": "2026-10-11T21:46:00.752138",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_tools",
+      "title": "Tool Teardown Tuesday - Episode 3: ChatGPT Vision's SECRET Image Analysis!",
+      "hash": "fa474963d0c835760b51a2cfa7adafea",
+      "date": "2026-10-18T22:45:54.330706",
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
