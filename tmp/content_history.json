@@ -1,15 +1,6 @@
 {
   "topics": [
     {
-      "topic": "ai",
-      "title": "Tool Teardown Tuesday - Episode 0: ChatGPT: Group Chats Unlock FREE Teamwork!",
-      "hash": "e369559142c7d61fb1f4eeca03ab9ca0",
-      "date": "2025-11-21T01:56:48.445774",
-      "series": "none",
-      "episode": 0,
-      "content_type": "manual_dispatch"
-    },
-    {
       "topic": "mobile_tech",
       "title": "iPhone & Android: SECRET AirDrop for EVERYONE NOW!",
       "hash": "4903c9f36aa08ab0dd2bbf97ad70668b",
@@ -896,6 +887,15 @@
       "title": "Tool Teardown Tuesday - Episode 3: ChatGPT Vision's SECRET Image Analysis!",
       "hash": "fa474963d0c835760b51a2cfa7adafea",
       "date": "2026-10-25T23:30:05.460129",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_tools",
+      "title": "Tool Teardown Tuesday - Episode 3: ChatGPT Vision's SECRET Image Analysis!",
+      "hash": "fa474963d0c835760b51a2cfa7adafea",
+      "date": "2026-11-01T21:55:58.316155",
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
