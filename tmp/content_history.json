@@ -1,15 +1,6 @@
 {
   "topics": [
     {
-      "topic": "mobile_tech",
-      "title": "iPhone & Android: SECRET AirDrop for EVERYONE NOW!",
-      "hash": "4903c9f36aa08ab0dd2bbf97ad70668b",
-      "date": "2025-11-21T03:29:02.358385",
-      "series": "none",
-      "episode": 0,
-      "content_type": "manual_dispatch"
-    },
-    {
       "topic": "ai",
       "title": "Google's AI Scam Protection: The HIDDEN Fix You Need NOW!",
       "hash": "134bcec5c139e77d65e56fead5700f29",
@@ -896,6 +887,15 @@
       "title": "Tool Teardown Tuesday - Episode 3: ChatGPT Vision's SECRET Image Analysis!",
       "hash": "fa474963d0c835760b51a2cfa7adafea",
       "date": "2026-11-01T21:55:58.316155",
+      "series": "Weekly Prep",
+      "episode": 3,
+      "content_type": "sunday_prep"
+    },
+    {
+      "topic": "ai_tools",
+      "title": "Tool Teardown Tuesday - Episode 3: ChatGPT Vision's SECRET Image Analysis!",
+      "hash": "fa474963d0c835760b51a2cfa7adafea",
+      "date": "2026-11-08T22:04:14.847825",
       "series": "Weekly Prep",
       "episode": 3,
       "content_type": "sunday_prep"
